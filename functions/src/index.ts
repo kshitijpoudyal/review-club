@@ -801,7 +801,11 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promis
 
             let matches = 0;
             for (const pattern of Object.values(RETAILER_EMAIL_PATTERNS)) {
-                const query = `${pattern} after:${afterEpoch}`;
+                // Gmail's search parser doesn't treat "after:0" as "no lower
+                // bound" — it silently fails to match anything. Omit the
+                // clause entirely instead (true for both a fresh ignoreCursors
+                // rescan and any brand-new user's very first check).
+                const query = afterEpoch > 0 ? `${pattern} after:${afterEpoch}` : pattern;
                 const count = await countGmailMatches(accessToken, query);
                 logger.info(`Gmail review search "${query}" → ${count} match(es) for user ${userDoc.id}`);
                 matches += count;
@@ -826,7 +830,7 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promis
 
             let newOrdersFound = 0;
             for (const pattern of Object.values(ORDER_CONFIRMATION_PATTERNS)) {
-                const query = `${pattern} after:${orderAfterEpoch}`;
+                const query = orderAfterEpoch > 0 ? `${pattern} after:${orderAfterEpoch}` : pattern;
                 const messageIds = await listGmailMessageIds(accessToken, query);
                 logger.info(`Gmail order search "${query}" → ${messageIds.length} match(es) for user ${userDoc.id}`);
 
