@@ -46,6 +46,15 @@ service cloud.firestore {
         allow read: if request.auth != null && request.auth.uid == userId && integrationId == 'gmailStatus';
         allow write: if false;
       }
+
+      // Draft products detected from Gmail order-confirmation emails,
+      // pending the user's review. Created only by the Admin SDK (bypasses
+      // rules); the client can read them to show the review list and delete
+      // them once added or dismissed.
+      match /pendingGmailImports/{importId} {
+        allow read, delete: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if false;
+      }
     }
   }
 }

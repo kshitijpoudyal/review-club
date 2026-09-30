@@ -52,10 +52,21 @@ const gmailOAuthRedirectUri = defineSecret("GMAIL_OAUTH_REDIRECT_URI");
 // build the redirect target after the OAuth callback completes.
 const appBaseUrl = defineSecret("APP_BASE_URL");
 
-// Gmail search query per retailer — tune these once real subject lines are confirmed.
-// `after:` (epoch seconds) is appended at query time based on lastCheckedAt.
+// Gmail search query per retailer — confirmed against a real Amazon sample:
+// sender "Amazon Reviews <no-reply@amazon.com>", subject "Thank you for
+// reviewing <item>... on Amazon". `after:` (epoch seconds) is appended at
+// query time based on lastCheckedAt.
 const RETAILER_EMAIL_PATTERNS: Record<string, string> = {
-    amazon: "from:(amazon.com) subject:(review)",
+    amazon: 'from:(no-reply@amazon.com) subject:("Thank you for reviewing")',
+};
+
+// Order-confirmation emails, per retailer — confirmed against a real Amazon
+// sample: sender auto-confirm@amazon.com, subject `Ordered: "..."`.
+const ORDER_CONFIRMATION_PATTERNS: Record<string, string> = {
+    // No trailing colon in the subject term — Gmail's search parser treats
+    // ":" as a field separator, so "subject:(Ordered:)" silently matched
+    // nothing rather than erroring.
+    amazon: "from:(auto-confirm@amazon.com) subject:(Ordered)",
 };
 
 // Checks every product for every user, and pushes a notification for any
@@ -385,11 +396,26 @@ export const gmailOAuthCallback = onRequest(
                 return;
             }
 
+            // Fetch which Gmail address this actually is — surfaced in Settings so
+            // it's obvious if the wrong Google account got connected.
+            let emailAddress: string | null = null;
+            try {
+                const profileRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
+                    headers: { Authorization: `Bearer ${tokens.access_token}` },
+                });
+                if (profileRes.ok) {
+                    const profile = (await profileRes.json()) as { emailAddress?: string };
+                    emailAddress = profile.emailAddress ?? null;
+                }
+            } catch (profileErr) {
+                logger.warn(`Gmail OAuth: couldn't fetch profile email for uid ${uid}:`, profileErr);
+            }
+
             const db = getFirestore();
             const integrations = db.collection("users").doc(uid).collection("integrations");
             await integrations.doc("gmailSecret").set({ refreshToken: tokens.refresh_token }, { merge: true });
             await integrations.doc("gmailStatus").set(
-                { connected: true, connectedAt: new Date().toISOString(), lastCheckedAt: null },
+                { connected: true, connectedAt: new Date().toISOString(), lastCheckedAt: null, emailAddress },
                 { merge: true }
             );
 
@@ -431,11 +457,187 @@ async function countGmailMatches(accessToken: string, query: string): Promise<nu
     return data.messages?.length ?? 0;
 }
 
+async function listGmailMessageIds(accessToken: string, query: string): Promise<string[]> {
+    const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?${new URLSearchParams({
+        q: query,
+        maxResults: "10",
+    })}`;
+
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+    if (!res.ok) {
+        const err = new Error(`Gmail API error ${res.status}`) as Error & { statusCode: number };
+        err.statusCode = res.status;
+        throw err;
+    }
+
+    const data = (await res.json()) as GmailMessageListResponse;
+    return (data.messages ?? []).map((m) => m.id);
+}
+
+interface GmailMessagePart {
+    mimeType?: string;
+    body?: { data?: string };
+    parts?: GmailMessagePart[];
+}
+
+interface GmailMessageGetResponse {
+    internalDate?: string; // epoch millis, as a string
+    payload?: GmailMessagePart;
+}
+
+function decodeGmailBase64Url(data: string): string {
+    return Buffer.from(data, "base64url").toString("utf-8");
+}
+
+// Walks the MIME part tree for a message, preferring text/plain (closer to
+// what a human sees when they copy the email as text) and falling back to a
+// tag-stripped text/html if no plain part exists.
+function findGmailBodyText(part: GmailMessagePart | undefined): { plain?: string; html?: string } {
+    if (!part) return {};
+
+    if (part.mimeType === "text/plain" && part.body?.data) {
+        return { plain: decodeGmailBase64Url(part.body.data) };
+    }
+    if (part.mimeType === "text/html" && part.body?.data) {
+        return { html: decodeGmailBase64Url(part.body.data) };
+    }
+
+    let plain: string | undefined;
+    let html: string | undefined;
+    for (const child of part.parts ?? []) {
+        const found = findGmailBodyText(child);
+        plain = plain ?? found.plain;
+        html = html ?? found.html;
+    }
+    return { plain, html };
+}
+
+function stripHtmlTags(html: string): string {
+    return html
+        .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/(p|div|td|tr|li)>/gi, "\n")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n\s*\n+/g, "\n")
+        .trim();
+}
+
+async function fetchGmailMessage(accessToken: string, messageId: string): Promise<{ text: string; html?: string; receivedAt: Date }> {
+    const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+
+    if (!res.ok) {
+        const err = new Error(`Gmail API error ${res.status}`) as Error & { statusCode: number };
+        err.statusCode = res.status;
+        throw err;
+    }
+
+    const data = (await res.json()) as GmailMessageGetResponse;
+    const { plain, html } = findGmailBodyText(data.payload);
+    const receivedAt = data.internalDate ? new Date(Number(data.internalDate)) : new Date();
+
+    return { text: plain ?? (html ? stripHtmlTags(html) : ""), html, receivedAt };
+}
+
+// Shape matches the frontend's BookmarkletPayload (src/utils/bookmarkletPayload.ts)
+// exactly, so a detected order can be handed to the existing Add Product
+// prefill flow without any new form logic.
+interface GmailOrderPayload {
+    retailer: "amazon";
+    orderDate: string;
+    orderNumber: string;
+    orderTotal: number | null;
+    tax: number | null;
+    productName: string;
+    productUrl: string;
+    imageUrl: string;
+}
+
+// Parses an Amazon order-confirmation email body into a draft order. Only
+// the first line item is extracted for multi-item orders — tax is left
+// null in that case since grandTotal - firstItemPrice wouldn't be accurate.
+// Returns null if it can't find at minimum an order number and item name,
+// since a draft missing both isn't worth surfacing.
+function parseAmazonOrderEmail(bodyText: string, html: string | undefined, receivedAt: Date): GmailOrderPayload | null {
+    const orderNumberMatch = bodyText.match(/Order #\s*(\d{3}-\d{7}-\d{7})/);
+    const orderNumber = orderNumberMatch?.[1] ?? "";
+
+    const lines = bodyText.split("\n").map((l) => l.trim());
+    const quantityIndex = lines.findIndex((l) => /^Quantity:\s*\d+/i.test(l));
+
+    let productName = "";
+    if (quantityIndex >= 0) {
+        const candidates: string[] = [];
+        for (let i = quantityIndex - 1; i >= 0 && candidates.length < 2; i--) {
+            const line = lines[i];
+            if (!line) continue;
+            if (/^View or edit order$/i.test(line) || /^Order #/i.test(line)) break;
+            candidates.push(line);
+        }
+        // Prefer whichever candidate isn't truncated with "..."; fall back to the longer one.
+        const untruncated = candidates.find((c) => !c.endsWith("..."));
+        productName = untruncated ?? candidates.sort((a, b) => b.length - a.length)[0] ?? "";
+    }
+
+    if (!orderNumber && !productName) return null;
+
+    const quantityMentions = bodyText.match(/Quantity:\s*\d+/gi) ?? [];
+    const isMultiItem = quantityMentions.length > 1;
+
+    let itemPrice: number | null = null;
+    if (quantityIndex >= 0) {
+        for (let i = quantityIndex + 1; i < lines.length && i < quantityIndex + 6; i++) {
+            const priceMatch = lines[i].match(/^\$(\d{3,})$/);
+            if (priceMatch) {
+                const digits = priceMatch[1];
+                const dollars = digits.slice(0, -2);
+                const cents = digits.slice(-2);
+                itemPrice = parseFloat(`${dollars}.${cents}`);
+                break;
+            }
+        }
+    }
+
+    const grandTotalMatch = bodyText.match(/Grand Total:\s*\$?([\d,]+\.\d{2})/i);
+    const orderTotal = grandTotalMatch ? parseFloat(grandTotalMatch[1].replace(/,/g, "")) : null;
+
+    const tax = !isMultiItem && orderTotal !== null && itemPrice !== null
+        ? Math.round((orderTotal - itemPrice) * 100) / 100
+        : null;
+
+    let productUrl = "";
+    let imageUrl = "";
+    if (html) {
+        const productLinkMatch = html.match(/href="([^"]*\/dp\/[^"]*)"/i);
+        if (productLinkMatch) productUrl = productLinkMatch[1].replace(/&amp;/g, "&");
+        const imgMatch = html.match(/<img[^>]+src="([^"]+)"/i);
+        if (imgMatch) imageUrl = imgMatch[1].replace(/&amp;/g, "&");
+    }
+
+    return {
+        retailer: "amazon",
+        orderDate: receivedAt.toISOString(),
+        orderNumber,
+        orderTotal,
+        tax,
+        productName,
+        productUrl,
+        imageUrl,
+    };
+}
+
 // Checks every connected user's Gmail for new retailer "review is live"
-// emails since their last check, and pushes a notification if any are found.
-async function runGmailReviewCheck(db: Firestore): Promise<{ checked: number; notified: number; reauthNeeded: number }> {
+// emails and new order-confirmation emails since their last check, pushing a
+// notification for either. Order confirmations also get parsed into a draft
+// product written to pendingGmailImports for the user to review and confirm.
+async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promise<{ checked: number; notified: number; ordersDetected: number; reauthNeeded: number }> {
     let checked = 0;
     let notified = 0;
+    let ordersDetected = 0;
     let reauthNeeded = 0;
 
     const usersSnapshot = await db.collection("users").get();
@@ -453,12 +655,15 @@ async function runGmailReviewCheck(db: Firestore): Promise<{ checked: number; no
 
         try {
             const accessToken = await getGmailAccessToken(refreshToken);
-            const lastCheckedAt = status.lastCheckedAt ? new Date(status.lastCheckedAt) : new Date(0);
+            const lastCheckedAt = status.lastCheckedAt && !ignoreCursors ? new Date(status.lastCheckedAt) : new Date(0);
             const afterEpoch = Math.floor(lastCheckedAt.getTime() / 1000);
 
             let matches = 0;
             for (const pattern of Object.values(RETAILER_EMAIL_PATTERNS)) {
-                matches += await countGmailMatches(accessToken, `${pattern} after:${afterEpoch}`);
+                const query = `${pattern} after:${afterEpoch}`;
+                const count = await countGmailMatches(accessToken, query);
+                logger.info(`Gmail review search "${query}" → ${count} match(es) for user ${userDoc.id}`);
+                matches += count;
             }
 
             if (matches > 0) {
@@ -472,6 +677,50 @@ async function runGmailReviewCheck(db: Firestore): Promise<{ checked: number; no
             }
 
             await statusRef.set({ lastCheckedAt: new Date().toISOString() }, { merge: true });
+
+            // Separate cursor from the review-live check above, so one
+            // query type's activity never affects the other's search window.
+            const lastOrderCheckedAt = status.lastOrderCheckedAt && !ignoreCursors ? new Date(status.lastOrderCheckedAt) : new Date(0);
+            const orderAfterEpoch = Math.floor(lastOrderCheckedAt.getTime() / 1000);
+
+            let newOrdersFound = 0;
+            for (const pattern of Object.values(ORDER_CONFIRMATION_PATTERNS)) {
+                const query = `${pattern} after:${orderAfterEpoch}`;
+                const messageIds = await listGmailMessageIds(accessToken, query);
+                logger.info(`Gmail order search "${query}" → ${messageIds.length} match(es) for user ${userDoc.id}`);
+
+                for (const messageId of messageIds) {
+                    const pendingRef = db.collection("users").doc(userDoc.id).collection("pendingGmailImports").doc(messageId);
+                    if ((await pendingRef.get()).exists) continue;
+
+                    const { text, html, receivedAt } = await fetchGmailMessage(accessToken, messageId);
+                    const draft = parseAmazonOrderEmail(text, html, receivedAt);
+                    if (!draft) {
+                        logger.warn(`Gmail order message ${messageId} didn't parse into a usable draft`);
+                        continue;
+                    }
+
+                    await pendingRef.set({ ...draft, detectedAt: new Date().toISOString() });
+                    newOrdersFound++;
+                }
+            }
+
+            // Report actual detections regardless of whether the push also
+            // succeeded — "detected" and "notified" are different things,
+            // and a user with no push subscriptions yet shouldn't look like
+            // nothing was found.
+            ordersDetected += newOrdersFound;
+
+            if (newOrdersFound > 0) {
+                await sendPushToAllSubscriptions(db, userDoc.id, {
+                    title: "📦 New order detected",
+                    body: `Found ${newOrdersFound} new Amazon order${newOrdersFound === 1 ? "" : "s"} — review and add ${newOrdersFound === 1 ? "it" : "them"} to the tracker.`,
+                    url: "/products",
+                    tag: "gmail-new-order",
+                });
+            }
+
+            await statusRef.set({ lastOrderCheckedAt: new Date().toISOString() }, { merge: true });
         } catch (err: any) {
             if (err?.statusCode === 401 || String(err?.message).includes("invalid_grant")) {
                 reauthNeeded++;
@@ -489,7 +738,7 @@ async function runGmailReviewCheck(db: Firestore): Promise<{ checked: number; no
         }
     }
 
-    return { checked, notified, reauthNeeded };
+    return { checked, notified, ordersDetected, reauthNeeded };
 }
 
 // Runs the Gmail review-live check hourly for every connected user.
@@ -502,7 +751,7 @@ export const checkGmailForReviewLive = onSchedule(
         const db = getFirestore();
         configureWebPush();
         const result = await runGmailReviewCheck(db);
-        logger.info(`Gmail review check: ${result.checked} users checked, ${result.notified} notified, ${result.reauthNeeded} need reauth`);
+        logger.info(`Gmail review check: ${result.checked} users checked, ${result.notified} notified, ${result.ordersDetected} orders detected, ${result.reauthNeeded} need reauth`);
     }
 );
 
@@ -519,7 +768,11 @@ export const triggerGmailCheck = onRequest(
         }
         const db = getFirestore();
         configureWebPush();
-        const result = await runGmailReviewCheck(db);
+        // ?ignoreCursors=true re-scans from the beginning instead of just
+        // since the last check — handy for testing without waiting.
+        const ignoreCursors = request.query.ignoreCursors === "true";
+        const result = await runGmailReviewCheck(db, ignoreCursors);
+        logger.info(`Gmail review check (manual): ${result.checked} users checked, ${result.notified} notified, ${result.ordersDetected} orders detected, ${result.reauthNeeded} need reauth`);
         response.status(200).json(result);
     }
 );

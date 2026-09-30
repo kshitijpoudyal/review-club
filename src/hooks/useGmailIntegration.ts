@@ -9,6 +9,8 @@ interface GmailStatus {
   connected: boolean;
   connectedAt?: string;
   lastCheckedAt?: string | null;
+  lastOrderCheckedAt?: string | null;
+  emailAddress?: string | null;
 }
 
 export const useGmailIntegration = () => {
@@ -41,6 +43,7 @@ export const useGmailIntegration = () => {
   return {
     connected: status?.connected === true,
     lastCheckedAt: status?.lastCheckedAt ?? null,
+    emailAddress: status?.emailAddress ?? null,
     loading,
     connectUrl,
   };

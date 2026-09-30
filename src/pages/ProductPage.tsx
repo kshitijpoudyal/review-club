@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ProductTable from '../components/ProductDashboard/ProductTable';
 import AddProductForm from '../components/ProductDashboard/AddProductForm';
 import { usePendingRetailerImport } from '../hooks/usePendingRetailerImport';
+import { PendingGmailImports } from '../components/ProductDashboard/PendingGmailImports';
 import { BookmarkletPayload } from '../utils/bookmarklet';
 import { useAuth } from '../hooks/useAuth';
 import { useProductFilters } from '../hooks/useProductFilters';
@@ -62,6 +63,11 @@ const ProductPage: React.FC = () => {
     handleShowAddForm();
     dismissImport();
   }, [pendingImport, handleShowAddForm, dismissImport]);
+
+  const handleAddGmailImport = useCallback((payload: BookmarkletPayload) => {
+    setExternalImport({ payload, productIndex: 0 });
+    handleShowAddForm();
+  }, [handleShowAddForm]);
 
   // Filter state management
   const {
@@ -256,6 +262,8 @@ const ProductPage: React.FC = () => {
     <DashboardContainer className="pb-24 md:pb-0">
       {/* Compact financial summary */}
       <DashboardStats stats={statsData} loading={displayLoading} />
+
+      <PendingGmailImports onAdd={handleAddGmailImport} />
 
       {/* Workflow queue */}
       <NextActionsStrip
