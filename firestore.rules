@@ -38,13 +38,21 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
-      // Third-party integration state (e.g. Gmail watcher). All writes are
-      // server-only via the Admin SDK, which bypasses these rules — clients
-      // only ever read `gmailStatus`. `gmailSecret` (holds the OAuth refresh
-      // token) is never client-readable, at any uid.
-      match /integrations/{integrationId} {
-        allow read: if request.auth != null && request.auth.uid == userId && integrationId == 'gmailStatus';
-        allow write: if false;
+      // Connected Gmail accounts (one doc per linked inbox). Created by the
+      // OAuth callback and removed by the disconnect endpoint (both Admin
+      // SDK, which bypasses these rules). The only field a client may write
+      // directly is `retailers` (checkbox toggles) — everything else
+      // (connected/email/timestamps) stays server-only.
+      match /gmailAccounts/{accountId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['retailers']);
+        allow create, delete: if false;
+
+        // OAuth refresh token — never client-readable, at any uid.
+        match /secret/{secretId} {
+          allow read, write: if false;
+        }
       }
 
       // Draft products detected from Gmail order-confirmation emails,

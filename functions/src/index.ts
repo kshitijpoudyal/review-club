@@ -52,21 +52,31 @@ const gmailOAuthRedirectUri = defineSecret("GMAIL_OAUTH_REDIRECT_URI");
 // build the redirect target after the OAuth callback completes.
 const appBaseUrl = defineSecret("APP_BASE_URL");
 
+// Mirrors src/types/Product.ts's Retailer — kept as a local literal union
+// (rather than a cross-package import) since functions/ and src/ build
+// independently.
+type Retailer = "amazon" | "walmart" | "wayfair";
+
 // Gmail search query per retailer — confirmed against a real Amazon sample:
 // sender "Amazon Reviews <no-reply@amazon.com>", subject "Thank you for
 // reviewing <item>... on Amazon". `after:` (epoch seconds) is appended at
-// query time based on lastCheckedAt.
-const RETAILER_EMAIL_PATTERNS: Record<string, string> = {
+// query time based on lastCheckedAt. Walmart/Wayfair have no entry yet —
+// selecting them on an account is inert (no query runs) until a real sample
+// email is available to confirm their sender/subject format.
+const RETAILER_EMAIL_PATTERNS: Partial<Record<Retailer, string>> = {
     amazon: 'from:(no-reply@amazon.com) subject:("Thank you for reviewing")',
 };
 
-// Order-confirmation emails, per retailer — confirmed against a real Amazon
-// sample: sender auto-confirm@amazon.com, subject `Ordered: "..."`.
-const ORDER_CONFIRMATION_PATTERNS: Record<string, string> = {
+// Order-confirmation emails, per retailer — confirmed against real samples:
+// Amazon sender auto-confirm@amazon.com, subject `Ordered: "..."`; Wayfair
+// sender account-updates@wayfair.com, subject "Order received! Does
+// everything look right?".
+const ORDER_CONFIRMATION_PATTERNS: Partial<Record<Retailer, string>> = {
     // No trailing colon in the subject term — Gmail's search parser treats
     // ":" as a field separator, so "subject:(Ordered:)" silently matched
     // nothing rather than erroring.
     amazon: "from:(auto-confirm@amazon.com) subject:(Ordered)",
+    wayfair: 'from:(account-updates@wayfair.com) subject:("Order received")',
 };
 
 // Checks every product for every user, and pushes a notification for any
@@ -412,10 +422,43 @@ export const gmailOAuthCallback = onRequest(
             }
 
             const db = getFirestore();
-            const integrations = db.collection("users").doc(uid).collection("integrations");
-            await integrations.doc("gmailSecret").set({ refreshToken: tokens.refresh_token }, { merge: true });
-            await integrations.doc("gmailStatus").set(
-                { connected: true, connectedAt: new Date().toISOString(), lastCheckedAt: null, emailAddress },
+            const accountsRef = db.collection("users").doc(uid).collection("gmailAccounts");
+
+            // Reconnecting the same Gmail address (including recovering from an
+            // expired-token disconnect) reuses its existing account doc instead
+            // of creating a duplicate — matched by emailAddress since that's the
+            // only stable identifier the OAuth flow gives us back.
+            let accountRef = accountsRef.doc();
+            let existingData: { retailers?: Retailer[]; lastOrderCheckedAt?: string | null } | undefined;
+            if (emailAddress) {
+                const existing = await accountsRef.where("emailAddress", "==", emailAddress).limit(1).get();
+                if (!existing.empty) {
+                    accountRef = existing.docs[0].ref;
+                    existingData = existing.docs[0].data();
+                }
+            }
+
+            await accountRef.collection("secret").doc("token").set({ refreshToken: tokens.refresh_token });
+            await accountRef.set(
+                {
+                    connected: true,
+                    connectedAt: new Date().toISOString(),
+                    // Reset on every (re)connect, same as the single-account
+                    // behavior this replaces — a fresh token starts its own
+                    // review-live search window.
+                    lastCheckedAt: null,
+                    // Only defaulted on first-ever connect; preserved across a
+                    // reconnect so the order-import cursor doesn't rewind and
+                    // re-surface already-handled orders.
+                    lastOrderCheckedAt: existingData?.lastOrderCheckedAt ?? null,
+                    emailAddress,
+                    // Defaults to every retailer with a real parser today —
+                    // harmless to over-select (an inbox with no matching
+                    // emails just finds nothing) and saves a trip to Settings
+                    // to turn on Wayfair detection on a freshly connected
+                    // account. The user narrows this down per account.
+                    retailers: existingData?.retailers ?? ["amazon", "wayfair"],
+                },
                 { merge: true }
             );
 
@@ -426,6 +469,31 @@ export const gmailOAuthCallback = onRequest(
         }
     }
 );
+
+// Removes a linked Gmail account entirely (its status doc and refresh
+// token) — the client can't do this directly since Firestore rules deny
+// client-side create/delete on gmailAccounts, and a plain doc delete
+// wouldn't clean up the secret subdoc anyway.
+export const disconnectGmailAccount = onRequest({ cors: true }, async (request, response) => {
+    if (request.method !== "POST") {
+        response.status(405).json({ error: "Use POST" });
+        return;
+    }
+
+    const uid = String(request.query.uid || request.body?.uid || "");
+    const accountId = String(request.query.accountId || request.body?.accountId || "");
+    if (!uid || !accountId) {
+        response.status(400).json({ error: "Missing uid or accountId" });
+        return;
+    }
+
+    const db = getFirestore();
+    const accountRef = db.collection("users").doc(uid).collection("gmailAccounts").doc(accountId);
+    await accountRef.collection("secret").doc("token").delete();
+    await accountRef.delete();
+
+    response.status(200).json({ ok: true });
+});
 
 async function getGmailAccessToken(refreshToken: string): Promise<string> {
     const client = gmailOAuthClient();
@@ -555,7 +623,7 @@ interface GmailOrderProduct {
 }
 
 interface GmailOrderPayload {
-    retailer: "amazon";
+    retailer: Retailer;
     orderDate: string;
     orderNumber: string;
     orderTotal: number | null;
@@ -771,6 +839,113 @@ function parseAmazonOrderEmail(rawBodyText: string, html: string | undefined, re
     };
 }
 
+interface WayfairJsonLdOffer {
+    itemOffered?: { name?: string; url?: string; image?: string; sku?: string };
+    price?: string;
+    eligibleQuantity?: { value?: string };
+}
+
+interface WayfairJsonLdOrder {
+    "@type"?: string;
+    orderNumber?: string;
+    orderDate?: string;
+    price?: string;
+    acceptedOffer?: WayfairJsonLdOffer[];
+}
+
+// Wayfair's template HTML-entity-escapes "=" and "&" even inside JSON-LD
+// string values (e.g. a product URL's query string arrives as
+// "?piid&#x3D;1447725679" instead of "?piid=1447725679") — decode before
+// parsing so URLs come out usable.
+function decodeWayfairJsonLdEntities(text: string): string {
+    return text.replace(/&amp;/g, "&").replace(/&#x3D;/gi, "=");
+}
+
+// Wayfair's order-confirmation template embeds the entire order as a
+// schema.org JSON-LD <script> block — confirmed against a real "Order
+// received! Does everything look right?" sample. Scans every ld+json block
+// on the page (there can be more than one) for the one whose @type is
+// "Order", rather than assuming it's the first script tag.
+function extractWayfairOrderJsonLd(html: string): WayfairJsonLdOrder | null {
+    const scriptPattern = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = scriptPattern.exec(html)) !== null) {
+        try {
+            const parsed = JSON.parse(decodeWayfairJsonLdEntities(match[1]).trim());
+            const candidates = Array.isArray(parsed) ? parsed : [parsed];
+            const order = candidates.find((c) => c && c["@type"] === "Order");
+            if (order) return order as WayfairJsonLdOrder;
+        } catch {
+            // Not valid JSON, or not the block we want — keep scanning.
+        }
+    }
+    return null;
+}
+
+// Wayfair doesn't put tax in the JSON-LD, only in the visible "Payment
+// Summary" table — scans forward from the text label for the next dollar
+// amount, since the label and its value sit in separate table cells rather
+// than adjacent text.
+function extractLabeledDollarAmount(html: string, label: string, windowSize = 800): number | null {
+    const labelIndex = html.search(new RegExp(`${label}\\s*(?:</[a-z0-9]+>)?`, "i"));
+    if (labelIndex < 0) return null;
+    const window = html.slice(labelIndex, labelIndex + windowSize);
+    const amountMatch = window.match(/\$([\d,]+\.\d{2})/);
+    return amountMatch ? parseFloat(amountMatch[1].replace(/,/g, "")) : null;
+}
+
+function extractWayfairDeliveryEstimate(html: string): string | null {
+    const match = html.match(/Estimated Delivery:[^<]*(?:<[^>]+>\s*)*<strong>([^<]+)<\/strong>/i);
+    return match ? match[1].trim() : null;
+}
+
+// Parses a Wayfair order-confirmation email. Unlike Amazon, this leans on
+// the embedded JSON-LD for the order/item data (name, url, image, sku,
+// price, quantity) and only falls back to HTML-label scanning for the two
+// fields Wayfair doesn't put in the JSON-LD: tax and the delivery estimate.
+function parseWayfairOrderEmail(html: string | undefined, receivedAt: Date): GmailOrderPayload | null {
+    if (!html) return null;
+    const order = extractWayfairOrderJsonLd(html);
+    if (!order?.orderNumber) return null;
+
+    const offers = order.acceptedOffer ?? [];
+    const items: GmailOrderProduct[] = offers
+        .filter((offer) => offer.itemOffered?.name)
+        .map((offer) => ({
+            productName: offer.itemOffered!.name!,
+            productUrl: offer.itemOffered!.url ?? "",
+            imageUrl: offer.itemOffered!.image ?? "",
+            quantity: offer.eligibleQuantity?.value ? parseInt(offer.eligibleQuantity.value, 10) : undefined,
+            price: offer.price ? parseFloat(offer.price) : null,
+        }));
+
+    const first = items[0];
+    const isMultiItem = items.length > 1;
+
+    return {
+        retailer: "wayfair",
+        orderDate: order.orderDate ? new Date(order.orderDate).toISOString() : receivedAt.toISOString(),
+        orderNumber: order.orderNumber,
+        orderTotal: order.price ? parseFloat(order.price) : null,
+        tax: extractLabeledDollarAmount(html, "Tax:"),
+        deliveryEstimate: extractWayfairDeliveryEstimate(html),
+        productName: first?.productName ?? "",
+        productUrl: first?.productUrl ?? "",
+        imageUrl: first?.imageUrl ?? "",
+        ...(isMultiItem ? { products: items } : {}),
+    };
+}
+
+// Dispatches order-email parsing by retailer. Walmart has no real parser
+// yet — this is the seam where it gets added later (needs its own
+// sample-email-verified implementation, same as the two below) without
+// touching the surrounding check loop.
+function parseOrderEmail(retailer: Retailer, text: string, html: string | undefined, receivedAt: Date): GmailOrderPayload | null {
+    if (retailer === "amazon") return parseAmazonOrderEmail(text, html, receivedAt);
+    if (retailer === "wayfair") return parseWayfairOrderEmail(html, receivedAt);
+    return null;
+}
+
 // Checks every connected user's Gmail for new retailer "review is live"
 // emails and new order-confirmation emails since their last check, pushing a
 // notification for either. Order confirmations also get parsed into a draft
@@ -784,101 +959,129 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promis
     const usersSnapshot = await db.collection("users").get();
 
     for (const userDoc of usersSnapshot.docs) {
-        const integrations = db.collection("users").doc(userDoc.id).collection("integrations");
-        const statusRef = integrations.doc("gmailStatus");
-        const status = (await statusRef.get()).data();
-        if (!status || status.connected !== true) continue;
+        const accountsSnapshot = await db.collection("users").doc(userDoc.id).collection("gmailAccounts").get();
 
-        const refreshToken = (await integrations.doc("gmailSecret").get()).data()?.refreshToken;
-        if (!refreshToken) continue;
+        for (const accountDoc of accountsSnapshot.docs) {
+            const account = accountDoc.data();
+            if (account.connected !== true) continue;
 
-        checked++;
+            const refreshToken = (await accountDoc.ref.collection("secret").doc("token").get()).data()?.refreshToken;
+            if (!refreshToken) continue;
 
-        try {
-            const accessToken = await getGmailAccessToken(refreshToken);
-            const lastCheckedAt = status.lastCheckedAt && !ignoreCursors ? new Date(status.lastCheckedAt) : new Date(0);
-            const afterEpoch = Math.floor(lastCheckedAt.getTime() / 1000);
+            const retailers: Retailer[] = account.retailers ?? [];
+            const accountLabel = account.emailAddress ?? accountDoc.id;
 
-            let matches = 0;
-            for (const pattern of Object.values(RETAILER_EMAIL_PATTERNS)) {
-                // Gmail's search parser doesn't treat "after:0" as "no lower
-                // bound" — it silently fails to match anything. Omit the
-                // clause entirely instead (true for both a fresh ignoreCursors
-                // rescan and any brand-new user's very first check).
-                const query = afterEpoch > 0 ? `${pattern} after:${afterEpoch}` : pattern;
-                const count = await countGmailMatches(accessToken, query);
-                logger.info(`Gmail review search "${query}" → ${count} match(es) for user ${userDoc.id}`);
-                matches += count;
-            }
+            checked++;
 
-            if (matches > 0) {
-                const wasSent = await sendPushToAllSubscriptions(db, userDoc.id, {
-                    title: "📝 A review may be live",
-                    body: `Found ${matches} new email${matches === 1 ? "" : "s"} that look like a review confirmation — check your inbox and update the tracker.`,
-                    url: "/products",
-                    tag: "gmail-review-live",
-                });
-                if (wasSent) notified++;
-            }
+            try {
+                const accessToken = await getGmailAccessToken(refreshToken);
+                const lastCheckedAt = account.lastCheckedAt && !ignoreCursors ? new Date(account.lastCheckedAt) : new Date(0);
+                const afterEpoch = Math.floor(lastCheckedAt.getTime() / 1000);
 
-            await statusRef.set({ lastCheckedAt: new Date().toISOString() }, { merge: true });
+                // Only queries the retailers this account is tagged with —
+                // e.g. a Walmart-only inbox never runs the Amazon pattern —
+                // which keeps Gmail API usage proportional to what the user
+                // actually expects in each inbox instead of every pattern
+                // against every connected account.
+                let matches = 0;
+                for (const retailer of retailers) {
+                    const pattern = RETAILER_EMAIL_PATTERNS[retailer];
+                    if (!pattern) continue; // no pattern for this retailer yet (e.g. walmart/wayfair)
 
-            // Separate cursor from the review-live check above, so one
-            // query type's activity never affects the other's search window.
-            const lastOrderCheckedAt = status.lastOrderCheckedAt && !ignoreCursors ? new Date(status.lastOrderCheckedAt) : new Date(0);
-            const orderAfterEpoch = Math.floor(lastOrderCheckedAt.getTime() / 1000);
-
-            let newOrdersFound = 0;
-            for (const pattern of Object.values(ORDER_CONFIRMATION_PATTERNS)) {
-                const query = orderAfterEpoch > 0 ? `${pattern} after:${orderAfterEpoch}` : pattern;
-                const messageIds = await listGmailMessageIds(accessToken, query);
-                logger.info(`Gmail order search "${query}" → ${messageIds.length} match(es) for user ${userDoc.id}`);
-
-                for (const messageId of messageIds) {
-                    const pendingRef = db.collection("users").doc(userDoc.id).collection("pendingGmailImports").doc(messageId);
-                    if ((await pendingRef.get()).exists) continue;
-
-                    const { text, html, receivedAt } = await fetchGmailMessage(accessToken, messageId);
-                    const draft = parseAmazonOrderEmail(text, html, receivedAt);
-                    if (!draft) {
-                        logger.warn(`Gmail order message ${messageId} didn't parse into a usable draft`);
-                        continue;
-                    }
-
-                    await pendingRef.set({ ...draft, detectedAt: new Date().toISOString() });
-                    newOrdersFound++;
+                    // Gmail's search parser doesn't treat "after:0" as "no lower
+                    // bound" — it silently fails to match anything. Omit the
+                    // clause entirely instead (true for both a fresh ignoreCursors
+                    // rescan and any brand-new account's very first check).
+                    const query = afterEpoch > 0 ? `${pattern} after:${afterEpoch}` : pattern;
+                    const count = await countGmailMatches(accessToken, query);
+                    logger.info(`Gmail review search "${query}" → ${count} match(es) for ${accountLabel} (user ${userDoc.id})`);
+                    matches += count;
                 }
-            }
 
-            // Report actual detections regardless of whether the push also
-            // succeeded — "detected" and "notified" are different things,
-            // and a user with no push subscriptions yet shouldn't look like
-            // nothing was found.
-            ordersDetected += newOrdersFound;
+                if (matches > 0) {
+                    const wasSent = await sendPushToAllSubscriptions(db, userDoc.id, {
+                        title: "📝 A review may be live",
+                        body: `Found ${matches} new email${matches === 1 ? "" : "s"} in ${accountLabel} that look like a review confirmation — check your inbox and update the tracker.`,
+                        url: "/products",
+                        tag: `gmail-review-live-${accountDoc.id}`,
+                    });
+                    if (wasSent) notified++;
+                }
 
-            if (newOrdersFound > 0) {
-                await sendPushToAllSubscriptions(db, userDoc.id, {
-                    title: "📦 New order detected",
-                    body: `Found ${newOrdersFound} new Amazon order${newOrdersFound === 1 ? "" : "s"} — review and add ${newOrdersFound === 1 ? "it" : "them"} to the tracker.`,
-                    url: "/products",
-                    tag: "gmail-new-order",
-                });
-            }
+                await accountDoc.ref.set({ lastCheckedAt: new Date().toISOString() }, { merge: true });
 
-            await statusRef.set({ lastOrderCheckedAt: new Date().toISOString() }, { merge: true });
-        } catch (err: any) {
-            if (err?.statusCode === 401 || String(err?.message).includes("invalid_grant")) {
-                reauthNeeded++;
-                await statusRef.set({ connected: false }, { merge: true });
-                await sendPushToAllSubscriptions(db, userDoc.id, {
-                    title: "🔌 Reconnect Gmail",
-                    body: "Your Gmail connection expired — reconnect it in Settings to keep getting review alerts.",
-                    url: "/settings",
-                    tag: "gmail-reconnect",
-                });
-                logger.warn(`Gmail token expired for user ${userDoc.id}, marked disconnected`);
-            } else {
-                logger.error(`Gmail check failed for user ${userDoc.id}:`, err);
+                // Separate cursor from the review-live check above, so one
+                // query type's activity never affects the other's search window.
+                const lastOrderCheckedAt = account.lastOrderCheckedAt && !ignoreCursors ? new Date(account.lastOrderCheckedAt) : new Date(0);
+                const orderAfterEpoch = Math.floor(lastOrderCheckedAt.getTime() / 1000);
+
+                let newOrdersFound = 0;
+                for (const retailer of retailers) {
+                    const pattern = ORDER_CONFIRMATION_PATTERNS[retailer];
+                    if (!pattern) continue; // no pattern for this retailer yet (e.g. walmart/wayfair)
+
+                    const query = orderAfterEpoch > 0 ? `${pattern} after:${orderAfterEpoch}` : pattern;
+                    const messageIds = await listGmailMessageIds(accessToken, query);
+                    logger.info(`Gmail order search "${query}" → ${messageIds.length} match(es) for ${accountLabel} (user ${userDoc.id})`);
+
+                    for (const messageId of messageIds) {
+                        // Prefixed by accountId: message IDs are only unique per
+                        // mailbox, so two different linked accounts could
+                        // otherwise collide on the same doc.
+                        const pendingRef = db
+                            .collection("users")
+                            .doc(userDoc.id)
+                            .collection("pendingGmailImports")
+                            .doc(`${accountDoc.id}_${messageId}`);
+                        if ((await pendingRef.get()).exists) continue;
+
+                        const { text, html, receivedAt } = await fetchGmailMessage(accessToken, messageId);
+                        const draft = parseOrderEmail(retailer, text, html, receivedAt);
+                        if (!draft) {
+                            logger.warn(`Gmail order message ${messageId} (${retailer}) didn't parse into a usable draft`);
+                            continue;
+                        }
+
+                        await pendingRef.set({
+                            ...draft,
+                            detectedAt: new Date().toISOString(),
+                            sourceAccountId: accountDoc.id,
+                            sourceEmail: account.emailAddress ?? null,
+                        });
+                        newOrdersFound++;
+                    }
+                }
+
+                // Report actual detections regardless of whether the push also
+                // succeeded — "detected" and "notified" are different things,
+                // and a user with no push subscriptions yet shouldn't look like
+                // nothing was found.
+                ordersDetected += newOrdersFound;
+
+                if (newOrdersFound > 0) {
+                    await sendPushToAllSubscriptions(db, userDoc.id, {
+                        title: "📦 New order detected",
+                        body: `Found ${newOrdersFound} new order${newOrdersFound === 1 ? "" : "s"} in ${accountLabel} — review and add ${newOrdersFound === 1 ? "it" : "them"} to the tracker.`,
+                        url: "/products",
+                        tag: `gmail-new-order-${accountDoc.id}`,
+                    });
+                }
+
+                await accountDoc.ref.set({ lastOrderCheckedAt: new Date().toISOString() }, { merge: true });
+            } catch (err: any) {
+                if (err?.statusCode === 401 || String(err?.message).includes("invalid_grant")) {
+                    reauthNeeded++;
+                    await accountDoc.ref.set({ connected: false }, { merge: true });
+                    await sendPushToAllSubscriptions(db, userDoc.id, {
+                        title: "🔌 Reconnect Gmail",
+                        body: `Your Gmail connection for ${accountLabel} expired — reconnect it in Settings to keep getting review alerts.`,
+                        url: "/settings",
+                        tag: `gmail-reconnect-${accountDoc.id}`,
+                    });
+                    logger.warn(`Gmail token expired for ${accountLabel} (user ${userDoc.id}), marked disconnected`);
+                } else {
+                    logger.error(`Gmail check failed for ${accountLabel} (user ${userDoc.id}):`, err);
+                }
             }
         }
     }
