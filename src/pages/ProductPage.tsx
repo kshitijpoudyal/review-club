@@ -64,8 +64,8 @@ const ProductPage: React.FC = () => {
     dismissImport();
   }, [pendingImport, handleShowAddForm, dismissImport]);
 
-  const handleAddGmailImport = useCallback((payload: BookmarkletPayload) => {
-    setExternalImport({ payload, productIndex: 0 });
+  const handleAddGmailImport = useCallback((payload: BookmarkletPayload, productIndex: number = 0) => {
+    setExternalImport({ payload, productIndex });
     handleShowAddForm();
   }, [handleShowAddForm]);
 

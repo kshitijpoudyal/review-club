@@ -546,33 +546,123 @@ async function fetchGmailMessage(accessToken: string, messageId: string): Promis
 // Shape matches the frontend's BookmarkletPayload (src/utils/bookmarkletPayload.ts)
 // exactly, so a detected order can be handed to the existing Add Product
 // prefill flow without any new form logic.
+interface GmailOrderProduct {
+    productName: string;
+    productUrl: string;
+    imageUrl: string;
+    quantity?: number;
+    price?: number | null;
+}
+
 interface GmailOrderPayload {
     retailer: "amazon";
     orderDate: string;
     orderNumber: string;
     orderTotal: number | null;
     tax: number | null;
+    deliveryEstimate: string | null;
     productName: string;
     productUrl: string;
     imageUrl: string;
+    products?: GmailOrderProduct[];
 }
 
-// Parses an Amazon order-confirmation email body into a draft order. Only
-// the first line item is extracted for multi-item orders — tax is left
-// null in that case since grandTotal - firstItemPrice wouldn't be accurate.
+// Amazon's templates sprinkle invisible Unicode formatting characters
+// (zero-width spaces/joiners, bidi embedding/override/mark controls, soft
+// hyphens) into both the HTML and plain-text bodies — e.g. a right-to-left
+// embedding character (U+202B) between "Order #" and the digits, which
+// otherwise silently breaks the order-number regex.
+const INVISIBLE_MARKS = /[​-‏‪-‮⁠-⁤­﻿]/g;
+function normalizeEmailText(text: string): string {
+    return text.replace(INVISIBLE_MARKS, "");
+}
+
+// Amazon routes nearly every link (including the product page link) through
+// a click-tracking redirect — gp/r.html?...&U=<url-encoded-destination>&... —
+// so the literal substring "/dp/" never appears unescaped in href values;
+// it shows up as "%2Fdp%2F" inside the encoded U= param instead.
+function extractAsin(html: string): string | null {
+    const direct = html.match(/\/dp\/([A-Z0-9]{10})(?:[/?"&]|$)/i);
+    if (direct) return direct[1].toUpperCase();
+    const encoded = html.match(/%2[Ff]dp%2[Ff]([A-Z0-9]{10})/i);
+    return encoded ? encoded[1].toUpperCase() : null;
+}
+
+// First occurrence of each distinct ASIN, in document order. Used to slice
+// the HTML into per-item windows for multi-item orders — each item's
+// window runs from its own first occurrence up to the next item's, so
+// price/quantity extraction can never bleed into a neighboring item.
+function findAsinOccurrences(html: string): { asin: string; index: number }[] {
+    const seen = new Set<string>();
+    const result: { asin: string; index: number }[] = [];
+    const pattern = /(?:\/dp\/|%2[Ff]dp%2[Ff])([A-Z0-9]{10})/gi;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(html)) !== null) {
+        const asin = match[1].toUpperCase();
+        if (!seen.has(asin)) {
+            seen.add(asin);
+            result.push({ asin, index: match.index });
+        }
+    }
+    return result;
+}
+
+// The real product thumbnail is nested inside the same anchor that links to
+// the product's ASIN — not the first <img> in the email, which is usually a
+// 1x1 open-tracking pixel or the Amazon logo. Its alt text also holds the
+// full, untruncated product title.
+function findProductImage(html: string, asin: string): { src: string; alt: string } | null {
+    const anchorPattern = new RegExp(
+        `<a\\s+[^>]*href="[^"]*(?:/dp/|%2[Ff]dp%2[Ff])${asin}[^"]*"[^>]*>([\\s\\S]{0,400}?)</a>`,
+        "i"
+    );
+    const scoped = html.match(anchorPattern)?.[1];
+    const searchIn = scoped ?? html;
+    const imgMatch = searchIn.match(/<img\s+[^>]*src="([^"]+)"[^>]*>/i);
+    if (imgMatch) {
+        const altMatch = imgMatch[0].match(/alt="([^"]*)"/i);
+        return { src: imgMatch[1].replace(/&amp;/g, "&"), alt: altMatch?.[1] ?? "" };
+    }
+    if (scoped) return null;
+
+    // Fallback: a real product image URL (images/I/...), never a logo
+    // (images/G/...) or a tracking-redirect link (gp/r.html).
+    const fallback = html.match(/<img\s+[^>]*src="(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+)"[^>]*>/i);
+    if (!fallback) return null;
+    const altMatch = fallback[0].match(/alt="([^"]*)"/i);
+    return { src: fallback[1].replace(/&amp;/g, "&"), alt: altMatch?.[1] ?? "" };
+}
+
+// Amazon renders price as split superscript tags (<sup>$</sup>8<sup>97</sup>),
+// which collapses to "$897" (no decimal) once tags are stripped — in both
+// the HTML and the plain-text MIME part. The enclosing element instead
+// carries a structured aria-label ("{amount=8.97, currencyCode={...}}")
+// which is exact and doesn't need decimal-guessing.
+function extractPriceInWindow(htmlWindow: string): number | null {
+    const match = htmlWindow.match(/aria-label="\{amount=([\d.]+)/i);
+    return match ? parseFloat(match[1]) : null;
+}
+
+function extractQuantityInWindow(htmlWindow: string): number | undefined {
+    const match = htmlWindow.match(/Quantity:\s*(\d+)/i);
+    return match ? parseInt(match[1], 10) : undefined;
+}
+
+// Parses an Amazon order-confirmation email body into a draft order.
 // Returns null if it can't find at minimum an order number and item name,
 // since a draft missing both isn't worth surfacing.
-function parseAmazonOrderEmail(bodyText: string, html: string | undefined, receivedAt: Date): GmailOrderPayload | null {
+function parseAmazonOrderEmail(rawBodyText: string, html: string | undefined, receivedAt: Date): GmailOrderPayload | null {
+    const bodyText = normalizeEmailText(rawBodyText);
+
     const orderNumberMatch = bodyText.match(/Order #\s*(\d{3}-\d{7}-\d{7})/);
     const orderNumber = orderNumberMatch?.[1] ?? "";
 
     const lines = bodyText.split("\n").map((l) => l.trim());
     const quantityIndex = lines.findIndex((l) => /^Quantity:\s*\d+/i.test(l));
 
-    let productName = "";
-    if (quantityIndex >= 0) {
+    function fallbackProductNameFromLines(fromIndex: number): string {
         const candidates: string[] = [];
-        for (let i = quantityIndex - 1; i >= 0 && candidates.length < 2; i--) {
+        for (let i = fromIndex - 1; i >= 0 && candidates.length < 2; i--) {
             const line = lines[i];
             if (!line) continue;
             if (/^View or edit order$/i.test(line) || /^Order #/i.test(line)) break;
@@ -580,14 +670,57 @@ function parseAmazonOrderEmail(bodyText: string, html: string | undefined, recei
         }
         // Prefer whichever candidate isn't truncated with "..."; fall back to the longer one.
         const untruncated = candidates.find((c) => !c.endsWith("..."));
-        productName = untruncated ?? candidates.sort((a, b) => b.length - a.length)[0] ?? "";
+        return untruncated ?? candidates.sort((a, b) => b.length - a.length)[0] ?? "";
     }
 
-    if (!orderNumber && !productName) return null;
+    const fallbackProductName = quantityIndex >= 0 ? fallbackProductNameFromLines(quantityIndex) : "";
 
-    const quantityMentions = bodyText.match(/Quantity:\s*\d+/gi) ?? [];
-    const isMultiItem = quantityMentions.length > 1;
+    if (!orderNumber && !fallbackProductName) return null;
 
+    const grandTotalMatch = bodyText.match(/Grand Total:\s*\$?([\d,]+\.\d{2})/i);
+    const orderTotal = grandTotalMatch ? parseFloat(grandTotalMatch[1].replace(/,/g, "")) : null;
+
+    const deliveryMatch = bodyText.match(/Arriving\s+([A-Za-z]+(?:,\s*[A-Za-z]{3,9}\s+\d{1,2})?)/);
+    const deliveryEstimate = deliveryMatch?.[1] ?? null;
+
+    const asinOccurrences = html ? findAsinOccurrences(html) : [];
+
+    if (html && asinOccurrences.length > 0) {
+        const items: GmailOrderProduct[] = asinOccurrences.map(({ asin, index }, i) => {
+            const windowEnd = asinOccurrences[i + 1]?.index ?? html.length;
+            const itemWindow = html.slice(index, windowEnd);
+            const image = findProductImage(html, asin);
+            return {
+                productName: image?.alt || fallbackProductName,
+                productUrl: `https://www.amazon.com/dp/${asin}`,
+                imageUrl: image?.src ?? "",
+                quantity: extractQuantityInWindow(itemWindow),
+                price: extractPriceInWindow(itemWindow),
+            };
+        });
+
+        const isMultiItem = items.length > 1;
+        const first = items[0];
+        const tax = !isMultiItem && orderTotal !== null && first.price != null
+            ? Math.round((orderTotal - first.price) * 100) / 100
+            : null;
+
+        return {
+            retailer: "amazon",
+            orderDate: receivedAt.toISOString(),
+            orderNumber,
+            orderTotal,
+            tax,
+            deliveryEstimate,
+            productName: first.productName,
+            productUrl: first.productUrl,
+            imageUrl: first.imageUrl,
+            ...(isMultiItem ? { products: items } : {}),
+        };
+    }
+
+    // No HTML (or no ASIN found in it) — fall back to the original
+    // text-only heuristics, including the decimal-guessing price scan.
     let itemPrice: number | null = null;
     if (quantityIndex >= 0) {
         for (let i = quantityIndex + 1; i < lines.length && i < quantityIndex + 6; i++) {
@@ -602,9 +735,8 @@ function parseAmazonOrderEmail(bodyText: string, html: string | undefined, recei
         }
     }
 
-    const grandTotalMatch = bodyText.match(/Grand Total:\s*\$?([\d,]+\.\d{2})/i);
-    const orderTotal = grandTotalMatch ? parseFloat(grandTotalMatch[1].replace(/,/g, "")) : null;
-
+    const quantityMentions = bodyText.match(/Quantity:\s*\d+/gi) ?? [];
+    const isMultiItem = quantityMentions.length > 1;
     const tax = !isMultiItem && orderTotal !== null && itemPrice !== null
         ? Math.round((orderTotal - itemPrice) * 100) / 100
         : null;
@@ -612,8 +744,12 @@ function parseAmazonOrderEmail(bodyText: string, html: string | undefined, recei
     let productUrl = "";
     let imageUrl = "";
     if (html) {
-        const productLinkMatch = html.match(/href="([^"]*\/dp\/[^"]*)"/i);
-        if (productLinkMatch) productUrl = productLinkMatch[1].replace(/&amp;/g, "&");
+        const asin = extractAsin(html);
+        if (asin) productUrl = `https://www.amazon.com/dp/${asin}`;
+        else {
+            const productLinkMatch = html.match(/href="([^"]*\/dp\/[^"]*)"/i);
+            if (productLinkMatch) productUrl = productLinkMatch[1].replace(/&amp;/g, "&");
+        }
         const imgMatch = html.match(/<img[^>]+src="([^"]+)"/i);
         if (imgMatch) imageUrl = imgMatch[1].replace(/&amp;/g, "&");
     }
@@ -624,7 +760,8 @@ function parseAmazonOrderEmail(bodyText: string, html: string | undefined, recei
         orderNumber,
         orderTotal,
         tax,
-        productName,
+        deliveryEstimate,
+        productName: fallbackProductName,
         productUrl,
         imageUrl,
     };

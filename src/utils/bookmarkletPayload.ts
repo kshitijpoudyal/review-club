@@ -12,6 +12,7 @@ export interface BookmarkletPayload {
   orderNumber: string;
   orderTotal: number | null;
   tax: number | null;
+  deliveryEstimate?: string | null;
   productName: string;
   productUrl: string;
   imageUrl: string;
@@ -67,6 +68,7 @@ export function normalizeBookmarkletPayload(raw: unknown): BookmarkletPayload {
     tax: parseBookmarkletMoney(
       parsed.tax ?? (parsed as { orderTax?: unknown }).orderTax ?? (parsed as { estimatedTax?: unknown }).estimatedTax
     ),
+    deliveryEstimate: parsed.deliveryEstimate ?? null,
     productName: parsed.productName ?? first?.productName ?? '',
     productUrl: parsed.productUrl ?? first?.productUrl ?? '',
     imageUrl: parsed.imageUrl ?? first?.imageUrl ?? '',
