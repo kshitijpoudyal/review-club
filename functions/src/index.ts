@@ -125,7 +125,7 @@ export const dailyStuckStatusCheck = onSchedule(
 
 // Manual trigger for testing — POST /triggerStuckStatusCheck
 export const triggerStuckStatusCheck = onRequest(
-    { secrets: [vapidPublicKey, vapidPrivateKey, vapidSubject] },
+    { secrets: [vapidPublicKey, vapidPrivateKey, vapidSubject], cors: true },
     async (request, response) => {
         if (request.method !== "POST") {
             response.status(405).json({ error: "Use POST" });
@@ -435,6 +435,7 @@ export const checkGmailForReviewLive = onSchedule(
 export const triggerGmailCheck = onRequest(
     {
         secrets: [gmailOAuthClientId, gmailOAuthClientSecret, gmailOAuthRedirectUri, vapidPublicKey, vapidPrivateKey, vapidSubject],
+        cors: true,
     },
     async (request, response) => {
         if (request.method !== "POST") {

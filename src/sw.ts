@@ -1,8 +1,17 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
+import { precacheAndRoute, createHandlerBoundToURL, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
+import { clientsClaim } from 'workbox-core';
 
 declare let self: ServiceWorkerGlobalScope;
+
+// Every new deploy ships a new service worker — take over immediately instead
+// of leaving it "waiting" until every open tab is closed. Without this, a
+// device that's visited across several deploys can end up straddling two
+// SW versions and serving a mismatched mix of old/new cached assets.
+self.skipWaiting();
+clientsClaim();
+cleanupOutdatedCaches();
 
 precacheAndRoute(self.__WB_MANIFEST);
 
