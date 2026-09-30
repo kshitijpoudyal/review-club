@@ -16,11 +16,12 @@ export const GmailIntegration: React.FC = () => {
   const [checkResult, setCheckResult] = useState<{ notified: number; ordersDetected: number } | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
 
-  const handleCheckNow = async () => {
+  const handleCheckNow = async (ignoreCursors = false) => {
     setIsChecking(true);
     setCheckError(null);
     try {
-      const response = await fetch(TRIGGER_GMAIL_CHECK_URL, { method: 'POST' });
+      const url = ignoreCursors ? `${TRIGGER_GMAIL_CHECK_URL}?ignoreCursors=true` : TRIGGER_GMAIL_CHECK_URL;
+      const response = await fetch(url, { method: 'POST' });
       if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
       const result = await response.json();
       setCheckResult({ notified: result.notified ?? 0, ordersDetected: result.ordersDetected ?? 0 });
@@ -97,12 +98,27 @@ export const GmailIntegration: React.FC = () => {
           <div className="flex flex-col gap-2 shrink-0 w-full lg:w-auto">
             {connected && (
               <button
-                onClick={handleCheckNow}
+                onClick={() => handleCheckNow()}
                 disabled={isChecking}
                 className={`${colors.button.secondary} w-full lg:w-auto px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {isChecking ? 'Checking...' : 'Check Gmail now'}
               </button>
+            )}
+            {connected && (
+              <div className="w-full lg:w-auto lg:max-w-[220px]">
+                <button
+                  onClick={() => handleCheckNow(true)}
+                  disabled={isChecking}
+                  className={`${colors.button.secondary} w-full px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isChecking ? 'Checking...' : 'Re-scan all (testing)'}
+                </button>
+                <p className={`${typography.caption} mt-1`}>
+                  Re-checks every matching email from the very beginning, not just since the last check —
+                  will also re-surface orders you&apos;ve already added and then deleted or dismissed.
+                </p>
+              </div>
             )}
             {connectUrl && (
               <a
