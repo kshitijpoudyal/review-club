@@ -750,7 +750,11 @@ function parseAmazonOrderEmail(rawBodyText: string, html: string | undefined, re
             const productLinkMatch = html.match(/href="([^"]*\/dp\/[^"]*)"/i);
             if (productLinkMatch) productUrl = productLinkMatch[1].replace(/&amp;/g, "&");
         }
-        const imgMatch = html.match(/<img[^>]+src="([^"]+)"/i);
+        // Never fall back to the unconditional first <img> — that's
+        // reliably a 1x1 open-tracking pixel routed through the same
+        // gp/r.html redirect scheme as links. Only trust a real product
+        // image path.
+        const imgMatch = html.match(/<img\s+[^>]*src="(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+)"[^>]*>/i);
         if (imgMatch) imageUrl = imgMatch[1].replace(/&amp;/g, "&");
     }
 
