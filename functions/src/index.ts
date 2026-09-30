@@ -21,12 +21,21 @@ setGlobalOptions({ maxInstances: 10 });
 
 // ─── Notification thresholds (edit these to adjust when pushes fire) ─────────
 const THRESHOLDS = {
+    // Days sitting in a status before the first stuck-status push fires.
     statusStuck: {
-        "add-review": 5,
-        "review-pending": 10,
-        "send-screenshot": 3,
-        "refund-pending": 14,
+        "order-placed": 7,
+        "add-review": 7,
+        "review-pending": 7,
+        "send-screenshot": 7,
+        "refund-pending": 7,
     } as Record<string, number>,
+    // Once stuck, re-notify every N days until the status changes.
+    nagIntervalDays: 2,
+    // Amazon's return window, and how many days before it closes the
+    // return-window override push starts firing (daily, regardless of
+    // status) — e.g. 30 - 7 = starts at day 23 since order.
+    returnWindowDays: 30,
+    returnWindowWarningDays: 7,
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -49,12 +58,11 @@ const RETAILER_EMAIL_PATTERNS: Record<string, string> = {
     amazon: "from:(amazon.com) subject:(review)",
 };
 
-// Scheduled function: checks every product for every user daily, and pushes
-// a notification for any item that's been sitting in the same status too
-// long (see THRESHOLDS.statusStuck).
 // Checks every product for every user, and pushes a notification for any
-// item that's been sitting in the same status too long. Shared by the daily
-// schedule and the manual test-trigger endpoint below.
+// item that needs attention: either it's within the return-window deadline
+// (highest priority — see isNearingReturnWindow) or it's been sitting in
+// the same status too long (see THRESHOLDS.statusStuck). Shared by the
+// daily schedule and the manual test-trigger endpoint below.
 async function runStuckStatusCheck(db: Firestore): Promise<{ totalPushSent: number; totalPushFailed: number }> {
     let totalPushSent = 0;
     let totalPushFailed = 0;
@@ -82,6 +90,23 @@ async function runStuckStatusCheck(db: Firestore): Promise<{ totalPushSent: numb
         for (const productDoc of productsSnapshot.docs) {
             const data = productDoc.data();
             const product = { id: productDoc.id, item: data.item || 'Unknown Product', ...data };
+
+            const returnWindow = isNearingReturnWindow(product);
+            if (returnWindow && shouldNotifyReturnWindow(product)) {
+                // Return-window deadline takes priority over the regular stuck-status
+                // nag — an item never gets both pushes on the same run.
+                try {
+                    const wasSent = await sendReturnWindowPush(db, userDoc.id, productDoc.ref, product, returnWindow.daysSinceOrder);
+                    if (wasSent) {
+                        totalPushSent++;
+                        logger.info(`✅ Sent return-window push for ${product.item} (${returnWindow.daysSinceOrder}d since order)`);
+                    }
+                } catch (error) {
+                    totalPushFailed++;
+                    logger.error(`❌ Failed to send return-window push for ${product.item}:`, error);
+                }
+                continue;
+            }
 
             const stuck = daysStuckInStatus(product);
             if (stuck && shouldNotifyStuckStatus(product)) {
@@ -162,12 +187,37 @@ const STATUS_LABELS: Record<string, string> = {
     "refund-pending": "Refund Pending",
 };
 
-// True if this stuck period hasn't been push-notified yet (i.e. no notification
-// since the status last changed) — keeps stuck alerts to once per stuck period.
+function daysSince(isoDate: string): number {
+    return Math.floor((Date.now() - new Date(isoDate).getTime()) / (1000 * 3600 * 24));
+}
+
+// Keeps re-notifying every THRESHOLDS.nagIntervalDays for as long as the item
+// stays stuck — a dismissed push isn't the last one you'll get. Naturally
+// stops on its own once the status moves on, since daysStuckInStatus() will
+// stop matching for the new status.
 function shouldNotifyStuckStatus(product: any): boolean {
-    if (!product.statusChangedAt) return true;
     if (!product.lastStuckNotifiedAt) return true;
-    return new Date(product.lastStuckNotifiedAt).getTime() < new Date(product.statusChangedAt).getTime();
+    return daysSince(product.lastStuckNotifiedAt) >= THRESHOLDS.nagIntervalDays;
+}
+
+// Returns days since order if the item is within THRESHOLDS.returnWindowWarningDays
+// of the return window closing (or already past it) — null if resolved
+// (void/reviewLive) or there's no order date. No upper bound: keeps matching
+// (and therefore keeps notifying) even after the window has closed.
+function isNearingReturnWindow(product: any): { daysSinceOrder: number } | null {
+    if (!product.orderDate || product.isVoid || product.reviewLive) return null;
+
+    const daysSinceOrder = daysSince(product.orderDate);
+    const warningStartsAt = THRESHOLDS.returnWindowDays - THRESHOLDS.returnWindowWarningDays;
+
+    return daysSinceOrder >= warningStartsAt ? { daysSinceOrder } : null;
+}
+
+// Return-window pushes repeat daily (constant interval, by design — the
+// closer-you-get escalation was considered and explicitly not wanted).
+function shouldNotifyReturnWindow(product: any): boolean {
+    if (!product.lastReturnWindowNotifiedAt) return true;
+    return daysSince(product.lastReturnWindowNotifiedAt) >= 1;
 }
 
 let webPushConfigured = false;
@@ -242,6 +292,31 @@ async function sendStuckStatusPush(
 
     if (wasSent) {
         await productRef.set({ lastStuckNotifiedAt: new Date().toISOString() }, { merge: true });
+    }
+    return wasSent;
+}
+
+async function sendReturnWindowPush(
+    db: Firestore,
+    userId: string,
+    productRef: FirebaseFirestore.DocumentReference,
+    product: any,
+    daysSinceOrder: number
+): Promise<boolean> {
+    const daysRemaining = THRESHOLDS.returnWindowDays - daysSinceOrder;
+    const body = daysRemaining >= 0
+        ? `${product.item}: ordered ${daysSinceOrder} days ago, ~${daysRemaining}d left in the return window. Reach out to the seller for a refund or start a return.`
+        : `${product.item}: ordered ${daysSinceOrder} days ago — the ~${THRESHOLDS.returnWindowDays}-day return window may have closed. Act now if you haven't already.`;
+
+    const wasSent = await sendPushToAllSubscriptions(db, userId, {
+        title: "⚠️ Return window closing",
+        body,
+        url: "/products",
+        tag: `return-window-${productRef.id}`,
+    });
+
+    if (wasSent) {
+        await productRef.set({ lastReturnWindowNotifiedAt: new Date().toISOString() }, { merge: true });
     }
     return wasSent;
 }
