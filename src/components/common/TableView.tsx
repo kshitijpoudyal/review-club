@@ -323,7 +323,7 @@ export const TableView: React.FC<TableViewProps> = ({
                                       action.onClick();
                                       onDropdownToggle?.(null);
                                     }}
-                                    className={`flex items-center w-full px-4 py-2.5 text-sm transition-colors ${
+                                    className={`flex items-center justify-start text-left w-full px-4 py-2.5 text-sm transition-colors ${
                                       action.variant === 'danger'
                                         ? 'text-[#ba1a1a] hover:bg-[#ffdad6]'
                                         : action.variant === 'warn'
