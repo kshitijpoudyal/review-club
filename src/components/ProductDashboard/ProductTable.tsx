@@ -12,8 +12,8 @@ import { getStoreBorderColor } from '../../utils/retailerUtils';
 import { typography } from '../../utils/typography';
 import { ProductThumbnail, ReviewMediaBadge } from '../common';
 import { useToast } from '../common/Toast';
-import { generateReview, formatReviewForClipboard } from '../../utils/generateReview';
-import { copyToClipboard } from '../../utils/clipboard';
+import { generateReview, GeneratedReview } from '../../utils/generateReview';
+import GeneratedReviewModal from '../common/GeneratedReviewModal';
 
 interface ProductTableProps {
   products: Product[];
@@ -43,7 +43,9 @@ const ProductTable: React.FC<ProductTableProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [generatingReviewId, setGeneratingReviewId] = useState<string | number | null>(null);
-  const { showToast } = useToast();
+  const [generatedReview, setGeneratedReview] = useState<GeneratedReview | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const { showToast, dismissToast } = useToast();
 
   // Get product IDs for checking PayPal links
   const productIds = products.map(p => p.id).filter(Boolean) as string[];
@@ -254,12 +256,14 @@ const ProductTable: React.FC<ProductTableProps> = ({
     if (generatingReviewId !== null) return; // re-entrancy guard
     setShowDropdown(null);
     setGeneratingReviewId(rowId);
-    showToast('Generating review…', 'info');
+    const loadingToastId = showToast('Generating review…', 'loading');
     try {
       const generated = await generateReview(product.item);
-      await copyToClipboard(formatReviewForClipboard(generated));
-      showToast('Review copied to clipboard');
+      dismissToast(loadingToastId);
+      setGeneratedReview(generated);
+      setIsReviewModalOpen(true);
     } catch (err) {
+      dismissToast(loadingToastId);
       showToast(err instanceof Error ? err.message : 'Failed to generate review', 'error');
     } finally {
       setGeneratingReviewId(null);
@@ -610,6 +614,12 @@ const ProductTable: React.FC<ProductTableProps> = ({
           }}
         />
       )}
+
+      <GeneratedReviewModal
+        isOpen={isReviewModalOpen}
+        review={generatedReview}
+        onClose={() => setIsReviewModalOpen(false)}
+      />
     </>
   );
 };

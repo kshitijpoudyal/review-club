@@ -38,6 +38,42 @@ Requirements:
 Respond only with the structured JSON output matching the schema.`;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isRetryableStatus(err: unknown): boolean {
+  const status = (err as { status?: number })?.status;
+  return status === 503 || status === 429;
+}
+
+const RETRY_DELAYS_MS = [500, 1500];
+
+async function generateWithRetry(ai: GoogleGenAI, productName: string) {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await ai.models.generateContent({
+        model: MODEL,
+        contents: buildPrompt(productName),
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema,
+          temperature: 0.8,
+        },
+      });
+    } catch (err) {
+      lastErr = err;
+      if (!isRetryableStatus(err) || attempt === RETRY_DELAYS_MS.length) {
+        throw err;
+      }
+      console.warn(`Gemini request failed (attempt ${attempt + 1}), retrying…`, err);
+      await sleep(RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastErr;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -62,15 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const result = await ai.models.generateContent({
-      model: MODEL,
-      contents: buildPrompt(productName),
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema,
-        temperature: 0.8,
-      },
-    });
+    const result = await generateWithRetry(ai, productName);
 
     const text = result.text;
     if (!text) {

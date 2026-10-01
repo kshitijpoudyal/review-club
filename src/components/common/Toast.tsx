@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error' | 'info' | 'loading';
 
 interface Toast {
   id: number;
@@ -9,7 +9,8 @@ interface Toast {
 }
 
 interface ToastContextValue {
-  showToast: (message: string, type?: ToastType) => void;
+  showToast: (message: string, type?: ToastType) => number;
+  dismissToast: (id: number) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -18,15 +19,18 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [toasts, setToasts] = useState<Toast[]>([]);
   const counter = useRef(0);
 
+  const dismiss = useCallback((id: number) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   const showToast = useCallback((message: string, type: ToastType = 'success') => {
     const id = ++counter.current;
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 2800);
-  }, []);
-
-  const dismiss = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
+    if (type !== 'loading') {
+      setTimeout(() => dismiss(id), 2800);
+    }
+    return id;
+  }, [dismiss]);
 
   const iconMap: Record<ToastType, React.ReactNode> = {
     success: (
@@ -44,16 +48,23 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     ),
+    loading: (
+      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+        <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      </svg>
+    ),
   };
 
   const bgMap: Record<ToastType, string> = {
     success: 'bg-[#006a68] text-white',
     error: 'bg-[#ba1a1a] text-white',
     info: 'bg-[#022448] text-white',
+    loading: 'bg-[#022448] text-white',
   };
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={{ showToast, dismissToast: dismiss }}>
       {children}
       {/* Toast container — above FAB (z-50), bottom-right on desktop, bottom-center on mobile */}
       <div className="fixed bottom-24 md:bottom-6 left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0 md:right-6 z-50 flex flex-col gap-2 items-center md:items-end pointer-events-none">
