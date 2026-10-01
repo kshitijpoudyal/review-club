@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../../types/Product';
 import EditProductModal from './EditProductModal';
-import ConfirmDeleteModal from '../common/ConfirmDeleteModal';
-import { applyProductVoid, getProductStatus } from '../../utils/productStatus';
+import { getProductStatus } from '../../utils/productStatus';
 import { getBadgeClasses } from '../../utils/colors';
 import { useProductPayPalLinks, ProductPayPalLink } from '../../hooks/useProductPayPalLinks';
 import { TableView, TableColumn, TableRow, MobileCardContent } from '../common/TableView';
@@ -12,6 +11,9 @@ import { formatCurrency } from '../../utils/currency';
 import { getStoreBorderColor } from '../../utils/retailerUtils';
 import { typography } from '../../utils/typography';
 import { ProductThumbnail, ReviewMediaBadge } from '../common';
+import { useToast } from '../common/Toast';
+import { generateReview, formatReviewForClipboard } from '../../utils/generateReview';
+import { copyToClipboard } from '../../utils/clipboard';
 
 interface ProductTableProps {
   products: Product[];
@@ -40,7 +42,8 @@ const ProductTable: React.FC<ProductTableProps> = ({
   const [showDropdown, setShowDropdown] = useState<string | number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [generatingReviewId, setGeneratingReviewId] = useState<string | number | null>(null);
+  const { showToast } = useToast();
 
   // Get product IDs for checking PayPal links
   const productIds = products.map(p => p.id).filter(Boolean) as string[];
@@ -247,14 +250,40 @@ const ProductTable: React.FC<ProductTableProps> = ({
     setShowDropdown(null);
   };
 
+  const handleGenerateReview = async (product: Product, rowId: string | number) => {
+    if (generatingReviewId !== null) return; // re-entrancy guard
+    setShowDropdown(null);
+    setGeneratingReviewId(rowId);
+    showToast('Generating review…', 'info');
+    try {
+      const generated = await generateReview(product.item);
+      await copyToClipboard(formatReviewForClipboard(generated));
+      showToast('Review copied to clipboard');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to generate review', 'error');
+    } finally {
+      setGeneratingReviewId(null);
+    }
+  };
+
   // Shared dropdown menu component for mobile
   const renderMobileDropdown = (product: Product, index: number) => {
     if (showDropdown !== index) return null;
-    
+
     const nextAction = getNextStatusAction(product);
-    
+    const mobileStatus = getProductStatus(product);
+
     return (
       <div className="absolute right-0 top-full mt-2 bg-[#fbf9f3] border border-[rgba(196,198,207,0.15)] rounded-2xl shadow-[0_12px_32px_rgba(2,36,72,0.10)] z-50 min-w-[180px] py-2">
+        {mobileStatus.type === 'add-review' && (
+          <button
+            onClick={() => handleGenerateReview(product, product.id || index)}
+            className="block w-full text-left px-4 py-2.5 text-sm text-[#022448] hover:bg-[#006a68]/10 transition-colors font-medium"
+          >
+            Generate Review
+          </button>
+        )}
+
         {/* Dynamic status update button (Un-Void for void products, next step otherwise) */}
         {nextAction && (
           <button
@@ -270,26 +299,6 @@ const ProductTable: React.FC<ProductTableProps> = ({
           className="block w-full text-left px-4 py-2.5 text-sm text-[#1b1c19] hover:bg-[#eae8e2] transition-colors"
         >
           Edit
-        </button>
-
-        {/* Mark as Void (only for non-void products) */}
-        {!product.isVoid && (
-          <button
-            onClick={() => handleStatusUpdate(product, () => applyProductVoid(product))}
-            className="block w-full text-left px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 transition-colors"
-          >
-            Mark as Void
-          </button>
-        )}
-
-        <button
-          onClick={() => {
-            setDeleteTarget(product);
-            setShowDropdown(null);
-          }}
-          className={`block w-full text-left px-4 py-2.5 text-sm ${colors.modal.danger} transition-colors`}
-        >
-          Delete
         </button>
       </div>
     );
@@ -432,6 +441,15 @@ const ProductTable: React.FC<ProductTableProps> = ({
         actions: null // Will be handled by the actions array below
       },
       actions: readOnly ? [] : [
+        ...(status.type === 'add-review' ? [{
+          label: 'Generate Review',
+          icon: (
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            </svg>
+          ),
+          onClick: () => handleGenerateReview(product, product.id || index)
+        }] : []),
         // Dynamic status update button using shared logic
         ...(() => {
           const nextAction = getNextStatusAction(product);
@@ -450,30 +468,6 @@ const ProductTable: React.FC<ProductTableProps> = ({
             </svg>
           ),
           onClick: () => handleEditProduct(product)
-        },
-        // Mark as Void (only for non-void products)
-        ...(!product.isVoid ? [{
-          label: 'Mark as Void',
-          variant: 'warn' as const,
-          icon: (
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-          ),
-          onClick: () => handleStatusUpdate(product, () => applyProductVoid(product)),
-          className: 'text-amber-700 hover:bg-amber-50'
-        }] : []),
-        {
-          label: 'Delete Product',
-          variant: 'danger' as const,
-          icon: (
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          ),
-          onClick: () => {
-            setDeleteTarget(product);
-          }
         }
       ]
     };
@@ -610,19 +604,12 @@ const ProductTable: React.FC<ProductTableProps> = ({
           product={editingProduct}
           onSave={handleSaveProduct}
           onCancel={handleCancelEdit}
+          onDelete={(productId) => {
+            onDeleteProduct?.(productId);
+            handleCancelEdit();
+          }}
         />
       )}
-      {/* Delete Confirmation Modal */}
-      <ConfirmDeleteModal
-        isOpen={!!deleteTarget}
-        title="Delete Product"
-        message={`Are you sure you want to delete "${deleteTarget?.item}"? This action cannot be undone.`}
-        onConfirm={() => {
-          if (deleteTarget?.id) onDeleteProduct?.(deleteTarget.id);
-          setDeleteTarget(null);
-        }}
-        onCancel={() => setDeleteTarget(null)}
-      />
     </>
   );
 };

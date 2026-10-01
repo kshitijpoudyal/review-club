@@ -167,6 +167,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({
 
         <ProductFormRefundExpectationSection
           product={newProduct}
+          isActive={isOpen}
           onChange={(expectation: RefundExpectation) =>
             setNewProduct(prev => ({ ...prev, refundExpectation: expectation }))
           }
