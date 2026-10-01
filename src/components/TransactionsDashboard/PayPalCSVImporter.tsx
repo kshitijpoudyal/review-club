@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { parsePayPalCSV, validatePayPalCSV } from '../../utils/paypalCSVParser';
-import { PayPalTransaction } from '../../types/PayPalTransaction';
+import { Transaction } from '../../types/Transaction';
 
 interface PayPalCSVImporterProps {
-  onImportComplete: (transactions: PayPalTransaction[]) => Promise<{ added: number; skipped: number; withdrawalSkipped?: number }>;
+  onImportComplete: (transactions: Transaction[]) => Promise<{ added: number; skipped: number; withdrawalSkipped?: number }>;
   isLoading?: boolean;
   showExportHint?: boolean;
 }

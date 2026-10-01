@@ -1,6 +1,6 @@
-import { PayPalTransaction } from '../types/PayPalTransaction';
+import { Transaction } from '../types/Transaction';
 
-export const parsePayPalCSV = (csvContent: string): PayPalTransaction[] => {
+export const parsePayPalCSV = (csvContent: string): Transaction[] => {
   const lines = csvContent.trim().split('\n');
   
   if (lines.length < 2) {
@@ -34,8 +34,8 @@ export const parsePayPalCSV = (csvContent: string): PayPalTransaction[] => {
 
   // Remove header
   const dataLines = lines.slice(1);
-  
-  const transactions: PayPalTransaction[] = [];
+
+  const transactions: Transaction[] = [];
 
   dataLines.forEach((line, index) => {
     try {
@@ -82,7 +82,7 @@ export const parsePayPalCSV = (csvContent: string): PayPalTransaction[] => {
         calculatedAmount = totalValue;
       }
 
-      const transaction: PayPalTransaction = {
+      const transaction: Transaction = {
         date,
         time,
         timeZone: 'PST', // Default timezone since it's not in the simplified format
@@ -92,7 +92,8 @@ export const parsePayPalCSV = (csvContent: string): PayPalTransaction[] => {
         amount: calculatedAmount,
         fees: feesValue,
         total: totalValue,
-        transactionId
+        transactionId,
+        paymentMethod: 'PayPal', // this parser only ever handles PayPal's CSV export format
       };
 
       transactions.push(transaction);

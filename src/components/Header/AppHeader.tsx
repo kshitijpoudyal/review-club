@@ -16,7 +16,7 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
     const location = useLocation();
     const navigation = [
         { name: 'Products', href: '/products' },
-        { name: 'PayPal', href: '/paypal' },
+        { name: 'Transactions', href: '/transactions' },
     ]
 
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

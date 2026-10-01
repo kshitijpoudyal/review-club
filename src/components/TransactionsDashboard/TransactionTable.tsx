@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { PayPalTransaction } from '../../types/PayPalTransaction';
+import { Transaction } from '../../types/Transaction';
 import { Product, ProductLinkOptions } from '../../types/Product';
 import ProductLinkModal from '../ProductLinkModal';
 import ConfirmDeleteModal from '../common/ConfirmDeleteModal';
@@ -13,13 +13,13 @@ import {
 import { typography } from '../../utils/typography';
 import { formatCurrency } from '../../utils/currency';
 
-interface PayPalTransactionTableProps {
-  transactions: PayPalTransaction[];
+interface TransactionTableProps {
+  transactions: Transaction[];
   products: Product[];
   loading?: boolean;
   productsLoading?: boolean;
   onUpdateProductLink?: (transactionId: string, productIds: string[], options?: ProductLinkOptions) => Promise<boolean>;
-  onEditTransaction?: (transaction: PayPalTransaction) => void;
+  onEditTransaction?: (transaction: Transaction) => void;
   onDeleteTransaction?: (transactionId: string) => Promise<boolean>;
 }
 
@@ -69,7 +69,7 @@ function LinkedProductLinkContent({
   );
 }
 
-export const PayPalTransactionTable: React.FC<PayPalTransactionTableProps> = ({
+export const TransactionTable: React.FC<TransactionTableProps> = ({
   transactions,
   products = [],
   loading = false,
@@ -88,7 +88,7 @@ export const PayPalTransactionTable: React.FC<PayPalTransactionTableProps> = ({
   const [showDropdown, setShowDropdown] = useState<string | number | null>(null);
   const [isModalActive, setIsModalActive] = useState<boolean>(false);
   const [activeTransactionId, setActiveTransactionId] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<PayPalTransaction | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -244,7 +244,7 @@ export const PayPalTransactionTable: React.FC<PayPalTransactionTableProps> = ({
                 {transaction.itemTitle}
               </div>
             )}
-            <div className="mt-1">
+            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
               {isLinked ? (
                 <span className={getBadgeClasses('linked')}>
                   {transaction.linkedProductIds!.length === 1 ? 'Linked' : `${transaction.linkedProductIds!.length} Linked`}
@@ -252,6 +252,9 @@ export const PayPalTransactionTable: React.FC<PayPalTransactionTableProps> = ({
               ) : (
                 <span className={getBadgeClasses('unlinked')}>Unlinked</span>
               )}
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#43474e]/8 text-[#43474e] text-xs font-medium">
+                {transaction.paymentMethod ?? 'PayPal'}
+              </span>
             </div>
           </div>
         ),
@@ -349,13 +352,18 @@ export const PayPalTransactionTable: React.FC<PayPalTransactionTableProps> = ({
       <div className="space-y-3">
         {/* Status + Date */}
         <div className="flex items-center justify-between">
-          {isLinked ? (
-            <span className={getBadgeClasses('linked')}>
-              {transaction.linkedProductIds!.length === 1 ? 'Linked' : `${transaction.linkedProductIds!.length} Linked`}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {isLinked ? (
+              <span className={getBadgeClasses('linked')}>
+                {transaction.linkedProductIds!.length === 1 ? 'Linked' : `${transaction.linkedProductIds!.length} Linked`}
+              </span>
+            ) : (
+              <span className={getBadgeClasses('unlinked')}>Unlinked</span>
+            )}
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#43474e]/8 text-[#43474e] text-xs font-medium">
+              {transaction.paymentMethod ?? 'PayPal'}
             </span>
-          ) : (
-            <span className={getBadgeClasses('unlinked')}>Unlinked</span>
-          )}
+          </div>
           <span className={`text-xs ${colors.text.muted}`}>{formatDate(transaction.date)}</span>
         </div>
 
@@ -479,7 +487,7 @@ export const PayPalTransactionTable: React.FC<PayPalTransactionTableProps> = ({
         columns={columns}
         rows={rows}
         mobileCards={mobileCards}
-        emptyMessage="No PayPal transactions found."
+        emptyMessage="No transactions found."
         loading={loading}
         activeDropdown={showDropdown}
         onDropdownToggle={(rowId) => setShowDropdown(prev => prev === rowId ? null : rowId as number)}
@@ -516,7 +524,7 @@ export const PayPalTransactionTable: React.FC<PayPalTransactionTableProps> = ({
       <ConfirmDeleteModal
         isOpen={!!deleteTarget}
         title="Delete Transaction"
-        message={`Are you sure you want to delete this PayPal transaction${deleteTarget ? ` of $${deleteTarget.amount}` : ''}? This action cannot be undone.`}
+        message={`Are you sure you want to delete this transaction${deleteTarget ? ` of $${deleteTarget.amount}` : ''}? This action cannot be undone.`}
         onConfirm={async () => {
           if (deleteTarget?.id && onDeleteTransaction) await onDeleteTransaction(deleteTarget.id);
           setDeleteTarget(null);

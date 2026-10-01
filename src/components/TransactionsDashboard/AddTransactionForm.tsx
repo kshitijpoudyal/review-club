@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { PayPalTransaction } from '../../types/PayPalTransaction';
+import { Transaction } from '../../types/Transaction';
 import { PayPalCSVImporter } from './PayPalCSVImporter';
 import { colors } from '../../utils/colors';
 import { Modal } from '../common';
+import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 
-interface AddPayPalTransactionFormProps {
+interface AddTransactionFormProps {
   isOpen: boolean;
-  onAddTransaction: (transaction: PayPalTransaction) => Promise<boolean>;
-  onImportTransactions?: (transactions: PayPalTransaction[]) => Promise<{ added: number; skipped: number; withdrawalSkipped?: number }>;
+  onAddTransaction: (transaction: Transaction) => Promise<boolean>;
+  onImportTransactions?: (transactions: Transaction[]) => Promise<{ added: number; skipped: number; withdrawalSkipped?: number }>;
   onCancel: () => void;
   isLoading?: boolean;
   hasTransactions?: boolean;
 }
 
-export const AddPayPalTransactionForm: React.FC<AddPayPalTransactionFormProps> = ({
+export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   isOpen,
   onAddTransaction,
   onImportTransactions,
@@ -21,6 +22,7 @@ export const AddPayPalTransactionForm: React.FC<AddPayPalTransactionFormProps> =
   isLoading = false,
   hasTransactions = true,
 }) => {
+  const { activePaymentMethods } = usePaymentMethods();
   const [activeTab, setActiveTab] = useState<'manual' | 'import'>('import');
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD format
@@ -35,7 +37,8 @@ export const AddPayPalTransactionForm: React.FC<AddPayPalTransactionFormProps> =
     exchangeRate: '',
     receiptId: '',
     transactionId: '',
-    itemTitle: ''
+    itemTitle: '',
+    paymentMethod: 'PayPal'
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -102,8 +105,8 @@ export const AddPayPalTransactionForm: React.FC<AddPayPalTransactionFormProps> =
       return;
     }
 
-    // Convert form data to PayPalTransaction
-    const transaction: PayPalTransaction = {
+    // Convert form data to a Transaction
+    const transaction: Transaction = {
       date: formData.date,
       time: formData.time,
       timeZone: formData.timeZone,
@@ -113,7 +116,8 @@ export const AddPayPalTransactionForm: React.FC<AddPayPalTransactionFormProps> =
       amount: parseFloat(formData.amount),
       fees: parseFloat(formData.fees) || 0,
       total: parseFloat(formData.total) || parseFloat(formData.amount),
-      transactionId: formData.transactionId.trim()
+      transactionId: formData.transactionId.trim(),
+      paymentMethod: formData.paymentMethod
     };
 
     // Add optional fields only if they have values
@@ -133,7 +137,7 @@ export const AddPayPalTransactionForm: React.FC<AddPayPalTransactionFormProps> =
     }
   };
 
-  const handleImportComplete = async (transactions: PayPalTransaction[]) => {
+  const handleImportComplete = async (transactions: Transaction[]) => {
     if (onImportTransactions) {
       const result = await onImportTransactions(transactions);
       // Close modal after successful import
@@ -226,6 +230,24 @@ export const AddPayPalTransactionForm: React.FC<AddPayPalTransactionFormProps> =
               {errors.name && <p className={`${colors.text.danger} text-sm mt-1`}>{errors.name}</p>}
             </div>
 
+            {/* Payment method */}
+            <div>
+              <label className={`block text-sm ${colors.form.label} mb-1`}>
+                Payment method
+              </label>
+              <select
+                name="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 rounded-md ${colors.form.input.base}`}
+                disabled={isLoading}
+              >
+                {activePaymentMethods.map(pm => (
+                  <option key={pm.id} value={pm.name}>{pm.name}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Amount */}
             <div>
               <label className={`block text-sm ${colors.form.label} mb-1`}>
@@ -292,7 +314,7 @@ export const AddPayPalTransactionForm: React.FC<AddPayPalTransactionFormProps> =
                 name="transactionId"
                 value={formData.transactionId}
                 onChange={handleInputChange}
-                placeholder="Unique PayPal transaction ID"
+                placeholder="Unique transaction ID"
                 className={`w-full px-3 py-2 rounded-md ${errors.transactionId ? colors.form.input.error : colors.form.input.base
                   }`}
                 required
@@ -353,7 +375,7 @@ export const AddPayPalTransactionForm: React.FC<AddPayPalTransactionFormProps> =
     <Modal
       isOpen={isOpen}
       onClose={onCancel}
-      title="Add PayPal Transaction"
+      title="Add Transaction"
       size="md"
       body={modalBody}
       footer={modalFooter}

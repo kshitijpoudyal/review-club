@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useDataSource } from '../hooks/useDataSource';
-import { usePayPalTransactions } from '../hooks/usePayPalTransactions';
+import { useTransactions } from '../hooks/useTransactions';
 import { useVendors } from '../hooks/useVendors';
 import { useDashboardMetrics } from '../hooks/useDashboardMetrics';
 import { useMinimumLoading } from '../hooks/useMinimumLoading';
@@ -17,7 +17,7 @@ import {
   FeesTrendChart,
   MonthlyAreaChart,
   PaidVsReceivedChart,
-} from '../components/Dashboard/PayPalVsProductTrendChart';
+} from '../components/Dashboard/TransactionsVsProductTrendChart';
 import { VendorVoidChart } from '../components/Dashboard/VendorVoidChart';
 import { PipelineStatusChart } from '../components/Dashboard/PipelineStatusChart';
 import { AttentionSummary } from '../components/Dashboard/AttentionSummary';
@@ -43,26 +43,26 @@ export const DashboardPage: React.FC = () => {
   } = useDataSource(user?.uid);
 
   const {
-    data: paypalData,
-    loading: paypalLoading,
-    error: paypalError,
-    refetch: refetchPayPal,
-  } = usePayPalTransactions();
+    data: transactionsData,
+    loading: transactionsLoading,
+    error: transactionsError,
+    refetch: refetchTransactions,
+  } = useTransactions();
 
   const { vendors } = useVendors();
 
   const products = productData?.products ?? [];
-  const transactions = paypalData?.transactions ?? [];
+  const transactions = transactionsData?.transactions ?? [];
 
   const metrics = useDashboardMetrics(products, transactions, vendors, timeRange);
 
-  const loading = productsLoading || paypalLoading;
+  const loading = productsLoading || transactionsLoading;
   const displayLoading = useMinimumLoading(loading);
-  const error = productsError || paypalError;
+  const error = productsError || transactionsError;
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([refetchProducts(), refetchPayPal()]);
-  }, [refetchProducts, refetchPayPal]);
+    await Promise.all([refetchProducts(), refetchTransactions()]);
+  }, [refetchProducts, refetchTransactions]);
 
   if (error) {
     return <DashboardError error={`Error loading dashboard: ${error}`} />;
@@ -81,8 +81,8 @@ export const DashboardPage: React.FC = () => {
           className: getStatsColor('received'),
         },
         {
-          value: formatCurrency(metrics.paypalNetReceived),
-          label: 'PayPal Net Received',
+          value: formatCurrency(metrics.transactionNetReceived),
+          label: 'Transactions Net Received',
           className: getStatsColor('netReceived'),
         },
         {
@@ -95,7 +95,7 @@ export const DashboardPage: React.FC = () => {
           label: 'Reconciliation Gap',
           className: getReconciliationGapColor(
             metrics.reconciliationGap,
-            metrics.reconciliation.unlinkedPayPalNet
+            metrics.reconciliation.unlinkedTransactionNet
           ),
         },
         {
@@ -135,9 +135,9 @@ export const DashboardPage: React.FC = () => {
             <DashboardSection>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <MonthlyAreaChart
-                  data={metrics.paypalTrend}
-                  title="PayPal net received"
-                  subtitle="Monthly inflow from PayPal transactions"
+                  data={metrics.transactionTrend}
+                  title="Transactions net received"
+                  subtitle="Monthly inflow from transactions"
                 />
                 <MonthlyAreaChart
                   data={metrics.productRefundTrend}

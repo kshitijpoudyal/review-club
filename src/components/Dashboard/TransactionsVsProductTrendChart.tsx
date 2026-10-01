@@ -154,7 +154,7 @@ interface FeesChartProps {
 }
 
 export const FeesTrendChart: React.FC<FeesChartProps> = ({ data }) => (
-  <ChartCard title="PayPal fees over time" subtitle="Monthly fee totals">
+  <ChartCard title="Transaction fees over time" subtitle="Monthly fee totals">
     {data.length === 0 ? (
       <EmptyChart message="No fee data for this period" />
     ) : (

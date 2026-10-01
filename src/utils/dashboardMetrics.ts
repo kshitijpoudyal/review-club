@@ -1,5 +1,5 @@
 import { Product, Vendor } from '../types/Product';
-import { PayPalTransaction } from '../types/PayPalTransaction';
+import { Transaction } from '../types/Transaction';
 import { getProductStatusType, isComplete, ProductStatusType } from './productStatus';
 import { getVendorName } from './vendors';
 
@@ -19,7 +19,7 @@ export interface DualTrendPoint {
 }
 
 export interface ReconciliationBreakdown {
-  unlinkedPayPalNet: number;
+  unlinkedTransactionNet: number;
   linkedProductReceived: number;
   voidWriteOffs: number;
 }
@@ -41,8 +41,8 @@ export interface PipelineStatusCount {
 }
 
 export interface AttentionCounts {
-  unlinkedPayPalCount: number;
-  unlinkedPayPalAmount: number;
+  unlinkedTransactionCount: number;
+  unlinkedTransactionAmount: number;
   refundPending: number;
   sendScreenshot: number;
   addReview: number;
@@ -54,13 +54,13 @@ export interface DashboardMetrics {
   completionRate: number;
   totalPaid: number;
   productTotalReceived: number;
-  paypalNetReceived: number;
+  transactionNetReceived: number;
   totalFees: number;
   netDelta: number;
   reconciliationGap: number;
   reconciliation: ReconciliationBreakdown;
   unlinkedCount: number;
-  paypalTrend: MonthlyTrendPoint[];
+  transactionTrend: MonthlyTrendPoint[];
   productRefundTrend: MonthlyTrendPoint[];
   paidVsReceivedTrend: DualTrendPoint[];
   feesTrend: MonthlyTrendPoint[];
@@ -208,7 +208,7 @@ function filterDualTrendByRange(
 
 export function computeDashboardMetrics(
   products: Product[],
-  transactions: PayPalTransaction[],
+  transactions: Transaction[],
   vendors: Vendor[],
   range: DashboardTimeRange = 'All',
   now = new Date()
@@ -250,7 +250,7 @@ export function computeDashboardMetrics(
 
     if (
       !product.isVoid &&
-      product.paypalTransactionIds?.length &&
+      (product.transactionIds ?? product.paypalTransactionIds)?.length &&
       product.received != null &&
       !Number.isNaN(product.received)
     ) {
@@ -271,14 +271,14 @@ export function computeDashboardMetrics(
   const unlinked = transactions.filter(
     (t) => !t.linkedProductIds || t.linkedProductIds.length === 0
   );
-  const unlinkedPayPalNet = unlinked.reduce((s, t) => s + t.total, 0);
+  const unlinkedTransactionNet = unlinked.reduce((s, t) => s + t.total, 0);
   const unlinkedCount = unlinked.length;
 
-  const paypalNetReceived = transactions.reduce((s, t) => s + t.total, 0);
+  const transactionNetReceived = transactions.reduce((s, t) => s + t.total, 0);
   const totalFees = transactions.reduce((s, t) => s + Math.abs(t.fees), 0);
-  const reconciliationGap = paypalNetReceived - productTotalReceived;
+  const reconciliationGap = transactionNetReceived - productTotalReceived;
 
-  const paypalTrendRaw = sumMonthly(
+  const transactionTrendRaw = sumMonthly(
     transactions
       .filter((t) => isWithinTimeRange(t.date, range, now))
       .map((t) => {
@@ -353,8 +353,8 @@ export function computeDashboardMetrics(
   }));
 
   const attention: AttentionCounts = {
-    unlinkedPayPalCount: unlinkedCount,
-    unlinkedPayPalAmount: unlinkedPayPalNet,
+    unlinkedTransactionCount: unlinkedCount,
+    unlinkedTransactionAmount: unlinkedTransactionNet,
     refundPending: 0,
     sendScreenshot: 0,
     addReview: 0,
@@ -377,17 +377,17 @@ export function computeDashboardMetrics(
     completionRate,
     totalPaid,
     productTotalReceived,
-    paypalNetReceived,
+    transactionNetReceived,
     totalFees,
     netDelta,
     reconciliationGap,
     reconciliation: {
-      unlinkedPayPalNet,
+      unlinkedTransactionNet,
       linkedProductReceived,
       voidWriteOffs,
     },
     unlinkedCount,
-    paypalTrend: filterTrendByRange(paypalTrendRaw, range, now),
+    transactionTrend: filterTrendByRange(transactionTrendRaw, range, now),
     productRefundTrend: filterTrendByRange(sumMonthly(refundEntries), range, now),
     paidVsReceivedTrend: filterDualTrendByRange(paidVsReceivedTrendRaw, range, now),
     feesTrend: filterTrendByRange(feesTrendRaw, range, now),
@@ -397,8 +397,8 @@ export function computeDashboardMetrics(
   };
 }
 
-export function getReconciliationGapColor(gap: number, unlinkedPayPalNet: number): string {
+export function getReconciliationGapColor(gap: number, unlinkedTransactionNet: number): string {
   if (Math.abs(gap) < 0.01) return 'text-[#006a68]';
-  if (Math.abs(gap - unlinkedPayPalNet) < 0.01) return 'text-amber-800';
+  if (Math.abs(gap - unlinkedTransactionNet) < 0.01) return 'text-amber-800';
   return 'text-[#ba1a1a]';
 }

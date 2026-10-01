@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Product, Vendor } from '../types/Product';
-import { PayPalTransaction } from '../types/PayPalTransaction';
+import { Transaction } from '../types/Transaction';
 import {
   computeDashboardMetrics,
   DashboardMetrics,
@@ -9,7 +9,7 @@ import {
 
 export function useDashboardMetrics(
   products: Product[],
-  transactions: PayPalTransaction[],
+  transactions: Transaction[],
   vendors: Vendor[],
   timeRange: DashboardTimeRange = 'All'
 ): DashboardMetrics | null {

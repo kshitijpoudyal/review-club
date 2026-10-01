@@ -35,11 +35,11 @@ function AttentionItem({ label, detail, to, highlight }: AttentionItemProps) {
 export const AttentionSummary: React.FC<AttentionSummaryProps> = ({ attention }) => {
   const items: AttentionItemProps[] = [];
 
-  if (attention.unlinkedPayPalCount > 0) {
+  if (attention.unlinkedTransactionCount > 0) {
     items.push({
-      label: 'Unlinked PayPal',
-      detail: `${attention.unlinkedPayPalCount} · ${formatCurrency(attention.unlinkedPayPalAmount)}`,
-      to: '/paypal?link=unlinked',
+      label: 'Unlinked transactions',
+      detail: `${attention.unlinkedTransactionCount} · ${formatCurrency(attention.unlinkedTransactionAmount)}`,
+      to: '/transactions?link=unlinked',
       highlight: true,
     });
   }

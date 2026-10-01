@@ -13,7 +13,7 @@ import { useProductStats } from '../hooks/useProductStats';
 import { useSortedProducts } from '../hooks/useSortedProducts';
 import { useMinimumLoading } from '../hooks/useMinimumLoading';
 import { useVendors } from '../hooks/useVendors';
-import { usePayPalTransactions } from '../hooks/usePayPalTransactions';
+import { useTransactions } from '../hooks/useTransactions';
 import { StatusFilter, DeltaFilter, VendorFilter, Product } from '../types/Product';
 import NextActionsStrip from '../components/ProductDashboard/NextActionsStrip';
 import GettingStartedPanel from '../components/ProductDashboard/GettingStartedPanel';
@@ -101,17 +101,17 @@ const ProductPage: React.FC = () => {
     refetch,
   } = useDataSource(user?.uid);
 
-  const { data: paypalData } = usePayPalTransactions();
+  const { data: transactionsData } = useTransactions();
 
-  const unlinkedPayPalStats = useMemo(() => {
-    const unlinked = (paypalData?.transactions || []).filter(
+  const unlinkedTransactionStats = useMemo(() => {
+    const unlinked = (transactionsData?.transactions || []).filter(
       (t) => !t.linkedProductIds || t.linkedProductIds.length === 0
     );
     return {
       count: unlinked.length,
       amount: unlinked.reduce((sum, t) => sum + t.total, 0),
     };
-  }, [paypalData?.transactions]);
+  }, [transactionsData?.transactions]);
 
   // Enforce minimum loading time of 3 seconds
   const displayLoading = useMinimumLoading(loading);
@@ -270,8 +270,8 @@ const ProductPage: React.FC = () => {
         products={data?.products || []}
         activeStatusFilter={statusFilter}
         onStatusFilter={(filter) => updateFilter('statusFilter', filter)}
-        unlinkedPayPalCount={unlinkedPayPalStats.count}
-        unlinkedPayPalAmount={unlinkedPayPalStats.amount}
+        unlinkedTransactionCount={unlinkedTransactionStats.count}
+        unlinkedTransactionAmount={unlinkedTransactionStats.amount}
       />
 
       <Toolbar

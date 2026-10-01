@@ -1,5 +1,5 @@
 import { Product } from '../types/Product';
-import { PayPalTransaction } from '../types/PayPalTransaction';
+import { Transaction } from '../types/Transaction';
 import { getProductStatusType } from './productStatus';
 import {
   getAmountDiffFromBand,
@@ -9,7 +9,7 @@ import {
   hasRefundExpectation,
 } from './refundUtils';
 
-export interface PayPalMatchSuggestion {
+export interface TransactionMatchSuggestion {
   product: Product;
   score: number;
   amountDiff: number;
@@ -25,12 +25,12 @@ function isRoundSellerShortfall(paid: number, targetAmount: number): boolean {
   return ROUND_SHORTFALLS.some((s) => Math.abs(shortfall - s) < 0.02);
 }
 
-export function getPayPalMatchSuggestions(
-  transaction: PayPalTransaction,
+export function getTransactionMatchSuggestions(
+  transaction: Transaction,
   products: Product[],
   linkedProductIds: string[] = [],
   limit = 3
-): PayPalMatchSuggestion[] {
+): TransactionMatchSuggestion[] {
   const linkedSet = new Set(linkedProductIds);
   const targetAmount = transaction.total;
 

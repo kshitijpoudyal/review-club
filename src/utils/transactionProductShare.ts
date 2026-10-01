@@ -1,11 +1,11 @@
-import { PayPalTransaction } from '../types/PayPalTransaction';
+import { Transaction } from '../types/Transaction';
 
 type ShareTransaction = Pick<
-  PayPalTransaction,
+  Transaction,
   'total' | 'linkedProductIds' | 'splitPrice' | 'productSplitAmounts'
 >;
 
-export function getPayPalProductShare(transaction: ShareTransaction, productId: string): number {
+export function getTransactionProductShare(transaction: ShareTransaction, productId: string): number {
   const linkedIds = transaction.linkedProductIds || [];
   const custom = transaction.productSplitAmounts?.[productId];
   if (custom != null && !Number.isNaN(custom)) {

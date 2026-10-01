@@ -175,21 +175,21 @@ export const GettingStartedPanel: React.FC<GettingStartedPanelProps> = ({
           </div>
         </section>
 
-        {/* Step 3 — PayPal */}
+        {/* Step 3 — Transactions */}
         <section>
           <div className="flex items-center gap-2 mb-2">
             <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#022448] text-white text-xs font-semibold flex items-center justify-center">3</span>
-            <h3 className={`${typography.bodyStrong} ${colors.text.primary}`}>Upload PayPal transactions</h3>
+            <h3 className={`${typography.bodyStrong} ${colors.text.primary}`}>Record your refunds</h3>
           </div>
           <div className={`ml-8 text-xs ${colors.text.muted} space-y-2`}>
             <p className="leading-relaxed">
-              Export your PayPal activity as CSV (Activity → Download → CSV), then import it on the PayPal page to link refunds.
+              Export your PayPal activity as CSV (Activity → Download → CSV) and import it, or add other refunds manually — on the Transactions page.
             </p>
             <Link
-              to="/paypal"
+              to="/transactions"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0070BA] text-white text-xs font-medium hover:bg-[#005ea6] transition-colors"
             >
-              Go to PayPal import
+              Go to Transactions
             </Link>
           </div>
         </section>

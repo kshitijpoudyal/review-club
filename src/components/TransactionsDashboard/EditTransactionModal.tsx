@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { PayPalTransaction } from '../../types/PayPalTransaction';
+import { Transaction } from '../../types/Transaction';
 import { Modal } from '../common';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
+import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 import {
   formFooterCancelClass,
   formFooterPrimaryClass,
@@ -10,10 +11,10 @@ import {
   formLabelClass,
 } from '../ProductDashboard/productFormStyles';
 
-interface EditPayPalTransactionModalProps {
-  transaction: PayPalTransaction | null;
+interface EditTransactionModalProps {
+  transaction: Transaction | null;
   isOpen: boolean;
-  onSave: (docId: string, transaction: PayPalTransaction) => Promise<boolean>;
+  onSave: (docId: string, transaction: Transaction) => Promise<boolean>;
   onClose: () => void;
   isLoading?: boolean;
 }
@@ -28,13 +29,14 @@ function toStoredTimeValue(time: string): string {
   return time.length === 5 ? `${time}:00` : time;
 }
 
-export const EditPayPalTransactionModal: React.FC<EditPayPalTransactionModalProps> = ({
+export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
   transaction,
   isOpen,
   onSave,
   onClose,
   isLoading = false,
 }) => {
+  const { activePaymentMethods } = usePaymentMethods();
   const [formData, setFormData] = useState({
     date: '',
     time: '',
@@ -45,6 +47,7 @@ export const EditPayPalTransactionModal: React.FC<EditPayPalTransactionModalProp
     transactionId: '',
     itemTitle: '',
     receiptId: '',
+    paymentMethod: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -61,11 +64,12 @@ export const EditPayPalTransactionModal: React.FC<EditPayPalTransactionModalProp
       transactionId: transaction.transactionId || '',
       itemTitle: transaction.itemTitle || '',
       receiptId: transaction.receiptId || '',
+      paymentMethod: transaction.paymentMethod ?? 'PayPal', // dual-read fallback for pre-existing docs
     });
     setErrors({});
   }, [isOpen, transaction]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => {
       const next = { ...prev, [name]: value };
@@ -100,7 +104,7 @@ export const EditPayPalTransactionModal: React.FC<EditPayPalTransactionModalProp
     e.preventDefault();
     if (!transaction?.id || !validateForm()) return;
 
-    const updated: PayPalTransaction = {
+    const updated: Transaction = {
       ...transaction,
       date: formData.date,
       time: toStoredTimeValue(formData.time),
@@ -111,6 +115,7 @@ export const EditPayPalTransactionModal: React.FC<EditPayPalTransactionModalProp
       transactionId: formData.transactionId.trim(),
       itemTitle: formData.itemTitle.trim() || undefined,
       receiptId: formData.receiptId.trim() || undefined,
+      paymentMethod: formData.paymentMethod,
     };
 
     setSaving(true);
@@ -163,6 +168,21 @@ export const EditPayPalTransactionModal: React.FC<EditPayPalTransactionModalProp
           required
         />
         {errors.name && <p className={`${typography.caption} ${colors.text.danger} mt-1`}>{errors.name}</p>}
+      </div>
+      <div>
+        <label htmlFor="edit-pp-payment-method" className={formLabelClass}>Payment method</label>
+        <select
+          id="edit-pp-payment-method"
+          name="paymentMethod"
+          value={formData.paymentMethod}
+          onChange={handleInputChange}
+          className={formInputClass}
+          disabled={disabled}
+        >
+          {activePaymentMethods.map(pm => (
+            <option key={pm.id} value={pm.name}>{pm.name}</option>
+          ))}
+        </select>
       </div>
       <div>
         <label htmlFor="edit-pp-amount" className={formLabelClass}>Amount</label>
@@ -273,4 +293,4 @@ export const EditPayPalTransactionModal: React.FC<EditPayPalTransactionModalProp
   );
 };
 
-export default EditPayPalTransactionModal;
+export default EditTransactionModal;

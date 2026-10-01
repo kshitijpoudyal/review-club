@@ -3,7 +3,7 @@ import { Product } from '../../types/Product';
 import EditProductModal from './EditProductModal';
 import { getProductStatus } from '../../utils/productStatus';
 import { getBadgeClasses } from '../../utils/colors';
-import { useProductPayPalLinks, ProductPayPalLink } from '../../hooks/useProductPayPalLinks';
+import { useProductTransactionLinks, ProductTransactionLink } from '../../hooks/useProductTransactionLinks';
 import { TableView, TableColumn, TableRow, MobileCardContent } from '../common/TableView';
 import { colors, getFinancialColor } from '../../utils/colors';
 import { useVendors } from '../../hooks/useVendors';
@@ -47,9 +47,9 @@ const ProductTable: React.FC<ProductTableProps> = ({
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const { showToast, dismissToast } = useToast();
 
-  // Get product IDs for checking PayPal links
+  // Get product IDs for checking transaction links
   const productIds = products.map(p => p.id).filter(Boolean) as string[];
-  const { getLinkedPayPalLinks } = useProductPayPalLinks(userId, productIds);
+  const { getLinkedTransactionLinks } = useProductTransactionLinks(userId, productIds);
 
   // Computed once per product instead of separately in rows/mobileCards/renderMobileDropdown
   const statuses = useMemo(() => products.map(p => getProductStatus(p)), [products]);
@@ -83,9 +83,9 @@ const ProductTable: React.FC<ProductTableProps> = ({
     return '';
   };
 
-  const renderPayPalBadge = (link: ProductPayPalLink, index: number) => (
+  const renderTransactionBadge = (link: ProductTransactionLink, index: number) => (
     <span
-      key={link.transactionId || `paypal-${index}`}
+      key={link.transactionId || `transaction-${index}`}
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0070BA]/10 text-[#0070BA] ${typography.captionStrong} tabular-nums flex-shrink-0`}
     >
       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,16 +95,16 @@ const ProductTable: React.FC<ProductTableProps> = ({
     </span>
   );
 
-  const renderPayPalBadges = (links: ProductPayPalLink[]) => {
+  const renderTransactionBadges = (links: ProductTransactionLink[]) => {
     if (links.length === 0) return null;
-    return links.map((link, index) => renderPayPalBadge(link, index));
+    return links.map((link, index) => renderTransactionBadge(link, index));
   };
 
-  const renderPayPalBadgeColumn = (links: ProductPayPalLink[]) => {
+  const renderTransactionBadgeColumn = (links: ProductTransactionLink[]) => {
     if (links.length === 0) return null;
     return (
       <div className="flex flex-col items-end gap-1 shrink-0 self-start pr-1 lg:pr-2">
-        {links.map((link, index) => renderPayPalBadge(link, index))}
+        {links.map((link, index) => renderTransactionBadge(link, index))}
       </div>
     );
   };
@@ -368,7 +368,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
   // Transform products into table rows
   const rows: TableRow[] = products.map((product, index) => {
     const status = statuses[index];
-    const paypalLinks = product.id ? getLinkedPayPalLinks(product.id) : [];
+    const transactionLinks = product.id ? getLinkedTransactionLinks(product.id) : [];
     const storeBorderColor = getStoreBorderColor(product);
 
     return {
@@ -396,7 +396,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
             <div className="min-w-0 flex-1">
               {renderItemName(product)}
             </div>
-            {renderPayPalBadgeColumn(paypalLinks)}
+            {renderTransactionBadgeColumn(transactionLinks)}
           </div>
         ),
         vendor: (
@@ -484,7 +484,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
   const mobileCards: MobileCardContent[] = products.map((product, index) => {
     const status = statuses[index];
     const storeBorderColor = getStoreBorderColor(product);
-    const paypalLinks = product.id ? getLinkedPayPalLinks(product.id) : [];
+    const transactionLinks = product.id ? getLinkedTransactionLinks(product.id) : [];
 
     const headerContent = (
       <div className="space-y-3">
@@ -498,7 +498,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
               reviewMediaType={product.reviewMediaType}
               show={status.type === 'add-review'}
             />
-            {paypalLinks.length > 0 && renderPayPalBadges(paypalLinks)}
+            {transactionLinks.length > 0 && renderTransactionBadges(transactionLinks)}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <span className={`${typography.caption} ${colors.text.muted}`}>{formatDate(product.orderDate) || '—'}</span>

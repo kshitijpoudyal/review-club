@@ -24,18 +24,18 @@ function Row({ label, value, className = '' }: { label: string; value: string; c
 export const ReconciliationCard: React.FC<ReconciliationCardProps> = ({ metrics }) => {
   const gapColor = getReconciliationGapColor(
     metrics.reconciliationGap,
-    metrics.reconciliation.unlinkedPayPalNet
+    metrics.reconciliation.unlinkedTransactionNet
   );
 
   return (
     <ChartCard
-      title="PayPal vs Products"
-      subtitle="Compare net received in PayPal against product received totals"
+      title="Transactions vs Products"
+      subtitle="Compare net received in transactions against product received totals"
     >
       <div className="space-y-1">
         <Row
-          label="PayPal net received"
-          value={formatCurrency(metrics.paypalNetReceived)}
+          label="Transactions net received"
+          value={formatCurrency(metrics.transactionNetReceived)}
           className="text-[#006a68]"
         />
         <Row
@@ -51,8 +51,8 @@ export const ReconciliationCard: React.FC<ReconciliationCardProps> = ({ metrics 
         />
         <div className="pl-3 space-y-0.5 border-l-2 border-[#e4e2dd] ml-1 mt-2">
           <Row
-            label="Unlinked PayPal"
-            value={formatCurrency(metrics.reconciliation.unlinkedPayPalNet)}
+            label="Unlinked transactions"
+            value={formatCurrency(metrics.reconciliation.unlinkedTransactionNet)}
           />
           <Row
             label="Linked on products"
@@ -66,10 +66,10 @@ export const ReconciliationCard: React.FC<ReconciliationCardProps> = ({ metrics 
       </div>
       <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-[#e4e2dd]">
         <Link
-          to="/paypal?link=unlinked"
+          to="/transactions?link=unlinked"
           className={`${typography.captionStrong} px-3 py-1.5 rounded-full bg-[#0070BA]/10 text-[#0070BA] hover:bg-[#0070BA]/15 transition-colors`}
         >
-          View unlinked in PayPal
+          View unlinked transactions
         </Link>
         <Link
           to="/products?status=void"

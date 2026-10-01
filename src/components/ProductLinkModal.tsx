@@ -7,12 +7,12 @@ import {
   EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 import { Product, ProductLinkOptions } from '../types/Product';
-import { PayPalTransaction } from '../types/PayPalTransaction';
+import { Transaction } from '../types/Transaction';
 import { Modal, ProductThumbnail } from './common';
 import ConfirmDeleteModal from './common/ConfirmDeleteModal';
 import { getProductStatus, isVoid, isRefundPending } from '../utils/productStatus';
 import { formatCurrency } from '../utils/currency';
-import { getPayPalMatchSuggestions } from '../utils/paypalMatchSuggestions';
+import { getTransactionMatchSuggestions } from '../utils/transactionMatchSuggestions';
 import {
   getExpectedReceivedForProduct,
   hasRefundExpectation,
@@ -33,7 +33,7 @@ interface ProductLinkModalProps {
   selectedProductIds: string[];
   onProductSelect: (productIds: string[], options?: ProductLinkOptions) => void | Promise<void>;
   linkedProductIds?: string[];
-  transaction?: PayPalTransaction;
+  transaction?: Transaction;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -252,7 +252,7 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
 
   const matchSuggestions = useMemo(() => {
     if (!transaction) return [];
-    return getPayPalMatchSuggestions(transaction, products, linkedProductIds);
+    return getTransactionMatchSuggestions(transaction, products, linkedProductIds);
   }, [transaction, products, linkedProductIds]);
 
   const transactionLinkedProducts = useMemo(

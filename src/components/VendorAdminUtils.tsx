@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { WrenchScrewdriverIcon } from '@heroicons/react/24/outline';
 import { vendorService } from '../firebase/vendorService';
 import { backfillProductsWithVendor } from '../utils/migrations/productVendorMigration';
+import { backfillTransactionsWithPaymentMethod } from '../utils/migrations/transactionPaymentMethodMigration';
 import { useAuth } from '../hooks/useAuth';
 import { colors } from '../utils/colors';
 import { typography } from '../utils/typography';
@@ -13,6 +14,7 @@ import { typography } from '../utils/typography';
 export const VendorAdminUtils: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [txnLoading, setTxnLoading] = useState(false);
   const [message, setMessage] = useState<string>('');
   const [messageType, setMessageType] = useState<'success' | 'error' | 'info'>('info');
 
@@ -45,6 +47,30 @@ export const VendorAdminUtils: React.FC = () => {
     }
   };
 
+  const handleBackfillPaymentMethods = async () => {
+    if (!user?.uid) {
+      showMessage('Please log in to run the backfill.', 'error');
+      return;
+    }
+
+    try {
+      setTxnLoading(true);
+      showMessage('Backfilling transaction payment methods...', 'info');
+      const count = await backfillTransactionsWithPaymentMethod(user.uid);
+      showMessage(
+        count > 0
+          ? `Backfilled ${count} transaction${count === 1 ? '' : 's'} to "PayPal".`
+          : 'All transactions already have a payment method.',
+        'success'
+      );
+    } catch (error) {
+      console.error('Error during payment method backfill:', error);
+      showMessage('Backfill failed. Check console for details.', 'error');
+    } finally {
+      setTxnLoading(false);
+    }
+  };
+
   const getMessageClasses = () => {
     switch (messageType) {
       case 'success':
@@ -67,8 +93,9 @@ export const VendorAdminUtils: React.FC = () => {
           <div className="flex-1 min-w-0 space-y-2">
             <h2 className={typography.sectionTitle}>Onboarding and Migrations</h2>
             <p className={typography.caption}>
-              Initializes default vendors and backfills vendor info on existing products. Safe to run
-              multiple times — it won&apos;t duplicate vendors or overwrite existing vendor assignments.
+              Initializes default vendors/payment methods and backfills vendor info on existing products
+              and payment method on existing transactions. Safe to run multiple times — it won&apos;t
+              duplicate records or overwrite existing assignments.
             </p>
 
             {message && (
@@ -85,10 +112,17 @@ export const VendorAdminUtils: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-6 pt-5 border-t border-[rgba(196,198,207,0.15)] flex justify-end">
+        <div className="mt-6 pt-5 border-t border-[rgba(196,198,207,0.15)] flex flex-col sm:flex-row justify-end gap-3">
+          <button
+            onClick={handleBackfillPaymentMethods}
+            disabled={txnLoading || loading || !user}
+            className={`${colors.button.secondary} w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {txnLoading ? 'Processing...' : 'Backfill Transaction Payment Methods'}
+          </button>
           <button
             onClick={handleRunFullSetup}
-            disabled={loading || !user}
+            disabled={loading || txnLoading || !user}
             className={`${colors.button.primary} w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {loading ? 'Processing...' : 'Run Full Setup (Recommended)'}

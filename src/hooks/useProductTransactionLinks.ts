@@ -1,38 +1,38 @@
 import { useMemo } from 'react';
-import { PayPalTransaction } from '../types/PayPalTransaction';
-import { getPayPalProductShare } from '../utils/paypalProductShare';
-import { usePayPalTransactions } from './usePayPalTransactions';
+import { Transaction } from '../types/Transaction';
+import { getTransactionProductShare } from '../utils/transactionProductShare';
+import { useTransactions } from './useTransactions';
 
-export interface ProductPayPalLink {
+export interface ProductTransactionLink {
   amount: number;
   transactionId: string;
 }
 
 function getProductShareFromTransaction(
-  transaction: PayPalTransaction,
+  transaction: Transaction,
   productId: string,
-): ProductPayPalLink | null {
+): ProductTransactionLink | null {
   const linkedIds = transaction.linkedProductIds || [];
   if (!linkedIds.includes(productId) || transaction.total == null) return null;
 
   return {
-    amount: getPayPalProductShare(transaction, productId),
+    amount: getTransactionProductShare(transaction, productId),
     transactionId: transaction.transactionId || '',
   };
 }
 
-// Derives per-product PayPal links from the already-fetched, shared transactions
-// list (see PayPalTransactionsProvider) instead of independently re-reading the
-// whole paypal_transactions collection every time a product table mounts.
-export const useProductPayPalLinks = (_userId?: string, productIds?: string[]) => {
-  const { data, loading } = usePayPalTransactions();
+// Derives per-product transaction links from the already-fetched, shared transactions
+// list (see TransactionsProvider) instead of independently re-reading the whole
+// transactions collection every time a product table mounts.
+export const useProductTransactionLinks = (_userId?: string, productIds?: string[]) => {
+  const { data, loading } = useTransactions();
 
-  const { linkedProductIds, linkedPayPalByProduct } = useMemo(() => {
+  const { linkedProductIds, linkedTransactionsByProduct } = useMemo(() => {
     const linkedIds = new Set<string>();
-    const linksMap = new Map<string, ProductPayPalLink[]>();
+    const linksMap = new Map<string, ProductTransactionLink[]>();
 
     if (!productIds || productIds.length === 0 || !data?.transactions) {
-      return { linkedProductIds: linkedIds, linkedPayPalByProduct: linksMap };
+      return { linkedProductIds: linkedIds, linkedTransactionsByProduct: linksMap };
     }
 
     for (const transaction of data.transactions) {
@@ -51,14 +51,14 @@ export const useProductPayPalLinks = (_userId?: string, productIds?: string[]) =
       }
     }
 
-    return { linkedProductIds: linkedIds, linkedPayPalByProduct: linksMap };
+    return { linkedProductIds: linkedIds, linkedTransactionsByProduct: linksMap };
   }, [data?.transactions, productIds?.join(',')]);
 
   const isProductLinked = (productId: string): boolean => linkedProductIds.has(productId);
-  const getLinkedPayPalLinks = (productId: string): ProductPayPalLink[] =>
-    linkedPayPalByProduct.get(productId) ?? [];
+  const getLinkedTransactionLinks = (productId: string): ProductTransactionLink[] =>
+    linkedTransactionsByProduct.get(productId) ?? [];
   const getLinkedAmount = (productId: string): number | null => {
-    const links = getLinkedPayPalLinks(productId);
+    const links = getLinkedTransactionLinks(productId);
     if (links.length === 0) return null;
     return links.reduce((sum, link) => sum + link.amount, 0);
   };
@@ -66,7 +66,7 @@ export const useProductPayPalLinks = (_userId?: string, productIds?: string[]) =
   return {
     linkedProductIds,
     isProductLinked,
-    getLinkedPayPalLinks,
+    getLinkedTransactionLinks,
     getLinkedAmount,
     loading,
   };

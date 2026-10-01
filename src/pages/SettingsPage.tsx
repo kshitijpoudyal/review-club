@@ -5,6 +5,7 @@ import { useNotificationSettings } from '../hooks/useNotificationSettings';
 import { typography } from '../utils/typography';
 import { colors } from '../utils/colors';
 import { VendorSettings } from '../components/Settings/VendorSettings';
+import { PaymentMethodSettings } from '../components/Settings/PaymentMethodSettings';
 import { GmailIntegration } from '../components/Settings/GmailIntegration';
 import { NotificationSettings } from '../components/Settings/NotificationSettings';
 import { VendorAdminUtils } from '../components/VendorAdminUtils';
@@ -200,6 +201,8 @@ const SettingsPage: React.FC = () => {
       </section>
 
       <VendorSettings />
+
+      <PaymentMethodSettings />
 
       <VendorAdminUtils />
     </div>

@@ -49,8 +49,10 @@ export interface Product {
   /** @deprecated Use refundExpectation.notes */
   refundNotes?: string;
   refundExpectation?: RefundExpectation | null;
+  transactionIds?: string[];
+  /** @deprecated Renamed to transactionIds. Kept for dual-read fallback on old docs; never written to. */
   paypalTransactionIds?: string[];
-  refundReceivedAt?: string; // ISO date when PayPal refund was linked
+  refundReceivedAt?: string; // ISO date when a refund/payment transaction was linked
   isVoid?: boolean;
   vendorId?: string; // Reference to vendor ID
   lastStatus?: string; // Last computed status — used to detect transitions

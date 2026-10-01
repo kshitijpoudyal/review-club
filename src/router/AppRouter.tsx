@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import App from '../App';
 import LoginPage from '../pages/LoginPage';
 import ProductPage from '../pages/ProductPage';
-import { PayPalPage } from '../pages/PayPalPage';
+import { TransactionsPage } from '../pages/TransactionsPage';
 import DashboardPage from '../pages/DashboardPage';
 import SettingsPage from '../pages/SettingsPage';
 import NotFoundPage from '../components/NotFoundPage';
@@ -60,7 +60,7 @@ const AppRouter: React.FC = () => {
         <Route index element={<Navigate to="/products" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="products" element={<ProductPage />} />
-        <Route path="paypal" element={<PayPalPage />} />
+        <Route path="transactions" element={<TransactionsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       

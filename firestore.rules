@@ -33,6 +33,11 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
+      // User's payment methods subcollection - private to each user
+      match /paymentMethods/{paymentMethodId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
       // Push notification subscriptions - private to each user
       match /pushSubscriptions/{subscriptionId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;

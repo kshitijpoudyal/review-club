@@ -11,8 +11,8 @@ interface NextActionsStripProps {
   products: Product[];
   activeStatusFilter: StatusFilter;
   onStatusFilter: (filter: StatusFilter) => void;
-  unlinkedPayPalCount: number;
-  unlinkedPayPalAmount: number;
+  unlinkedTransactionCount: number;
+  unlinkedTransactionAmount: number;
 }
 
 interface AttentionItem {
@@ -36,8 +36,8 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
   products,
   activeStatusFilter,
   onStatusFilter,
-  unlinkedPayPalCount,
-  unlinkedPayPalAmount,
+  unlinkedTransactionCount,
+  unlinkedTransactionAmount,
 }) => {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(readExpandedPreference);
@@ -108,14 +108,14 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
       active: activeStatusFilter === 'refund-pending',
     },
     {
-      key: 'paypal',
-      label: 'Unlinked PayPal',
+      key: 'transactions',
+      label: 'Unlinked Transactions',
       detail:
-        unlinkedPayPalCount > 0
-          ? `${unlinkedPayPalCount} transaction${unlinkedPayPalCount !== 1 ? 's' : ''} · ${formatCurrency(unlinkedPayPalAmount)}`
+        unlinkedTransactionCount > 0
+          ? `${unlinkedTransactionCount} transaction${unlinkedTransactionCount !== 1 ? 's' : ''} · ${formatCurrency(unlinkedTransactionAmount)}`
           : '0 transactions',
-      count: unlinkedPayPalCount,
-      onClick: () => navigate('/paypal'),
+      count: unlinkedTransactionCount,
+      onClick: () => navigate('/transactions'),
     },
   ].filter((item) => item.count > 0);
 
@@ -127,7 +127,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
 
   const collapsedSummary = items
     .map((item) => {
-      if (item.key === 'paypal') return `${item.count} unlinked PayPal`;
+      if (item.key === 'transactions') return `${item.count} unlinked transactions`;
       return `${item.count} ${item.label.toLowerCase()}`;
     })
     .join(' · ');
@@ -190,7 +190,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
               >
                 <div className="min-w-0 flex items-center gap-2.5">
                   <span className={`flex-shrink-0 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full tabular-nums text-caption font-semibold ${
-                    item.key === 'paypal'
+                    item.key === 'transactions'
                       ? 'bg-amber-500/12 text-amber-800'
                       : 'bg-[#2563eb]/10 text-[#1d4ed8]'
                   }`}>

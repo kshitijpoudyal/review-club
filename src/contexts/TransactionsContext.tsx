@@ -13,18 +13,24 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { PayPalTransaction, PayPalTransactionData } from '../types/PayPalTransaction';
+import { Transaction, TransactionData } from '../types/Transaction';
 import { Product, ProductLinkOptions } from '../types/Product';
-import { getPayPalProductShare } from '../utils/paypalProductShare';
+import { getTransactionProductShare } from '../utils/transactionProductShare';
 import { getProductStatusType } from '../utils/productStatus';
 
 // ─── Cache helpers ──────────────────────────────────────────────────────────
 const CACHE_VERSION = 'v1';
-const ppCacheKey = (uid: string) => `art_paypal_${CACHE_VERSION}_${uid}`;
+const cacheKey = (uid: string) => `art_transactions_${CACHE_VERSION}_${uid}`;
 
-function readPayPalCache(uid: string): PayPalTransaction[] | null {
+// Firestore collection is still physically named `paypal_transactions` for historical
+// reasons (it predates the generic "Transaction" rename). Renaming it would require a
+// live-data migration; only the code-level name is "Transaction". Do not rename this
+// path without a real migration plan.
+const TRANSACTIONS_COLLECTION = 'paypal_transactions';
+
+function readTransactionCache(uid: string): Transaction[] | null {
   try {
-    const raw = localStorage.getItem(ppCacheKey(uid));
+    const raw = localStorage.getItem(cacheKey(uid));
     if (!raw) return null;
     const { transactions } = JSON.parse(raw);
     return Array.isArray(transactions) ? transactions : null;
@@ -33,15 +39,15 @@ function readPayPalCache(uid: string): PayPalTransaction[] | null {
   }
 }
 
-function writePayPalCache(uid: string, transactions: PayPalTransaction[]): void {
+function writeTransactionCache(uid: string, transactions: Transaction[]): void {
   try {
-    localStorage.setItem(ppCacheKey(uid), JSON.stringify({ transactions, ts: Date.now() }));
+    localStorage.setItem(cacheKey(uid), JSON.stringify({ transactions, ts: Date.now() }));
   } catch {
     // Ignore quota errors
   }
 }
 
-function sortTransactions(transactions: PayPalTransaction[]): PayPalTransaction[] {
+function sortTransactions(transactions: Transaction[]): Transaction[] {
   return [...transactions].sort((a, b) => {
     const dateComparison = b.date.localeCompare(a.date);
     if (dateComparison !== 0) return dateComparison;
@@ -49,7 +55,7 @@ function sortTransactions(transactions: PayPalTransaction[]): PayPalTransaction[
   });
 }
 
-function buildTransactionData(transactions: PayPalTransaction[]): PayPalTransactionData {
+function buildTransactionData(transactions: Transaction[]): TransactionData {
   return {
     transactions,
     summary: {
@@ -65,14 +71,14 @@ function buildTransactionData(transactions: PayPalTransaction[]): PayPalTransact
 const BATCH_CHUNK_SIZE = 450;
 // ───────────────────────────────────────────────────────────────────────────
 
-interface PayPalTransactionsContextValue {
-  data: PayPalTransactionData | null;
+interface TransactionsContextValue {
+  data: TransactionData | null;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-  addTransaction: (transaction: PayPalTransaction) => Promise<boolean>;
-  importTransactions: (transactions: PayPalTransaction[]) => Promise<{ added: number; skipped: number; withdrawalSkipped: number }>;
-  updateTransaction: (docId: string, transaction: PayPalTransaction) => Promise<boolean>;
+  addTransaction: (transaction: Transaction) => Promise<boolean>;
+  importTransactions: (transactions: Transaction[]) => Promise<{ added: number; skipped: number; withdrawalSkipped: number }>;
+  updateTransaction: (docId: string, transaction: Transaction) => Promise<boolean>;
   deleteTransaction: (transactionId: string) => Promise<boolean>;
   updateProductLink: (
     transactionId: string,
@@ -81,22 +87,22 @@ interface PayPalTransactionsContextValue {
   ) => Promise<boolean>;
 }
 
-const PayPalTransactionsContext = createContext<PayPalTransactionsContextValue | null>(null);
+const TransactionsContext = createContext<TransactionsContextValue | null>(null);
 
-export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: ReactNode }> = ({ userId, children }) => {
-  const initRef = useRef<{ data: PayPalTransactionData | null; hasCache: boolean } | null>(null);
+export const TransactionsProvider: React.FC<{ userId?: string; children: ReactNode }> = ({ userId, children }) => {
+  const initRef = useRef<{ data: TransactionData | null; hasCache: boolean } | null>(null);
   if (!initRef.current) {
-    const cached = userId ? readPayPalCache(userId) : null;
+    const cached = userId ? readTransactionCache(userId) : null;
     initRef.current = { data: cached ? buildTransactionData(cached) : null, hasCache: !!cached };
   }
 
-  const [data, setData] = useState<PayPalTransactionData | null>(initRef.current.data);
+  const [data, setData] = useState<TransactionData | null>(initRef.current.data);
   const [loading, setLoading] = useState(!initRef.current.hasCache);
   const [error, setError] = useState<string | null>(null);
 
-  const applyTransactions = useCallback((userIdForCache: string, transactions: PayPalTransaction[]) => {
+  const applyTransactions = useCallback((userIdForCache: string, transactions: Transaction[]) => {
     const sorted = sortTransactions(transactions);
-    writePayPalCache(userIdForCache, sorted);
+    writeTransactionCache(userIdForCache, sorted);
     setData(buildTransactionData(sorted));
     return sorted;
   }, []);
@@ -114,18 +120,18 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
     setError(null);
 
     try {
-      const transactionsRef = collection(db, 'users', userId, 'paypal_transactions');
+      const transactionsRef = collection(db, 'users', userId, TRANSACTIONS_COLLECTION);
       const transactionsQuery = query(transactionsRef, orderBy('date', 'desc'));
       const transactionsSnap = await getDocs(transactionsQuery);
 
-      const transactions: PayPalTransaction[] = transactionsSnap.docs.map(doc => ({
+      const transactions: Transaction[] = transactionsSnap.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as PayPalTransaction));
+      } as Transaction));
 
       applyTransactions(userId, transactions);
     } catch (err) {
-      console.error('❌ Error fetching PayPal transactions:', err);
+      console.error('❌ Error fetching transactions:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
@@ -134,10 +140,10 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
 
   // Recomputes and writes a single product's `received`/`delta` from the transactions
   // already linked to it. Takes the current transactions array instead of re-reading
-  // the whole paypal_transactions collection.
+  // the whole transactions collection.
   const updateProductReceivedAmount = useCallback(async (
     productId: string,
-    transactions: PayPalTransaction[],
+    transactions: Transaction[],
     options?: { completeWorkflow?: boolean; refundDate?: string }
   ): Promise<void> => {
     if (!userId) return;
@@ -157,7 +163,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
 
         // Recompute lastStatus/statusChangedAt from the fields being written here —
         // the same bookkeeping saveProductToFirebase does on a manual edit. Without
-        // this, a product completed via PayPal-linking keeps whatever stale status
+        // this, a product completed via transaction-linking keeps whatever stale status
         // it had before, and the backend's stuck-item check keeps firing on it.
         const withStatus = (fields: Record<string, unknown>): Record<string, unknown> => {
           const merged = { ...productData, ...fields } as Product;
@@ -182,15 +188,15 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
           await updateDoc(productRef, withStatus({
             received: null,
             delta: null,
-            paypalTransactionIds: null,
+            transactionIds: null,
             refundReceivedAt: null,
             updatedAt: serverTimestamp()
           }));
         } else {
           const totalReceived = linkedTransactions.reduce((sum, transaction) => {
-            return sum + getPayPalProductShare(transaction, productId);
+            return sum + getTransactionProductShare(transaction, productId);
           }, 0);
-          const paypalTransactionIds = linkedTransactions.map((t) => t.transactionId);
+          const transactionIds = linkedTransactions.map((t) => t.transactionId);
           const refundReceivedAt =
             options?.refundDate ||
             linkedTransactions[linkedTransactions.length - 1]?.date ||
@@ -199,7 +205,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
           const updates: Record<string, unknown> = {
             received: totalReceived,
             delta: totalReceived - paid,
-            paypalTransactionIds,
+            transactionIds,
             refundReceivedAt,
             updatedAt: serverTimestamp(),
           };
@@ -220,7 +226,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
     }
   }, [userId]);
 
-  const addTransactionToFirebase = useCallback(async (transaction: PayPalTransaction): Promise<boolean> => {
+  const addTransactionToFirebase = useCallback(async (transaction: Transaction): Promise<boolean> => {
     if (!userId) return false;
 
     try {
@@ -239,27 +245,27 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
         updatedAt: serverTimestamp()
       };
 
-      const docRef = await addDoc(collection(db, 'users', userId, 'paypal_transactions'), transactionData);
+      const docRef = await addDoc(collection(db, 'users', userId, TRANSACTIONS_COLLECTION), transactionData);
 
       applyTransactions(userId, [...existing, { ...transaction, id: docRef.id }]);
 
       return true;
     } catch (err) {
-      console.error('Error adding PayPal transaction to Firebase:', err);
+      console.error('Error adding transaction to Firebase:', err);
       setError(err instanceof Error ? err.message : 'Failed to add transaction');
       return false;
     }
   }, [userId, data, applyTransactions]);
 
   const importTransactionsFromCSV = useCallback(async (
-    transactions: PayPalTransaction[]
+    transactions: Transaction[]
   ): Promise<{ added: number; skipped: number; withdrawalSkipped: number }> => {
     if (!userId) return { added: 0, skipped: 0, withdrawalSkipped: 0 };
 
     const existingIds = new Set((data?.transactions ?? []).map(t => t.transactionId));
     let withdrawalSkipped = 0;
     let skipped = 0;
-    const toAdd: PayPalTransaction[] = [];
+    const toAdd: Transaction[] = [];
 
     for (const transaction of transactions) {
       if (transaction.type === 'User Initiated Withdrawal') {
@@ -274,13 +280,13 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
       toAdd.push(transaction);
     }
 
-    const transactionsRef = collection(db, 'users', userId, 'paypal_transactions');
-    const created: PayPalTransaction[] = [];
+    const transactionsRef = collection(db, 'users', userId, TRANSACTIONS_COLLECTION);
+    const created: Transaction[] = [];
 
     for (let i = 0; i < toAdd.length; i += BATCH_CHUNK_SIZE) {
       const chunk = toAdd.slice(i, i + BATCH_CHUNK_SIZE);
       const batch = writeBatch(db);
-      const chunkCreated: PayPalTransaction[] = [];
+      const chunkCreated: Transaction[] = [];
 
       for (const transaction of chunk) {
         const docRef = doc(transactionsRef);
@@ -296,7 +302,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
         await batch.commit();
         created.push(...chunkCreated);
       } catch (err) {
-        console.error('Error batch-importing PayPal transactions:', err);
+        console.error('Error batch-importing transactions:', err);
         skipped += chunk.length;
       }
     }
@@ -330,7 +336,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
         linkedProductIds.length >= 2 &&
         options?.splitPrice === true;
 
-      const transactionRef = doc(db, 'users', userId, 'paypal_transactions', transactionId);
+      const transactionRef = doc(db, 'users', userId, TRANSACTIONS_COLLECTION, transactionId);
       const nextLinkedProductIds = linkedProductIds.length > 0 ? linkedProductIds : undefined;
       const nextSplitPrice = shouldEqualSplit ? true : undefined;
       const nextProductSplitAmounts = hasCustomSplit ? options!.customSplitAmounts! : undefined;
@@ -371,7 +377,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
 
       return true;
     } catch (err) {
-      console.error('Error updating PayPal transaction product link:', err);
+      console.error('Error updating transaction product link:', err);
       setError(err instanceof Error ? err.message : 'Failed to update product link');
       return false;
     }
@@ -379,7 +385,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
 
   const updateTransactionInFirebase = useCallback(async (
     docId: string,
-    transaction: PayPalTransaction
+    transaction: Transaction
   ): Promise<boolean> => {
     if (!userId) return false;
 
@@ -400,7 +406,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
       const current = currentTransactions.find(t => t.id === docId);
       const linkedProductIds = current?.linkedProductIds || [];
 
-      const transactionRef = doc(db, 'users', userId, 'paypal_transactions', docId);
+      const transactionRef = doc(db, 'users', userId, TRANSACTIONS_COLLECTION, docId);
       const updates = {
         date: transaction.date,
         time: transaction.time,
@@ -415,6 +421,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
         itemTitle: transaction.itemTitle || undefined,
         receiptId: transaction.receiptId || undefined,
         exchangeRate: transaction.exchangeRate || undefined,
+        paymentMethod: transaction.paymentMethod || undefined,
       };
 
       await updateDoc(transactionRef, {
@@ -422,6 +429,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
         itemTitle: updates.itemTitle ?? null,
         receiptId: updates.receiptId ?? null,
         exchangeRate: updates.exchangeRate ?? null,
+        paymentMethod: updates.paymentMethod ?? null,
         updatedAt: serverTimestamp(),
       });
 
@@ -436,7 +444,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
 
       return true;
     } catch (err) {
-      console.error('Error updating PayPal transaction:', err);
+      console.error('Error updating transaction:', err);
       setError(err instanceof Error ? err.message : 'Failed to update transaction');
       return false;
     }
@@ -446,7 +454,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
     if (!userId) return false;
 
     try {
-      const transactionRef = doc(db, 'users', userId, 'paypal_transactions', transactionId);
+      const transactionRef = doc(db, 'users', userId, TRANSACTIONS_COLLECTION, transactionId);
       await deleteDoc(transactionRef);
 
       const remaining = (data?.transactions ?? []).filter(t => t.id !== transactionId);
@@ -454,7 +462,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
 
       return true;
     } catch (err) {
-      console.error('Error deleting PayPal transaction from Firebase:', err);
+      console.error('Error deleting transaction from Firebase:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete transaction');
       return false;
     }
@@ -464,7 +472,7 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
     fetchTransactions();
   }, [fetchTransactions]);
 
-  const value: PayPalTransactionsContextValue = {
+  const value: TransactionsContextValue = {
     data,
     loading,
     error,
@@ -477,16 +485,16 @@ export const PayPalTransactionsProvider: React.FC<{ userId?: string; children: R
   };
 
   return (
-    <PayPalTransactionsContext.Provider value={value}>
+    <TransactionsContext.Provider value={value}>
       {children}
-    </PayPalTransactionsContext.Provider>
+    </TransactionsContext.Provider>
   );
 };
 
-export const usePayPalTransactions = (): PayPalTransactionsContextValue => {
-  const ctx = useContext(PayPalTransactionsContext);
+export const useTransactions = (): TransactionsContextValue => {
+  const ctx = useContext(TransactionsContext);
   if (!ctx) {
-    throw new Error('usePayPalTransactions must be used within a PayPalTransactionsProvider');
+    throw new Error('useTransactions must be used within a TransactionsProvider');
   }
   return ctx;
 };

@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useGenericFilters } from '../hooks/useGenericFilters';
 import { useDashboardState } from '../hooks/useDashboardState';
-import { usePayPalTransactions } from '../hooks/usePayPalTransactions';
+import { useTransactions } from '../hooks/useTransactions';
 import { useProductCrudFirebase } from '../hooks/useProductCrudFirebase';
 import { useMinimumLoading } from '../hooks/useMinimumLoading';
-import { PayPalTransactionTable } from '../components/PaypalDashboard/PayPalTransactionTable';
-import { AddPayPalTransactionForm } from '../components/PaypalDashboard/AddPayPalTransactionForm';
-import { EditPayPalTransactionModal } from '../components/PaypalDashboard/EditPayPalTransactionModal';
+import { TransactionTable } from '../components/TransactionsDashboard/TransactionTable';
+import { AddTransactionForm } from '../components/TransactionsDashboard/AddTransactionForm';
+import { EditTransactionModal } from '../components/TransactionsDashboard/EditTransactionModal';
 import {
   DashboardLayout,
   DashboardStats,
@@ -21,9 +21,9 @@ import { formatCurrency } from '../utils/currency';
 import Toolbar from '../components/common/Toolbar';
 import { getStatsColor } from '../utils/colors';
 import { ProductLinkOptions } from '../types/Product';
-import { PayPalTransaction } from '../types/PayPalTransaction';
+import { Transaction } from '../types/Transaction';
 
-function transactionMatchesAmountSearch(search: string, transaction: PayPalTransaction): boolean {
+function transactionMatchesAmountSearch(search: string, transaction: Transaction): boolean {
   const trimmed = search.trim();
   const normalized = trimmed.toLowerCase().replace(/[$,\s]/g, '');
   if (!normalized || !/\d/.test(normalized)) return false;
@@ -41,9 +41,9 @@ function transactionMatchesAmountSearch(search: string, transaction: PayPalTrans
 }
 
 /**
- * PayPalPage Component
- * 
- * Dashboard for managing PayPal transactions and linking them to products.
+ * TransactionsPage Component
+ *
+ * Dashboard for managing transactions and linking them to products.
  * Features:
  * - Transaction listing with filtering and search
  * - Product linking with multiple products per transaction
@@ -51,7 +51,7 @@ function transactionMatchesAmountSearch(search: string, transaction: PayPalTrans
  * - Statistical overview of transactions
  * - Equal amount distribution across linked products
  */
-export const PayPalPage: React.FC = () => {
+export const TransactionsPage: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { showAddForm, handleShowAddForm, handleHideAddForm } = useDashboardState();
@@ -85,9 +85,9 @@ export const PayPalPage: React.FC = () => {
     updateTransaction,
     updateProductLink,
     refetch
-  } = usePayPalTransactions();
+  } = useTransactions();
 
-  const [editingTransaction, setEditingTransaction] = useState<PayPalTransaction | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   // Fetch products for mapping
   const { data: productData, loading: productsLoading } = useProductCrudFirebase(user?.uid);
@@ -151,7 +151,7 @@ export const PayPalPage: React.FC = () => {
   };
 
   const handleAddTransaction = async (transaction: any) => {
-    // The PayPal context already updates its local state on success —
+    // The transactions context already updates its local state on success —
     // no separate refetch needed.
     const success = await addTransaction(transaction);
     if (success) {
@@ -188,7 +188,7 @@ export const PayPalPage: React.FC = () => {
     return success;
   };
 
-  const handleSaveTransaction = async (docId: string, transaction: PayPalTransaction) => {
+  const handleSaveTransaction = async (docId: string, transaction: Transaction) => {
     const success = await updateTransaction(docId, transaction);
     if (success) {
       showToast('Transaction updated');
@@ -274,7 +274,7 @@ export const PayPalPage: React.FC = () => {
 
       {/* Transactions Table */}
       <DashboardSection>
-        <PayPalTransactionTable
+        <TransactionTable
           transactions={filteredTransactions}
           products={productData?.products || []}
           loading={displayLoading}
@@ -286,7 +286,7 @@ export const PayPalPage: React.FC = () => {
       </DashboardSection>
 
       {/* Add Transaction Form Modal */}
-      <AddPayPalTransactionForm
+      <AddTransactionForm
         isOpen={showAddForm}
         onAddTransaction={handleAddTransaction}
         onImportTransactions={handleImport}
@@ -294,7 +294,7 @@ export const PayPalPage: React.FC = () => {
         hasTransactions={(data?.transactions.length ?? 0) > 0}
       />
 
-      <EditPayPalTransactionModal
+      <EditTransactionModal
         transaction={editingTransaction}
         isOpen={!!editingTransaction}
         onSave={handleSaveTransaction}
