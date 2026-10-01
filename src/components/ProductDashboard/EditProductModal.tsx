@@ -230,6 +230,8 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
       <ProductFormRefundExpectationSection
         product={editedProduct}
         isActive={isOpen}
+        defaultExpanded={false}
+        showPaidExpectedLine={false}
         onChange={(expectation: RefundExpectation) =>
           setEditedProduct(prev => ({ ...prev, refundExpectation: expectation }))
         }

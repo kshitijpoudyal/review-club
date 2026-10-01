@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Dialog, DialogPanel } from '@headlessui/react'
-import { Bars3Icon, XMarkIcon, UserCircleIcon, ArrowDownTrayIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
+import { Bars3Icon, XMarkIcon, UserCircleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import { User } from 'firebase/auth';
 import { typography } from '../../utils/typography';
 import { colors } from '../../utils/colors';
@@ -139,9 +139,8 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                         <a
                           href="/settings"
                           onClick={() => setUserMenuOpen(false)}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 border-b border-gray-100"
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-100"
                         >
-                          <Cog6ToothIcon className="w-4 h-4 text-[#006a68]" />
                           Settings
                         </a>
                         <button
@@ -203,9 +202,8 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                                 <a
                                     href="/settings"
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className={`-mx-3 flex items-center gap-2 rounded-lg px-3 py-2.5 text-base/7 font-semibold ${colors.header.mobile.menuLink}`}
+                                    className={`-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold ${colors.header.mobile.menuLink}`}
                                 >
-                                    <Cog6ToothIcon className="w-5 h-5" />
                                     Settings
                                 </a>
                                 <a
