@@ -19,25 +19,16 @@ initializeApp();
 // Set global options for cost control
 setGlobalOptions({ maxInstances: 10 });
 
-// ─── Notification thresholds (edit these to adjust when pushes fire) ─────────
-const THRESHOLDS = {
-    // Days sitting in a status before the first stuck-status push fires.
-    statusStuck: {
-        "order-placed": 7,
-        "add-review": 7,
-        "review-pending": 7,
-        "send-screenshot": 7,
-        "refund-pending": 7,
-    } as Record<string, number>,
-    // Once stuck, re-notify every N days until the status changes.
-    nagIntervalDays: 2,
-    // Amazon's return window, and how many days before it closes the
-    // return-window override push starts firing (daily, regardless of
-    // status) — e.g. 30 - 7 = starts at day 23 since order.
-    returnWindowDays: 30,
-    returnWindowWarningDays: 7,
-};
-// ─────────────────────────────────────────────────────────────────────────────
+// Defaults used when a user hasn't set their own value in Settings — see
+// users/{uid}/settings/notifications.
+// "Remind me to check my return window" push.
+const DEFAULT_RETURN_REMINDER_DAYS = 25;
+// Single shared threshold for the stuck-status push: any status (order-placed,
+// add-review, review-pending, send-screenshot, refund-pending) sitting
+// unchanged this many days fires a reminder — one number for all statuses
+// rather than a per-status table, since they'd always been set to the same
+// value anyway.
+const DEFAULT_STUCK_STATUS_DAYS = 7;
 
 // Define secrets for Web Push (VAPID)
 const vapidPublicKey = defineSecret("VAPID_PUBLIC_KEY");
@@ -80,10 +71,11 @@ const ORDER_CONFIRMATION_PATTERNS: Partial<Record<Retailer, string>> = {
 };
 
 // Checks every product for every user, and pushes a notification for any
-// item that needs attention: either it's within the return-window deadline
-// (highest priority — see isNearingReturnWindow) or it's been sitting in
-// the same status too long (see THRESHOLDS.statusStuck). Shared by the
-// daily schedule and the manual test-trigger endpoint below.
+// item that needs attention: either it's past the user's return-reminder
+// threshold (highest priority — see isPastReturnReminderThreshold) or its
+// status hasn't changed in at least stuckStatusDays (see daysStuckInStatus).
+// No cooldown/dedup on either — every run fires for every currently-
+// qualifying item. Shared by the daily schedule and the manual trigger below.
 async function runStuckStatusCheck(db: Firestore): Promise<{ totalPushSent: number; totalPushFailed: number }> {
     let totalPushSent = 0;
     let totalPushFailed = 0;
@@ -106,31 +98,42 @@ async function runStuckStatusCheck(db: Firestore): Promise<{ totalPushSent: numb
 
         if (productsSnapshot.empty) continue;
 
+        const settingsData = (await db.collection("users").doc(userDoc.id).collection("settings").doc("notifications").get()).data();
+        const returnReminderDays: number = settingsData?.returnReminderDays ?? DEFAULT_RETURN_REMINDER_DAYS;
+        const stuckStatusDays: number = settingsData?.stuckStatusDays ?? DEFAULT_STUCK_STATUS_DAYS;
+        // Both default on — only an explicit `false` turns a category off.
+        const returnReminderEnabled: boolean = settingsData?.returnReminderEnabled !== false;
+        const stuckStatusEnabled: boolean = settingsData?.stuckStatusEnabled !== false;
+
+        if (!returnReminderEnabled && !stuckStatusEnabled) continue;
+
         logger.info(`Checking ${productsSnapshot.size} products for user ${userDoc.id}`);
 
         for (const productDoc of productsSnapshot.docs) {
             const data = productDoc.data();
             const product = { id: productDoc.id, item: data.item || 'Unknown Product', ...data };
 
-            const returnWindow = isNearingReturnWindow(product);
-            if (returnWindow && shouldNotifyReturnWindow(product)) {
-                // Return-window deadline takes priority over the regular stuck-status
+            const returnReminder = returnReminderEnabled ? isPastReturnReminderThreshold(product, returnReminderDays) : null;
+            if (returnReminder && shouldNotifyReturnReminder(product)) {
+                // The return reminder takes priority over the regular stuck-status
                 // nag — an item never gets both pushes on the same run.
                 try {
-                    const wasSent = await sendReturnWindowPush(db, userDoc.id, productDoc.ref, product, returnWindow.daysSinceOrder);
+                    const wasSent = await sendReturnReminderPush(db, userDoc.id, productDoc.ref, product, returnReminder.daysSinceOrder);
                     if (wasSent) {
                         totalPushSent++;
-                        logger.info(`✅ Sent return-window push for ${product.item} (${returnWindow.daysSinceOrder}d since order)`);
+                        logger.info(`✅ Sent return-reminder push for ${product.item} (${returnReminder.daysSinceOrder}d since order)`);
                     }
                 } catch (error) {
                     totalPushFailed++;
-                    logger.error(`❌ Failed to send return-window push for ${product.item}:`, error);
+                    logger.error(`❌ Failed to send return-reminder push for ${product.item}:`, error);
                 }
                 continue;
             }
 
-            const stuck = daysStuckInStatus(product);
-            if (stuck && shouldNotifyStuckStatus(product)) {
+            if (!stuckStatusEnabled) continue;
+
+            const stuck = daysStuckInStatus(product, stuckStatusDays);
+            if (stuck) {
                 try {
                     const wasSent = await sendStuckStatusPush(db, userDoc.id, productDoc.ref, product, stuck.status, stuck.days);
                     if (wasSent) {
@@ -185,19 +188,20 @@ export const triggerStuckStatusCheck = onRequest(
     }
 );
 
-// Returns number of days stuck in current status, or null if not applicable
-function daysStuckInStatus(product: any): { status: string; days: number } | null {
+// Returns number of days stuck in current status, or null if not applicable.
+// Applies to any non-terminal status (order-placed, add-review,
+// review-pending, send-screenshot, refund-pending — i.e. anything with a
+// STATUS_LABELS entry) using the one shared stuckDays threshold.
+function daysStuckInStatus(product: any, stuckDays: number): { status: string; days: number } | null {
     const status: string = product.lastStatus;
-    if (!status || status === "complete" || status === "void") return null;
-    if (!(status in THRESHOLDS.statusStuck)) return null;
+    if (!status || !(status in STATUS_LABELS)) return null;
     if (!product.statusChangedAt) return null;
 
     const changedAt = new Date(product.statusChangedAt);
     const today = new Date();
     const days = Math.floor((today.getTime() - changedAt.getTime()) / (1000 * 3600 * 24));
-    const threshold = THRESHOLDS.statusStuck[status];
 
-    return days >= threshold ? { status, days } : null;
+    return days >= stuckDays ? { status, days } : null;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -212,33 +216,24 @@ function daysSince(isoDate: string): number {
     return Math.floor((Date.now() - new Date(isoDate).getTime()) / (1000 * 3600 * 24));
 }
 
-// Keeps re-notifying every THRESHOLDS.nagIntervalDays for as long as the item
-// stays stuck — a dismissed push isn't the last one you'll get. Naturally
-// stops on its own once the status moves on, since daysStuckInStatus() will
-// stop matching for the new status.
-function shouldNotifyStuckStatus(product: any): boolean {
-    if (!product.lastStuckNotifiedAt) return true;
-    return daysSince(product.lastStuckNotifiedAt) >= THRESHOLDS.nagIntervalDays;
-}
-
-// Returns days since order if the item is within THRESHOLDS.returnWindowWarningDays
-// of the return window closing (or already past it) — null if resolved
-// (void/reviewLive) or there's no order date. No upper bound: keeps matching
-// (and therefore keeps notifying) even after the window has closed.
-function isNearingReturnWindow(product: any): { daysSinceOrder: number } | null {
-    if (!product.orderDate || product.isVoid || product.reviewLive) return null;
+// Returns days since order once the item has been outstanding for at least
+// reminderDays — null once it's resolved (void, or lastStatus "complete",
+// which only happens once a refund has actually been matched to the order —
+// see getProductStatusType in src/utils/productStatus.ts) or there's no
+// order date. No upper bound: keeps matching (and therefore keeps
+// notifying) for as long as the order stays unresolved past the threshold.
+function isPastReturnReminderThreshold(product: any, reminderDays: number): { daysSinceOrder: number } | null {
+    if (!product.orderDate || product.isVoid || product.lastStatus === "complete") return null;
 
     const daysSinceOrder = daysSince(product.orderDate);
-    const warningStartsAt = THRESHOLDS.returnWindowDays - THRESHOLDS.returnWindowWarningDays;
-
-    return daysSinceOrder >= warningStartsAt ? { daysSinceOrder } : null;
+    return daysSinceOrder >= reminderDays ? { daysSinceOrder } : null;
 }
 
-// Return-window pushes repeat daily (constant interval, by design — the
+// Return-reminder pushes repeat daily (constant interval, by design — the
 // closer-you-get escalation was considered and explicitly not wanted).
-function shouldNotifyReturnWindow(product: any): boolean {
-    if (!product.lastReturnWindowNotifiedAt) return true;
-    return daysSince(product.lastReturnWindowNotifiedAt) >= 1;
+function shouldNotifyReturnReminder(product: any): boolean {
+    if (!product.lastReturnReminderNotifiedAt) return true;
+    return daysSince(product.lastReturnReminderNotifiedAt) >= 1;
 }
 
 let webPushConfigured = false;
@@ -304,40 +299,30 @@ async function sendStuckStatusPush(
     days: number
 ): Promise<boolean> {
     const statusLabel = STATUS_LABELS[status] ?? status;
-    const wasSent = await sendPushToAllSubscriptions(db, userId, {
+    return sendPushToAllSubscriptions(db, userId, {
         title: `⏰ Stuck in "${statusLabel}"`,
         body: `${product.item} has been in "${statusLabel}" for ${days} days.`,
         url: "/products",
         tag: `stuck-${productRef.id}`,
     });
-
-    if (wasSent) {
-        await productRef.set({ lastStuckNotifiedAt: new Date().toISOString() }, { merge: true });
-    }
-    return wasSent;
 }
 
-async function sendReturnWindowPush(
+async function sendReturnReminderPush(
     db: Firestore,
     userId: string,
     productRef: FirebaseFirestore.DocumentReference,
     product: any,
     daysSinceOrder: number
 ): Promise<boolean> {
-    const daysRemaining = THRESHOLDS.returnWindowDays - daysSinceOrder;
-    const body = daysRemaining >= 0
-        ? `${product.item}: ordered ${daysSinceOrder} days ago, ~${daysRemaining}d left in the return window. Reach out to the seller for a refund or start a return.`
-        : `${product.item}: ordered ${daysSinceOrder} days ago — the ~${THRESHOLDS.returnWindowDays}-day return window may have closed. Act now if you haven't already.`;
-
     const wasSent = await sendPushToAllSubscriptions(db, userId, {
-        title: "⚠️ Return window closing",
-        body,
+        title: "⚠️ Check your return window",
+        body: `${product.item}: ordered ${daysSinceOrder} days ago — if a refund hasn't come through, start a return with the seller now.`,
         url: "/products",
-        tag: `return-window-${productRef.id}`,
+        tag: `return-reminder-${productRef.id}`,
     });
 
     if (wasSent) {
-        await productRef.set({ lastReturnWindowNotifiedAt: new Date().toISOString() }, { merge: true });
+        await productRef.set({ lastReturnReminderNotifiedAt: new Date().toISOString() }, { merge: true });
     }
     return wasSent;
 }
@@ -959,6 +944,13 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promis
     const usersSnapshot = await db.collection("users").get();
 
     for (const userDoc of usersSnapshot.docs) {
+        const settingsData = (await db.collection("users").doc(userDoc.id).collection("settings").doc("notifications").get()).data();
+        // Pauses every connected account for this user without touching their
+        // individual connected/retailers state or tokens — re-enabling just
+        // resumes from each account's existing lastCheckedAt/lastOrderCheckedAt
+        // cursor, no re-auth needed.
+        if (settingsData?.gmailWatcherEnabled === false) continue;
+
         const accountsSnapshot = await db.collection("users").doc(userDoc.id).collection("gmailAccounts").get();
 
         for (const accountDoc of accountsSnapshot.docs) {

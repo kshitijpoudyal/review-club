@@ -5,12 +5,6 @@ import { ProductFormSectionHeader } from './ProductFormSectionHeader';
 import { ProductFormCurrencyInput } from './ProductFormCurrencyInput';
 import { formLabelClass, FORM_CONTROL_HEIGHT } from './productFormStyles';
 import { typography } from '../../utils/typography';
-import {
-  getExpectedReceivedForProduct,
-  getRefundVariance,
-  getProductRefundExpectation,
-  getRefundExpectationSummary,
-} from '../../utils/refundUtils';
 
 interface ProductFormFinancialsSectionProps {
   product: Product;
@@ -32,13 +26,6 @@ export const ProductFormFinancialsSection: React.FC<ProductFormFinancialsSection
   onReceivedChange,
   onResetDelta,
 }) => {
-  const expectation = getProductRefundExpectation(product);
-  const expectedReceived = getExpectedReceivedForProduct(product);
-  const variance =
-    expectedReceived != null && product.received != null
-      ? getRefundVariance(expectedReceived, product.received)
-      : null;
-
   return (
   <div className="px-6 py-5 space-y-4">
     <ProductFormSectionHeader title="Financials" />
@@ -70,32 +57,6 @@ export const ProductFormFinancialsSection: React.FC<ProductFormFinancialsSection
         </div>
       </div>
     </div>
-
-    {product.paid != null && (
-      <div className="px-3 py-2 rounded-xl bg-[#eae8e2]/40 border border-[rgba(196,198,207,0.3)] space-y-1">
-        <p className={`${typography.caption} text-[#74777f]`}>
-          Expected refund:{' '}
-          <span className={`${typography.bodyStrong} text-[#43474e] tabular-nums`}>
-            {expectedReceived != null ? formatCurrency(expectedReceived) : '—'}
-          </span>
-          {' · '}
-          {getRefundExpectationSummary(expectation, product.paid)}
-        </p>
-        {variance && (
-          <p
-            className={`${typography.caption} tabular-nums ${
-              variance.variance < -0.01
-                ? 'text-[#ba1a1a]'
-                : variance.variance > 0.01
-                  ? 'text-[#006a68]'
-                  : 'text-[#43474e]'
-            }`}
-          >
-            {variance.label}
-          </p>
-        )}
-      </div>
-    )}
 
     {product.delta !== null && onResetDelta && (
       <button

@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { EnvelopeIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useGmailAccounts } from '../../hooks/useGmailAccounts';
+import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { Retailer } from '../../types/Product';
+import { ToggleSwitch } from '../common/ToggleSwitch';
 import { typography } from '../../utils/typography';
 import { colors, getBadgeClasses } from '../../utils/colors';
 
@@ -16,6 +18,7 @@ const RETAILER_OPTIONS: { value: Retailer; label: string; available: boolean }[]
 
 export const GmailIntegration: React.FC = () => {
   const { accounts, loading, connectUrl, toggleRetailer, disconnectAccount } = useGmailAccounts();
+  const { gmailWatcherEnabled, loading: settingsLoading, setGmailWatcherEnabled } = useNotificationSettings();
   const [searchParams] = useSearchParams();
   const gmailParam = searchParams.get('gmail');
 
@@ -55,77 +58,76 @@ export const GmailIntegration: React.FC = () => {
   return (
     <section className={`${colors.card.background} rounded-2xl ${colors.card.border} ${colors.card.shadow} overflow-hidden`}>
       <div className="p-4 sm:p-6 md:p-8 space-y-6">
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-          <div className="flex items-start gap-4 max-w-2xl min-w-0">
-            <div className="w-12 h-12 rounded-xl bg-[#ba1a1a]/8 text-[#ba1a1a] border border-[#ba1a1a]/20 flex items-center justify-center shrink-0">
-              <EnvelopeIcon className="w-6 h-6" />
-            </div>
-            <div className="space-y-2 flex-1 min-w-0">
-              <h2 className={typography.sectionTitle}>Gmail watcher</h2>
-              <p className={typography.caption}>
-                Connect one Gmail account per store (e.g. a Wayfair inbox, a Walmart inbox, a separate Amazon
-                account) and we&apos;ll check each one hourly for the retailers you pick below — review pushes
-                send a reminder, orders get drafted for you to review and add. This never reads your emails for
-                anything else, and never changes a product automatically.
-              </p>
-
-              {gmailParam === 'error' && (
-                <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-sm">
-                  Couldn&apos;t connect Gmail. Please try again.
-                </div>
-              )}
-
-              {gmailParam === 'connected' && (
-                <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
-                  Gmail connected.
-                </div>
-              )}
-
-              {checkResult && (
-                <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
-                  Checked — {checkResult.notified} review alert{checkResult.notified === 1 ? '' : 's'},{' '}
-                  {checkResult.ordersDetected} new order{checkResult.ordersDetected === 1 ? '' : 's'} detected.
-                </div>
-              )}
-              {checkError && (
-                <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-sm">{checkError}</div>
-              )}
-            </div>
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#ba1a1a]/8 text-[#ba1a1a] border border-[#ba1a1a]/20 flex items-center justify-center shrink-0">
+            <EnvelopeIcon className="w-6 h-6" />
           </div>
+          <div className="space-y-2 flex-1 min-w-0">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className={typography.sectionTitle}>Gmail watcher</h2>
+              <ToggleSwitch
+                checked={gmailWatcherEnabled}
+                onChange={setGmailWatcherEnabled}
+                disabled={settingsLoading}
+                label="Gmail watcher notifications"
+              />
+            </div>
+            <p className={typography.caption}>
+              Connect your Gmail accounts and we&apos;ll check them hourly for any new orders or if reviews are
+              live for those orders. This never reads your emails for anything else, and never changes a product
+              automatically.
+            </p>
 
-          <div className="flex flex-col gap-2 shrink-0 w-full lg:w-auto">
-            {anyConnected && (
-              <button
-                onClick={() => handleCheckNow()}
-                disabled={isChecking}
-                className={`${colors.button.secondary} w-full lg:w-auto px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {isChecking ? 'Checking...' : 'Check Gmail now'}
-              </button>
+            {gmailParam === 'error' && (
+              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-sm">
+                Couldn&apos;t connect Gmail. Please try again.
+              </div>
             )}
-            {anyConnected && (
-              <div className="w-full lg:w-auto lg:max-w-[220px]">
+
+            {gmailParam === 'connected' && (
+              <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
+                Gmail connected.
+              </div>
+            )}
+
+            {checkResult && (
+              <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
+                Checked — {checkResult.notified} review alert{checkResult.notified === 1 ? '' : 's'},{' '}
+                {checkResult.ordersDetected} new order{checkResult.ordersDetected === 1 ? '' : 's'} detected.
+              </div>
+            )}
+            {checkError && (
+              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-sm">{checkError}</div>
+            )}
+
+            <div className="flex flex-col sm:flex-row flex-wrap items-start gap-3 pt-1">
+              {anyConnected && (
+                <button
+                  onClick={() => handleCheckNow()}
+                  disabled={isChecking}
+                  className={`${colors.button.secondary} w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {isChecking ? 'Checking...' : 'Check Gmail now'}
+                </button>
+              )}
+              {anyConnected && (
                 <button
                   onClick={() => handleCheckNow(true)}
                   disabled={isChecking}
-                  className={`${colors.button.secondary} w-full px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`${colors.button.secondary} w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {isChecking ? 'Checking...' : 'Re-scan all (testing)'}
                 </button>
-                <p className={`${typography.caption} mt-1`}>
-                  Re-checks every matching email across every connected account from the very beginning, not just
-                  since the last check.
-                </p>
-              </div>
-            )}
-            {connectUrl && (
-              <a
-                href={connectUrl}
-                className={`block w-full lg:w-auto lg:inline-block shrink-0 ${colors.button.primary} px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors`}
-              >
-                {accounts.length > 0 ? 'Add another Gmail' : 'Connect Gmail'}
-              </a>
-            )}
+              )}
+              {connectUrl && (
+                <a
+                  href={connectUrl}
+                  className={`block w-full sm:w-auto sm:inline-block shrink-0 ${colors.button.primary} px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors`}
+                >
+                  {accounts.length > 0 ? 'Add another Gmail' : 'Connect Gmail'}
+                </a>
+              )}
+            </div>
           </div>
         </div>
 

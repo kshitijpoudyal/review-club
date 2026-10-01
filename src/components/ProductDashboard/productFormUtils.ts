@@ -1,7 +1,6 @@
 import { DEFAULT_REFUND_EXPECTATION, Product } from '../../types/Product';
 import { parseBookmarkletClipboard } from '../../utils/bookmarklet';
 import { getDefaultPayPalFee, getProductRefundExpectation } from '../../utils/refundUtils';
-import { importButtonBaseClass } from './productFormStyles';
 
 export type ImportStatus = 'idle' | 'success' | 'url-only' | 'error';
 
@@ -23,13 +22,6 @@ export function formatDateForInput(dateString: string): string {
   } catch {
     return '';
   }
-}
-
-export function getImportButtonClassName(status: ImportStatus): string {
-  if (status === 'success') return `${importButtonBaseClass} bg-[#006a68]/10 text-[#006a68]`;
-  if (status === 'url-only') return `${importButtonBaseClass} bg-amber-50 text-amber-700`;
-  if (status === 'error') return `${importButtonBaseClass} bg-[#ffdad6] text-[#ba1a1a]`;
-  return `${importButtonBaseClass} bg-[#eae8e2] text-[#43474e] hover:bg-[#e4e2dd]`;
 }
 
 export function applyBookmarkletPayload(

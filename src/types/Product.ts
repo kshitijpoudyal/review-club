@@ -55,8 +55,7 @@ export interface Product {
   vendorId?: string; // Reference to vendor ID
   lastStatus?: string; // Last computed status — used to detect transitions
   statusChangedAt?: string; // ISO date of last status change
-  lastStuckNotifiedAt?: string; // ISO date of last "stuck in status" push sent
-  lastReturnWindowNotifiedAt?: string; // ISO date of last "return window closing" push sent
+  lastReturnReminderNotifiedAt?: string; // ISO date of last "check your return window" push sent
 }
 
 export interface ProductLinkOptions {

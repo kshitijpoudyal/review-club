@@ -23,8 +23,3 @@ export const formFooterPrimaryClass =
   `flex-1 ${FORM_CONTROL_HEIGHT} px-4 rounded-xl ${typography.button} ` +
   'bg-[#022448] text-white hover:bg-[#1a3558] ' +
   'focus:outline-none focus:ring-2 focus:ring-[#022448] focus:ring-offset-2 transition-colors';
-
-export const importButtonBaseClass =
-  `w-full min-w-0 ${FORM_CONTROL_HEIGHT} flex items-center justify-center gap-1.5 px-2 sm:px-4 rounded-xl ${typography.button} transition-colors`;
-
-export const importButtonLabelClass = 'text-xs sm:text-sm leading-tight text-center';

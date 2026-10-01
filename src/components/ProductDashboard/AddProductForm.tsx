@@ -6,11 +6,9 @@ import { useVendors } from "../../hooks/useVendors";
 import { BookmarkletPayload, parseBookmarkletClipboard, bookmarkletPayloadToProductFields } from "../../utils/bookmarklet";
 import {
   applyBookmarkletPayload,
-  formatDateForInput,
   ImportStatus,
 } from "./productFormUtils";
 import { ProductFormQuickImportSection } from "./ProductFormQuickImportSection";
-import { BookmarkletSetupPanel } from "./BookmarkletSetupPanel";
 import { ProductFormProductDetailsSection } from "./ProductFormProductDetailsSection";
 import { ProductFormRefundExpectationSection } from "./ProductFormRefundExpectationSection";
 import { updateProductPaid } from "./productFormUtils";
@@ -63,19 +61,6 @@ const AddProductForm: React.FC<AddProductFormProps> = ({
 
   const handleDetailsChange = (field: keyof Product, value: string | null) => {
     handleInputChange(field, value);
-  };
-
-  const handleReceiptDataExtracted = (extractedData: any) => {
-    if (extractedData?.orderData) {
-      const orderData = extractedData.orderData;
-      setNewProduct(prev => ({
-        ...prev,
-        item: orderData.items?.length > 0 ? orderData.items[0].name : prev.item,
-        orderDate: orderData.orderDate ? formatDateForInput(orderData.orderDate) : prev.orderDate,
-        orderNumber: orderData.orderNumber || prev.orderNumber,
-        paid: orderData.orderTotal || prev.paid,
-      }));
-    }
   };
 
   const resetForm = () => {
@@ -160,9 +145,6 @@ const AddProductForm: React.FC<AddProductFormProps> = ({
           showPasteBox={showPasteBox}
           onPasteBoxPaste={handlePasteBoxPaste}
           onPasteBoxClose={() => setShowPasteBox(false)}
-          showReceiptUpload
-          onReceiptDataExtracted={handleReceiptDataExtracted}
-          footer={<BookmarkletSetupPanel />}
         />
 
         <ProductFormReviewRequirementSection

@@ -8,7 +8,6 @@ import { getProductStatus } from '../../utils/productStatus';
 import { parseBookmarkletClipboard } from '../../utils/bookmarklet';
 import {
   applyBookmarkletPayload,
-  formatDateForInput,
   ImportStatus,
   updateProductNumbers,
   updateProductPaid,
@@ -96,19 +95,6 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
       setImportStatus('error');
       setShowPasteBox(false);
       setTimeout(() => setImportStatus('idle'), 3000);
-    }
-  };
-
-  const handleReceiptDataExtracted = (extractedData: any) => {
-    if (extractedData?.orderData) {
-      const orderData = extractedData.orderData;
-      setEditedProduct(prev => ({
-        ...prev,
-        item: orderData.items?.length > 0 ? orderData.items[0].name : prev.item,
-        orderDate: orderData.orderDate ? formatDateForInput(orderData.orderDate) : prev.orderDate,
-        orderNumber: orderData.orderNumber || prev.orderNumber,
-        paid: orderData.orderTotal ?? prev.paid,
-      }));
     }
   };
 
@@ -208,8 +194,6 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
         showPasteBox={showPasteBox}
         onPasteBoxPaste={handlePasteBoxPaste}
         onPasteBoxClose={() => setShowPasteBox(false)}
-        showReceiptUpload
-        onReceiptDataExtracted={handleReceiptDataExtracted}
       />
     </div>
   );
