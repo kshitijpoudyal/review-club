@@ -13,7 +13,7 @@ interface ProductFormQuickImportSectionProps {
   variant?: 'default' | 'compact';
 }
 
-function clipboardIconButtonClass(status: ImportStatus): string {
+export function clipboardIconButtonClass(status: ImportStatus): string {
   const base = 'inline-flex items-center justify-center w-9 h-9 rounded-lg border transition-colors shrink-0';
   if (status === 'success') return `${base} bg-[#006a68]/10 text-[#006a68] border-[#006a68]/25`;
   if (status === 'url-only') return `${base} bg-amber-50 text-amber-700 border-amber-200`;

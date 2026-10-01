@@ -4,11 +4,13 @@ import { typography } from '../../utils/typography';
 import { Modal } from "../common";
 import { useVendors } from "../../hooks/useVendors";
 import { BookmarkletPayload, parseBookmarkletClipboard, bookmarkletPayloadToProductFields } from "../../utils/bookmarklet";
+import { PaperClipIcon } from '@heroicons/react/24/outline';
 import {
   applyBookmarkletPayload,
+  getClipboardImportLabel,
   ImportStatus,
 } from "./productFormUtils";
-import { ProductFormQuickImportSection } from "./ProductFormQuickImportSection";
+import { clipboardIconButtonClass } from "./ProductFormQuickImportSection";
 import { ProductFormProductDetailsSection } from "./ProductFormProductDetailsSection";
 import { ProductFormRefundExpectationSection } from "./ProductFormRefundExpectationSection";
 import { updateProductPaid } from "./productFormUtils";
@@ -120,32 +122,67 @@ const AddProductForm: React.FC<AddProductFormProps> = ({
     }
   };
 
+  const clipboardLabel = getClipboardImportLabel(importStatus);
+
   const modalHeader = (
     <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-[rgba(196,198,207,0.15)]">
       <h2 className={typography.modalTitle}>Add Product</h2>
-      <button
-        type="button"
-        onClick={handleCancel}
-        className="w-8 h-8 flex items-center justify-center text-[#74777f] hover:text-[#1b1c19] hover:bg-[#eae8e2] rounded-full transition-colors"
-        aria-label="Close"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => void handleClipboardImport()}
+          title={clipboardLabel.text}
+          aria-label={clipboardLabel.text}
+          className={clipboardIconButtonClass(importStatus)}
+        >
+          <PaperClipIcon className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="w-8 h-8 flex items-center justify-center text-[#74777f] hover:text-[#1b1c19] hover:bg-[#eae8e2] rounded-full transition-colors"
+          aria-label="Close"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 
   const modalBody = (
     <form id="add-product-form" onSubmit={handleSubmit}>
       <div className="divide-y divide-[rgba(196,198,207,0.12)]">
-        <ProductFormQuickImportSection
-          importStatus={importStatus}
-          onClipboardImport={handleClipboardImport}
-          showPasteBox={showPasteBox}
-          onPasteBoxPaste={handlePasteBoxPaste}
-          onPasteBoxClose={() => setShowPasteBox(false)}
-        />
+        {importStatus !== 'idle' && (
+          <div className="px-6 py-3">
+            <p className={`${typography.caption} text-[#74777f]`}>{clipboardLabel.text}</p>
+          </div>
+        )}
+
+        {showPasteBox && (
+          <div className="px-6 py-3">
+            <div className="rounded-xl border border-[rgba(196,198,207,0.4)] bg-white p-3 space-y-2">
+              <p className={`${typography.caption} text-[#74777f]`}>
+                Long-press below and tap <strong>Paste</strong>
+              </p>
+              <textarea
+                autoFocus
+                rows={3}
+                placeholder="Paste bookmarklet data here…"
+                onPaste={handlePasteBoxPaste}
+                className={`w-full ${typography.caption} tabular-nums bg-white border border-[rgba(196,198,207,0.4)] rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#022448]/20 text-[#1b1c19] placeholder:text-[#c4c6cf]`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPasteBox(false)}
+                className={`${typography.caption} text-[#74777f] hover:text-[#1b1c19]`}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         <ProductFormReviewRequirementSection
           value={newProduct.reviewMediaType}
