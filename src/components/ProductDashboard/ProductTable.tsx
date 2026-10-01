@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Product } from '../../types/Product';
 import EditProductModal from './EditProductModal';
 import { getProductStatus } from '../../utils/productStatus';
@@ -50,6 +50,9 @@ const ProductTable: React.FC<ProductTableProps> = ({
   // Get product IDs for checking PayPal links
   const productIds = products.map(p => p.id).filter(Boolean) as string[];
   const { getLinkedPayPalLinks } = useProductPayPalLinks(userId, productIds);
+
+  // Computed once per product instead of separately in rows/mobileCards/renderMobileDropdown
+  const statuses = useMemo(() => products.map(p => getProductStatus(p)), [products]);
 
   const renderItemName = (product: Product) => {
     const baseClass = `${typography.bodyStrong} ${colors.text.primary}`;
@@ -275,7 +278,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
     if (showDropdown !== index) return null;
 
     const nextAction = getNextStatusAction(product);
-    const mobileStatus = getProductStatus(product);
+    const mobileStatus = statuses[index];
 
     return (
       <div className="absolute right-0 top-full mt-2 bg-[#fbf9f3] border border-[rgba(196,198,207,0.15)] rounded-2xl shadow-[0_12px_32px_rgba(2,36,72,0.10)] z-50 min-w-[180px] py-2">
@@ -364,7 +367,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
 
   // Transform products into table rows
   const rows: TableRow[] = products.map((product, index) => {
-    const status = getProductStatus(product);
+    const status = statuses[index];
     const paypalLinks = product.id ? getLinkedPayPalLinks(product.id) : [];
     const storeBorderColor = getStoreBorderColor(product);
 
@@ -479,7 +482,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
 
   // Mobile cards data
   const mobileCards: MobileCardContent[] = products.map((product, index) => {
-    const status = getProductStatus(product);
+    const status = statuses[index];
     const storeBorderColor = getStoreBorderColor(product);
     const paypalLinks = product.id ? getLinkedPayPalLinks(product.id) : [];
 

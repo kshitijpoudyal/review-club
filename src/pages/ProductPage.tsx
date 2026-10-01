@@ -246,13 +246,13 @@ const ProductPage: React.FC = () => {
       className: getStatsColor('received')
     },
     {
-      value: formatCurrency(stats.remainingRefund),
+      value: `~${formatCurrency(stats.remainingRefund)}`,
       label: "Remaining",
       className: getStatsColor('remaining')
     },
     {
       value: formatCurrency(stats.netDelta),
-      label: "Net P&L",
+      label: "Delta",
       className: getStatsColor('netDelta', stats.netDelta)
     }
   ] : [];

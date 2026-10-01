@@ -1,8 +1,9 @@
+import { useCallback } from 'react';
 import { Product, StatusFilter, DeltaFilter, VendorFilter } from '../types/Product';
 import { getProductStatusType } from '../utils/productStatus';
 
 export const useProductFilters = (products: Product[]) => {
-  const applyFilters = (
+  const applyFilters = useCallback((
     searchTerm: string,
     statusFilter: StatusFilter,
     deltaFilter: DeltaFilter,
@@ -64,7 +65,7 @@ export const useProductFilters = (products: Product[]) => {
 
       return matchesSearch && matchesStatus && matchesDelta && matchesVendor;
     });
-  };
+  }, [products]);
 
   return { applyFilters };
 };

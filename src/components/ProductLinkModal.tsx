@@ -245,10 +245,10 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
       .sort((a, b) => sortPriority(a) - sortPriority(b));
   }, [products, searchTerm, linkedProductIds, hideLinked, hideVoid]);
 
-  const linkedCount = products.filter(
+  const linkedCount = useMemo(() => products.filter(
     (p) => linkedProductIds.includes(p.id || '') || getProductStatus(p).type === 'complete'
-  ).length;
-  const voidCount = products.filter((p) => isVoid(p)).length;
+  ).length, [products, linkedProductIds]);
+  const voidCount = useMemo(() => products.filter((p) => isVoid(p)).length, [products]);
 
   const matchSuggestions = useMemo(() => {
     if (!transaction) return [];

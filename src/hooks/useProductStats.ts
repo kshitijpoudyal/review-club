@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Product } from '../types/Product';
+import { isComplete } from '../utils/productStatus';
 
 export interface ProductStats {
   totalProducts: number;
@@ -17,15 +18,7 @@ export const useProductStats = (products: Product[]): ProductStats | null => {
     // Filter out empty products
     const validProducts = products.filter(p => p.item);
     
-    const completedOrders = validProducts.filter(p => 
-      p.orderPlaced && 
-      p.orderDelivered && 
-      p.reviewAdded && 
-      p.reviewLive && 
-      p.reviewSSSent &&
-      p.paid !== null &&
-      p.received !== null
-    ).length;
+    const completedOrders = validProducts.filter(p => isComplete(p)).length;
 
     let totalPaid = 0;
     let totalReceived = 0;
@@ -48,16 +41,12 @@ export const useProductStats = (products: Product[]): ProductStats | null => {
         netDelta += product.delta;
       }
 
-      // Calculate remaining refund for incomplete orders
-      const isComplete = product.orderPlaced && 
-                        product.orderDelivered && 
-                        product.reviewAdded && 
-                        product.reviewLive && 
-                        product.reviewSSSent &&
-                        product.received !== null && !isNaN(product.received);
-      
-      if (!isComplete && product.paid !== null && !isNaN(product.paid)) {
-        remainingRefund += product.paid;
+      // Calculate remaining refund for incomplete, non-void orders
+      const complete = isComplete(product);
+
+      if (!complete && !product.isVoid && product.paid !== null && !isNaN(product.paid)) {
+        const received = product.received ?? 0;
+        remainingRefund += Math.max(product.paid - received, 0);
       }
     });
 

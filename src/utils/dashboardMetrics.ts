@@ -1,6 +1,6 @@
 import { Product, Vendor } from '../types/Product';
 import { PayPalTransaction } from '../types/PayPalTransaction';
-import { getProductStatusType, ProductStatusType } from './productStatus';
+import { getProductStatusType, isComplete, ProductStatusType } from './productStatus';
 import { getVendorName } from './vendors';
 
 export type DashboardTimeRange = '3M' | '6M' | 'YTD' | 'All';
@@ -242,16 +242,7 @@ export function computeDashboardMetrics(
       netDelta += product.delta;
     }
 
-    const isComplete =
-      product.orderPlaced &&
-      product.orderDelivered &&
-      product.reviewAdded &&
-      product.reviewLive &&
-      product.reviewSSSent &&
-      product.paid !== null &&
-      product.received !== null;
-
-    if (isComplete) completedOrders++;
+    if (isComplete(product)) completedOrders++;
 
     if (product.isVoid && product.paid != null && !Number.isNaN(product.paid)) {
       voidWriteOffs += product.paid;
