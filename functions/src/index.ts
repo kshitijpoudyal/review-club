@@ -76,12 +76,23 @@ const ORDER_CONFIRMATION_PATTERNS: Partial<Record<Retailer, string>> = {
     wayfair: 'from:(account-updates@wayfair.com) subject:("Order received")',
 };
 
-// PayPal transaction-notification emails — confirmed against one real
-// sample so far: a P2P "receive money" email, sender service@paypal.com,
-// subject "{name} sent you $X USD". Scoped to just that subject shape until
-// a real sample of send-money/purchase-receipt/refund emails is available to
-// confirm their format, same reasoning as Walmart/Wayfair above.
-const PAYPAL_TRANSACTION_PATTERN = 'from:(service@paypal.com) subject:("sent you")';
+// PayPal transaction-notification emails — confirmed against real samples
+// of a P2P "receive money" email, subject "{name} sent you $X USD". Scoped
+// to just that subject shape until a real sample of send-money/purchase-
+// receipt/refund emails is available to confirm their format, same
+// reasoning as Walmart/Wayfair above.
+//
+// Deliberately not `from:(service@paypal.com)` — a copy manually forwarded
+// into the tracked inbox (e.g. from a secondary PayPal-linked address) shows
+// up with the forwarder as the Gmail From header, not service@paypal.com.
+// Gmail's plain-text search still indexes the quoted "From: service@paypal.
+// com" line inside the forwarded body, so searching for that address
+// without the `from:` field operator matches both a direct email and a
+// forward of one. parsePaypalTransactionEmail still requires a real
+// Amount + Transaction ID to be extracted before anything is surfaced, so
+// an unrelated email that merely mentions the address is harmless noise
+// that gets logged and skipped, not reported as a transaction.
+const PAYPAL_TRANSACTION_PATTERN = 'service@paypal.com subject:("sent you")';
 
 // Checks every product for every user, and pushes a notification for any
 // item that needs attention: either it's past the user's return-reminder
@@ -972,7 +983,11 @@ function extractLabeledHtmlField(html: string, label: string): string | null {
 function parsePaypalTransactionEmail(subject: string, html: string | undefined, receivedAt: Date): PaypalTransactionPayload | null {
     if (!html) return null;
 
-    const nameMatch = subject.match(/^(.+?)\s+sent you/i);
+    // A forwarded copy prefixes the subject with "Fwd:"/"Re:" (sometimes
+    // repeated) — strip those first so the sender's name doesn't come out
+    // as e.g. "Fwd: Jane Doe".
+    const cleanSubject = subject.replace(/^(?:(?:fwd|fw|re)\s*:\s*)+/i, "");
+    const nameMatch = cleanSubject.match(/^(.+?)\s+sent you/i);
     const name = nameMatch ? nameMatch[1].trim() : "";
 
     const amountText = extractLabeledHtmlField(html, "Amount");
