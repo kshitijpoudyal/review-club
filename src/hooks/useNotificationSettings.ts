@@ -11,7 +11,7 @@ export const DEFAULT_STUCK_STATUS_DAYS = 7;
 interface NotificationSettingsState {
   returnReminderDays: number;
   stuckStatusDays: number;
-  // All three default to enabled — only an explicit `false` in Firestore turns one off.
+  // All default to enabled — only an explicit `false` in Firestore turns one off.
   returnReminderEnabled: boolean;
   stuckStatusEnabled: boolean;
   gmailWatcherEnabled: boolean;
@@ -70,5 +70,9 @@ export const useNotificationSettings = () => {
     setReturnReminderEnabled: (enabled: boolean) => updateSettings({ returnReminderEnabled: enabled }),
     setStuckStatusEnabled: (enabled: boolean) => updateSettings({ stuckStatusEnabled: enabled }),
     setGmailWatcherEnabled: (enabled: boolean) => updateSettings({ gmailWatcherEnabled: enabled }),
+    // Bulk write for the Order reminders card's single "Save changes" button,
+    // which persists both reminders' enabled/days fields in one go instead of
+    // four separate writes.
+    updateOrderReminderSettings: (partial: Partial<NotificationSettingsState>) => updateSettings(partial),
   };
 };

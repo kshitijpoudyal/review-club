@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { usePaymentMethods } from '../hooks/usePaymentMethods';
 import { useGenericFilters } from '../hooks/useGenericFilters';
 import { useDashboardState } from '../hooks/useDashboardState';
 import { useTransactions } from '../hooks/useTransactions';
+import { buildTransactionData } from '../contexts/TransactionsContext';
 import { useProductCrudFirebase } from '../hooks/useProductCrudFirebase';
 import { useMinimumLoading } from '../hooks/useMinimumLoading';
 import { TransactionTable } from '../components/TransactionsDashboard/TransactionTable';
+import { PendingGmailTransactionImports } from '../components/TransactionsDashboard/PendingGmailTransactionImports';
 import { AddTransactionForm } from '../components/TransactionsDashboard/AddTransactionForm';
 import { EditTransactionModal } from '../components/TransactionsDashboard/EditTransactionModal';
 import {
@@ -54,6 +57,7 @@ function transactionMatchesAmountSearch(search: string, transaction: Transaction
 export const TransactionsPage: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const { activePaymentMethods } = usePaymentMethods();
   const { showAddForm, handleShowAddForm, handleHideAddForm } = useDashboardState();
 
   const urlLinkFilter = new URLSearchParams(window.location.search).get('link') ?? '';
@@ -67,7 +71,8 @@ export const TransactionsPage: React.FC = () => {
     initialFilters: {
       searchTerm: '',
       typeFilter: '',
-      linkFilter: urlLinkFilter
+      linkFilter: urlLinkFilter,
+      paymentMethodFilter: ''
     }
   });
 
@@ -75,6 +80,7 @@ export const TransactionsPage: React.FC = () => {
   const searchTerm = getFilterValue('searchTerm');
   const typeFilter = getFilterValue('typeFilter');
   const linkFilter = getFilterValue('linkFilter');
+  const paymentMethodFilter = getFilterValue('paymentMethodFilter');
   const {
     data,
     loading,
@@ -114,8 +120,23 @@ export const TransactionsPage: React.FC = () => {
       (linkFilter === 'linked' && transaction.linkedProductIds && transaction.linkedProductIds.length > 0) ||
       (linkFilter === 'unlinked' && (!transaction.linkedProductIds || transaction.linkedProductIds.length === 0));
 
-    return matchesSearch && matchesType && matchesLinkFilter;
+    const matchesPaymentMethod = !paymentMethodFilter ||
+      (transaction.paymentMethod ?? 'PayPal') === paymentMethodFilter;
+
+    return matchesSearch && matchesType && matchesLinkFilter && matchesPaymentMethod;
   }) || [];
+
+  // Payment method filter options: every active payment method, plus any name
+  // that actually appears on a transaction (e.g. a deactivated or custom
+  // method from before it was removed from Settings), so a filter for it
+  // never silently disappears just because the method itself was retired.
+  const paymentMethodOptions = useMemo(() => {
+    const names = new Set(activePaymentMethods.map(pm => pm.name));
+    (data?.transactions ?? []).forEach(transaction => {
+      names.add(transaction.paymentMethod ?? 'PayPal');
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [activePaymentMethods, data?.transactions]);
 
   // Configure filter controls
   const filterConfigs: FilterControlConfig[] = [
@@ -135,6 +156,16 @@ export const TransactionsPage: React.FC = () => {
         { value: '', label: 'All Transactions' },
         { value: 'linked', label: 'Linked to Products' },
         { value: 'unlinked', label: 'Unlinked' }
+      ]
+    },
+    {
+      type: 'select',
+      key: 'paymentMethodFilter',
+      value: paymentMethodFilter,
+      onChange: (value) => updateFilter('paymentMethodFilter', value),
+      options: [
+        { value: '', label: 'All Payment Methods' },
+        ...paymentMethodOptions.map(name => ({ value: name, label: name }))
       ]
     }
   ];
@@ -206,20 +237,24 @@ export const TransactionsPage: React.FC = () => {
     .filter(transaction => !transaction.linkedProductIds || transaction.linkedProductIds.length === 0)
     .reduce((total, transaction) => total + transaction.total, 0);
 
+  // Stats reflect the filtered list, same as the Products page, so they
+  // change as filters are applied instead of always showing the full totals.
+  const filteredSummary = buildTransactionData(filteredTransactions).summary;
+
   // Prepare stats data
   const statsData = data ? [
     {
-      value: formatCurrency(data.summary.totalIncome),
+      value: formatCurrency(filteredSummary.totalIncome),
       label: "Received",
       className: getStatsColor('income')
     },
     {
-      value: formatCurrency(data.summary.totalFees),
+      value: formatCurrency(filteredSummary.totalFees),
       label: "Fees",
       className: getStatsColor('fees')
     },
     {
-      value: formatCurrency(data.summary.netReceivedTotal),
+      value: formatCurrency(filteredSummary.netReceivedTotal),
       label: "Net Received",
       className: getStatsColor('netReceived')
     },
@@ -263,6 +298,8 @@ export const TransactionsPage: React.FC = () => {
 
       {/* Summary Cards */}
       <DashboardStats stats={statsData} loading={displayLoading} />
+
+      <PendingGmailTransactionImports onAdd={addTransaction} />
 
       <Toolbar
         actions={actions}

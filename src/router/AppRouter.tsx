@@ -7,6 +7,7 @@ import ProductPage from '../pages/ProductPage';
 import { TransactionsPage } from '../pages/TransactionsPage';
 import DashboardPage from '../pages/DashboardPage';
 import SettingsPage from '../pages/SettingsPage';
+import OnboardingPage from '../pages/OnboardingPage';
 import NotFoundPage from '../components/NotFoundPage';
 import ImportHashCapture from '../components/ImportHashCapture';
 
@@ -47,9 +48,19 @@ const AppRouter: React.FC = () => {
         } 
       />
       
+      {/* Full-screen onboarding wizard — bypasses the App layout/header */}
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute>
+            <OnboardingPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Protected Routes */}
-      <Route 
-        path="/" 
+      <Route
+        path="/"
         element={
           <ProtectedRoute>
             <App />

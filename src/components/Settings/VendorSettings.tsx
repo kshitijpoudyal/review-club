@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TruckIcon, PencilIcon, TrashIcon, PlusIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { TruckIcon, PencilIcon, ArchiveBoxIcon, PlusIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useVendors } from '../../hooks/useVendors';
 import { typography } from '../../utils/typography';
 import { colors, getBadgeClasses } from '../../utils/colors';
@@ -146,8 +146,8 @@ export const VendorSettings: React.FC = () => {
                 )}
               </div>
               <p className={typography.caption}>
-                Manage the vendors available when adding or editing products. Removing a vendor keeps it
-                on past products but hides it from new selections.
+                Manage vendors available when adding products. Archived vendors remain on existing products
+                but won&apos;t appear in new selections.
               </p>
             </div>
           </div>
@@ -221,7 +221,7 @@ export const VendorSettings: React.FC = () => {
                               {vendor.name}
                             </span>
                             {createdLabel && (
-                              <div className={typography.caption}>Created {createdLabel}</div>
+                              <div className={typography.caption}>Added {createdLabel}</div>
                             )}
                           </div>
                         </div>
@@ -238,11 +238,11 @@ export const VendorSettings: React.FC = () => {
                         </button>
                         <button
                           onClick={() => setRemoveTarget(vendor)}
-                          aria-label={`Remove ${vendor.name}`}
-                          title="Remove vendor"
+                          aria-label={`Archive ${vendor.name}`}
+                          title="Archive vendor"
                           className={`${colors.button.danger} p-2 rounded-full`}
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <ArchiveBoxIcon className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -302,17 +302,17 @@ export const VendorSettings: React.FC = () => {
         }
       />
 
-      {/* Remove confirmation modal */}
+      {/* Archive confirmation modal */}
       <Modal
         isOpen={!!removeTarget}
         onClose={() => !removing && setRemoveTarget(null)}
-        title="Remove vendor"
+        title="Archive vendor?"
         size="sm"
         body={
           <div className="p-4 sm:p-6">
             <p className={typography.body}>
-              Remove <span className="font-semibold">{removeTarget?.name}</span>? It&apos;ll stay on past
-              products but disappear from vendor selection for new ones. You can&apos;t undo this from here.
+              <span className="font-semibold">{removeTarget?.name}</span> will no longer be available for new
+              products. Existing products using this vendor will remain unchanged.
             </p>
           </div>
         }
@@ -332,7 +332,7 @@ export const VendorSettings: React.FC = () => {
               disabled={removing}
               className={`${colors.button.dangerSolid} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {removing ? 'Removing...' : 'Remove vendor'}
+              {removing ? 'Archiving...' : 'Archive vendor'}
             </button>
           </div>
         }

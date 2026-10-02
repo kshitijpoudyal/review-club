@@ -75,6 +75,13 @@ service cloud.firestore {
         allow read, delete: if request.auth != null && request.auth.uid == userId;
         allow create, update: if false;
       }
+
+      // Draft PayPal transactions detected from Gmail, pending the user's
+      // review — same access shape as pendingGmailImports above.
+      match /pendingGmailTransactionImports/{importId} {
+        allow read, delete: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if false;
+      }
     }
   }
 }

@@ -43,6 +43,12 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
-    open: true
+    open: true,
+    watch: {
+      // Without this, every `npm run build` (which writes a fresh set of
+      // hashed files into dist/) gets picked up by the dev server's watcher
+      // as a source change and forces a full browser reload.
+      ignored: ['**/dist/**'],
+    },
   }
 })

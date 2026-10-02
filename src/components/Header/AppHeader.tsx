@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Dialog, DialogPanel } from '@headlessui/react'
 import { Bars3Icon, XMarkIcon, UserCircleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import { User } from 'firebase/auth';
@@ -70,17 +70,17 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                             const isActive = location.pathname === item.href ||
                                 location.pathname.startsWith(item.href);
                             return (
-                                <a
+                                <Link
                                     key={item.name}
-                                    href={item.href}
+                                    to={item.href}
                                     className={`${typography.bodyStrong} px-3 py-1.5 rounded-full transition-all ${
-                                        isActive 
-                                            ? 'text-white bg-white/20' 
+                                        isActive
+                                            ? 'text-white bg-white/20'
                                             : 'text-white/70 hover:text-white hover:bg-white/10'
                                     }`}
                                 >
                                     {item.name}
-                                </a>
+                                </Link>
                             );
                         })}
                     </div>
@@ -136,13 +136,13 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                             Install App
                           </button>
                         )}
-                        <a
-                          href="/settings"
+                        <Link
+                          to="/settings"
                           onClick={() => setUserMenuOpen(false)}
                           className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-100"
                         >
                           Settings
-                        </a>
+                        </Link>
                         <button
                           onClick={() => { setUserMenuOpen(false); onLogout(); }}
                           className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -175,9 +175,10 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                                     const isActive = location.pathname === item.href ||
                                 location.pathname.startsWith(item.href);
                                     return (
-                                        <a
+                                        <Link
                                             key={item.name}
-                                            href={item.href}
+                                            to={item.href}
+                                            onClick={() => setMobileMenuOpen(false)}
                                             className={`-mx-3 block rounded-xl px-3 py-2 text-base/7 font-semibold ${
                                                 isActive
                                                     ? 'text-white bg-white/20'
@@ -185,7 +186,7 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                                             }`}
                                         >
                                             {item.name}
-                                        </a>
+                                        </Link>
                                     );
                                 })}
                             </div>
@@ -199,13 +200,13 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                                         Install App
                                     </button>
                                 )}
-                                <a
-                                    href="/settings"
+                                <Link
+                                    to="/settings"
                                     onClick={() => setMobileMenuOpen(false)}
                                     className={`-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold ${colors.header.mobile.menuLink}`}
                                 >
                                     Settings
-                                </a>
+                                </Link>
                                 <a
                                     href="#"
                                     onClick={onLogout}

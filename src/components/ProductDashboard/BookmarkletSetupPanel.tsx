@@ -8,8 +8,12 @@ import {
 } from '../../utils/bookmarklet';
 import { getAppOrigin } from '../../utils/importHandoff';
 
-export const BookmarkletSetupPanel: React.FC = () => {
-  const [expanded, setExpanded] = useState(false);
+interface BookmarkletSetupPanelProps {
+  defaultExpanded?: boolean;
+}
+
+export const BookmarkletSetupPanel: React.FC<BookmarkletSetupPanelProps> = ({ defaultExpanded = false }) => {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const [bookmarkletCopied, setBookmarkletCopied] = useState(false);
   const [wayfairBookmarkletCopied, setWayfairBookmarkletCopied] = useState(false);
   const [walmartBookmarkletCopied, setWalmartBookmarkletCopied] = useState(false);

@@ -1,31 +1,46 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { EnvelopeIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { useGmailAccounts } from '../../hooks/useGmailAccounts';
+import { ChevronDownIcon, EnvelopeIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { useGmailAccounts, GmailWatchSource } from '../../hooks/useGmailAccounts';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
-import { Retailer } from '../../types/Product';
 import { ToggleSwitch } from '../common/ToggleSwitch';
 import { typography } from '../../utils/typography';
 import { colors, getBadgeClasses } from '../../utils/colors';
 
 const TRIGGER_GMAIL_CHECK_URL = 'https://us-central1-productreview-52e51.cloudfunctions.net/triggerGmailCheck';
 
-const RETAILER_OPTIONS: { value: Retailer; label: string; available: boolean }[] = [
+const formatLastChecked = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+
+const RETAILER_OPTIONS: { value: GmailWatchSource; label: string; available: boolean }[] = [
   { value: 'amazon', label: 'Amazon', available: true },
   { value: 'wayfair', label: 'Wayfair', available: true },
-  { value: 'walmart', label: 'Walmart', available: false },
+  { value: 'paypal', label: 'PayPal', available: true },
 ];
 
-export const GmailIntegration: React.FC = () => {
+interface GmailIntegrationProps {
+  /** Hide the internal "Re-scan all (testing)" action — defaults on for the
+   * regular Settings page, off when embedded in the onboarding wizard. */
+  showTestingActions?: boolean;
+}
+
+export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingActions = true }) => {
   const { accounts, loading, connectUrl, toggleRetailer, disconnectAccount } = useGmailAccounts();
   const { gmailWatcherEnabled, loading: settingsLoading, setGmailWatcherEnabled } = useNotificationSettings();
   const [searchParams] = useSearchParams();
   const gmailParam = searchParams.get('gmail');
 
   const [isChecking, setIsChecking] = useState(false);
-  const [checkResult, setCheckResult] = useState<{ notified: number; ordersDetected: number } | null>(null);
+  const [checkResult, setCheckResult] = useState<{ notified: number; ordersDetected: number; transactionsDetected: number } | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [accountsExpanded, setAccountsExpanded] = useState(false);
 
   const anyConnected = accounts.some((a) => a.connected);
 
@@ -37,7 +52,11 @@ export const GmailIntegration: React.FC = () => {
       const response = await fetch(url, { method: 'POST' });
       if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
       const result = await response.json();
-      setCheckResult({ notified: result.notified ?? 0, ordersDetected: result.ordersDetected ?? 0 });
+      setCheckResult({
+        notified: result.notified ?? 0,
+        ordersDetected: result.ordersDetected ?? 0,
+        transactionsDetected: result.transactionsDetected ?? 0,
+      });
     } catch (err) {
       console.error('Error triggering Gmail check:', err);
       setCheckError('Check failed — please try again.');
@@ -64,7 +83,7 @@ export const GmailIntegration: React.FC = () => {
           </div>
           <div className="space-y-2 flex-1 min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className={typography.sectionTitle}>Gmail watcher</h2>
+              <h2 className={typography.sectionTitle}>Email accounts</h2>
               <ToggleSwitch
                 checked={gmailWatcherEnabled}
                 onChange={setGmailWatcherEnabled}
@@ -73,9 +92,9 @@ export const GmailIntegration: React.FC = () => {
               />
             </div>
             <p className={typography.caption}>
-              Connect your Gmail accounts and we&apos;ll check them hourly for any new orders or if reviews are
-              live for those orders. This never reads your emails for anything else, and never changes a product
-              automatically.
+              Connect your Gmail accounts to automatically find and track orders from supported stores and
+              payment services. We only scan for supported order and payment emails. We don&apos;t read or
+              modify unrelated emails.
             </p>
 
             {gmailParam === 'error' && (
@@ -93,7 +112,10 @@ export const GmailIntegration: React.FC = () => {
             {checkResult && (
               <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
                 Checked — {checkResult.notified} review alert{checkResult.notified === 1 ? '' : 's'},{' '}
-                {checkResult.ordersDetected} new order{checkResult.ordersDetected === 1 ? '' : 's'} detected.
+                {checkResult.ordersDetected} new order{checkResult.ordersDetected === 1 ? '' : 's'},{' '}
+                {checkResult.transactionsDetected} new transaction{checkResult.transactionsDetected === 1 ? '' : 's'} detected.
+                {checkResult.ordersDetected > 0 && ' Review and add orders from the Products page.'}
+                {checkResult.transactionsDetected > 0 && ' Review and add transactions from the Transactions page.'}
               </div>
             )}
             {checkError && (
@@ -101,16 +123,16 @@ export const GmailIntegration: React.FC = () => {
             )}
 
             <div className="flex flex-col sm:flex-row flex-wrap items-start gap-3 pt-1">
-              {anyConnected && (
+              {anyConnected && showTestingActions && (
                 <button
                   onClick={() => handleCheckNow()}
                   disabled={isChecking}
                   className={`${colors.button.secondary} w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {isChecking ? 'Checking...' : 'Check Gmail now'}
+                  {isChecking ? 'Checking...' : 'Check now'}
                 </button>
               )}
-              {anyConnected && (
+              {anyConnected && showTestingActions && (
                 <button
                   onClick={() => handleCheckNow(true)}
                   disabled={isChecking}
@@ -122,9 +144,10 @@ export const GmailIntegration: React.FC = () => {
               {connectUrl && (
                 <a
                   href={connectUrl}
-                  className={`block w-full sm:w-auto sm:inline-block shrink-0 ${colors.button.primary} px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors`}
+                  className={`w-full sm:w-auto shrink-0 ${colors.button.primary} px-6 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-1.5`}
                 >
-                  {accounts.length > 0 ? 'Add another Gmail' : 'Connect Gmail'}
+                  <PlusIcon className="w-4 h-4" />
+                  Add Gmail account
                 </a>
               )}
             </div>
@@ -133,7 +156,19 @@ export const GmailIntegration: React.FC = () => {
 
         {!loading && accounts.length > 0 && (
           <div className="space-y-3">
-            {accounts.map((account) => (
+            <button
+              type="button"
+              onClick={() => setAccountsExpanded((v) => !v)}
+              className="flex items-center gap-2 text-sm font-medium text-[#1b1c19]"
+              aria-expanded={accountsExpanded}
+            >
+              <ChevronDownIcon
+                className={`w-4 h-4 transition-transform ${accountsExpanded ? 'rotate-180' : ''}`}
+              />
+              Connected accounts · {accounts.length}
+            </button>
+
+            {accountsExpanded && accounts.map((account) => (
               <div key={account.id} className={`rounded-xl border p-4 ${colors.card.border}`}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-3 min-w-0">
@@ -143,7 +178,7 @@ export const GmailIntegration: React.FC = () => {
                     <span className="font-medium text-sm truncate">{account.emailAddress ?? 'Unknown account'}</span>
                     {account.lastCheckedAt && (
                       <span className={typography.caption}>
-                        Last checked {new Date(account.lastCheckedAt).toLocaleString()}
+                        Last checked {formatLastChecked(account.lastCheckedAt)}
                       </span>
                     )}
                   </div>
@@ -176,7 +211,6 @@ export const GmailIntegration: React.FC = () => {
                 )}
 
                 <div className="flex flex-wrap items-center gap-4 mt-3">
-                  <span className={typography.caption}>Watch this inbox for:</span>
                   {RETAILER_OPTIONS.map((opt) => (
                     <label
                       key={opt.value}
@@ -191,7 +225,7 @@ export const GmailIntegration: React.FC = () => {
                         className="rounded"
                       />
                       {opt.label}
-                      {!opt.available && <span className={typography.caption}>(Coming soon)</span>}
+                      {!opt.available && <span className={typography.caption}>· Coming soon</span>}
                     </label>
                   ))}
                 </div>

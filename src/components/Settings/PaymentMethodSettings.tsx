@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCardIcon, PencilIcon, TrashIcon, PlusIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { CreditCardIcon, PencilIcon, ArchiveBoxIcon, PlusIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 import { typography } from '../../utils/typography';
 import { colors, getBadgeClasses } from '../../utils/colors';
@@ -138,7 +138,7 @@ export const PaymentMethodSettings: React.FC = () => {
             </div>
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-3">
-                <h2 className={typography.sectionTitle}>Payment Methods</h2>
+                <h2 className={typography.sectionTitle}>Payment methods</h2>
                 {!loading && (
                   <span className={getBadgeClasses('order-placed')}>
                     {activePaymentMethods.length} {activePaymentMethods.length === 1 ? 'method' : 'methods'}
@@ -146,8 +146,8 @@ export const PaymentMethodSettings: React.FC = () => {
                 )}
               </div>
               <p className={typography.caption}>
-                Manage the payment methods available when recording or editing transactions. Removing one
-                keeps it on past transactions but hides it from new selections.
+                Manage payment methods available when recording transactions. Archived methods remain on
+                past transactions but won&apos;t appear in new selections.
               </p>
             </div>
           </div>
@@ -156,7 +156,7 @@ export const PaymentMethodSettings: React.FC = () => {
             className={`${colors.button.primary} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-1.5 shrink-0`}
           >
             <PlusIcon className="w-4 h-4" />
-            Add payment method
+            Add method
           </button>
         </div>
 
@@ -221,7 +221,7 @@ export const PaymentMethodSettings: React.FC = () => {
                               {method.name}
                             </span>
                             {createdLabel && (
-                              <div className={typography.caption}>Created {createdLabel}</div>
+                              <div className={typography.caption}>Added {createdLabel}</div>
                             )}
                           </div>
                         </div>
@@ -238,11 +238,11 @@ export const PaymentMethodSettings: React.FC = () => {
                         </button>
                         <button
                           onClick={() => setRemoveTarget(method)}
-                          aria-label={`Remove ${method.name}`}
-                          title="Remove payment method"
+                          aria-label={`Archive ${method.name}`}
+                          title="Archive payment method"
                           className={`${colors.button.danger} p-2 rounded-full`}
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <ArchiveBoxIcon className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -302,17 +302,17 @@ export const PaymentMethodSettings: React.FC = () => {
         }
       />
 
-      {/* Remove confirmation modal */}
+      {/* Archive confirmation modal */}
       <Modal
         isOpen={!!removeTarget}
         onClose={() => !removing && setRemoveTarget(null)}
-        title="Remove payment method"
+        title="Archive payment method?"
         size="sm"
         body={
           <div className="p-4 sm:p-6">
             <p className={typography.body}>
-              Remove <span className="font-semibold">{removeTarget?.name}</span>? It&apos;ll stay on past
-              transactions but disappear from payment method selection for new ones. You can&apos;t undo this from here.
+              This payment method will no longer be available for new transactions. Existing transactions
+              using it will remain unchanged.
             </p>
           </div>
         }
@@ -332,7 +332,7 @@ export const PaymentMethodSettings: React.FC = () => {
               disabled={removing}
               className={`${colors.button.dangerSolid} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              {removing ? 'Removing...' : 'Remove payment method'}
+              {removing ? 'Archiving...' : 'Archive method'}
             </button>
           </div>
         }

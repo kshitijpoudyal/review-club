@@ -55,7 +55,7 @@ function sortTransactions(transactions: Transaction[]): Transaction[] {
   });
 }
 
-function buildTransactionData(transactions: Transaction[]): TransactionData {
+export function buildTransactionData(transactions: Transaction[]): TransactionData {
   return {
     transactions,
     summary: {

@@ -48,6 +48,12 @@ const appBaseUrl = defineSecret("APP_BASE_URL");
 // independently.
 type Retailer = "amazon" | "walmart" | "wayfair";
 
+// What a connected Gmail account can be watched for. Deliberately not folded
+// into Retailer: PayPal is a payment method, not a retailer a product is
+// bought from (Retailer also drives GmailOrderPayload.retailer), so it only
+// widens the account-level watch list, not the order-draft type.
+type GmailWatchSource = Retailer | "paypal";
+
 // Gmail search query per retailer — confirmed against a real Amazon sample:
 // sender "Amazon Reviews <no-reply@amazon.com>", subject "Thank you for
 // reviewing <item>... on Amazon". `after:` (epoch seconds) is appended at
@@ -69,6 +75,13 @@ const ORDER_CONFIRMATION_PATTERNS: Partial<Record<Retailer, string>> = {
     amazon: "from:(auto-confirm@amazon.com) subject:(Ordered)",
     wayfair: 'from:(account-updates@wayfair.com) subject:("Order received")',
 };
+
+// PayPal transaction-notification emails — confirmed against one real
+// sample so far: a P2P "receive money" email, sender service@paypal.com,
+// subject "{name} sent you $X USD". Scoped to just that subject shape until
+// a real sample of send-money/purchase-receipt/refund emails is available to
+// confirm their format, same reasoning as Walmart/Wayfair above.
+const PAYPAL_TRANSACTION_PATTERN = 'from:(service@paypal.com) subject:("sent you")';
 
 // Checks every product for every user, and pushes a notification for any
 // item that needs attention: either it's past the user's return-reminder
@@ -536,7 +549,11 @@ interface GmailMessagePart {
 
 interface GmailMessageGetResponse {
     internalDate?: string; // epoch millis, as a string
-    payload?: GmailMessagePart;
+    payload?: GmailMessagePart & { headers?: { name: string; value: string }[] };
+}
+
+function findGmailHeader(headers: { name: string; value: string }[] | undefined, name: string): string | undefined {
+    return headers?.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value;
 }
 
 function decodeGmailBase64Url(data: string): string {
@@ -579,7 +596,7 @@ function stripHtmlTags(html: string): string {
         .trim();
 }
 
-async function fetchGmailMessage(accessToken: string, messageId: string): Promise<{ text: string; html?: string; receivedAt: Date }> {
+async function fetchGmailMessage(accessToken: string, messageId: string): Promise<{ text: string; html?: string; receivedAt: Date; subject?: string }> {
     const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
 
@@ -592,8 +609,9 @@ async function fetchGmailMessage(accessToken: string, messageId: string): Promis
     const data = (await res.json()) as GmailMessageGetResponse;
     const { plain, html } = findGmailBodyText(data.payload);
     const receivedAt = data.internalDate ? new Date(Number(data.internalDate)) : new Date();
+    const subject = findGmailHeader(data.payload?.headers, "Subject");
 
-    return { text: plain ?? (html ? stripHtmlTags(html) : ""), html, receivedAt };
+    return { text: plain ?? (html ? stripHtmlTags(html) : ""), html, receivedAt, subject };
 }
 
 // Shape matches the frontend's BookmarkletPayload (src/utils/bookmarkletPayload.ts)
@@ -618,6 +636,23 @@ interface GmailOrderPayload {
     productUrl: string;
     imageUrl: string;
     products?: GmailOrderProduct[];
+}
+
+// Shape matches the frontend's Transaction (src/types/Transaction.ts) minus
+// the Firestore-assigned `id`, so a confirmed draft can be handed straight to
+// the existing addTransaction call without any new mapping logic.
+interface PaypalTransactionPayload {
+    date: string;
+    time: string;
+    timeZone: string;
+    name: string;
+    type: string;
+    currency: string;
+    amount: number;
+    fees: number;
+    total: number;
+    transactionId: string;
+    paymentMethod: "PayPal";
 }
 
 // Amazon's templates sprinkle invisible Unicode formatting characters
@@ -921,6 +956,49 @@ function parseWayfairOrderEmail(html: string | undefined, receivedAt: Date): Gma
     };
 }
 
+// PayPal's transactional template repeats a "<b>Label</b>" paragraph
+// immediately followed by a "<span>Value</span>" paragraph for each field
+// (Amount, Transaction date, Transaction ID) — this pulls the first such
+// value after a given label instead of a one-off regex per field.
+function extractLabeledHtmlField(html: string, label: string): string | null {
+    const pattern = new RegExp(`<b>${label}</b>[\\s\\S]{0,400}?<span[^>]*>([\\s\\S]*?)</span>`, "i");
+    const match = html.match(pattern);
+    return match ? stripHtmlTags(match[1]).trim() : null;
+}
+
+// Parses a PayPal "{name} sent you $X USD" receive-money notification into a
+// Transaction draft. Returns null if the amount or transaction ID can't be
+// found, since a draft missing either isn't worth surfacing for review.
+function parsePaypalTransactionEmail(subject: string, html: string | undefined, receivedAt: Date): PaypalTransactionPayload | null {
+    if (!html) return null;
+
+    const nameMatch = subject.match(/^(.+?)\s+sent you/i);
+    const name = nameMatch ? nameMatch[1].trim() : "";
+
+    const amountText = extractLabeledHtmlField(html, "Amount");
+    const amountMatch = amountText?.match(/([\d,]+\.\d{2})\s*([A-Z]{3})/);
+    if (!amountMatch) return null;
+    const amount = parseFloat(amountMatch[1].replace(/,/g, ""));
+    const currency = amountMatch[2];
+
+    const transactionId = extractLabeledHtmlField(html, "Transaction ID");
+    if (!transactionId) return null;
+
+    return {
+        date: receivedAt.toISOString().slice(0, 10),
+        time: receivedAt.toISOString().slice(11, 16),
+        timeZone: "UTC",
+        name,
+        type: "Payment Received",
+        currency,
+        amount,
+        fees: 0,
+        total: amount,
+        transactionId,
+        paymentMethod: "PayPal",
+    };
+}
+
 // Dispatches order-email parsing by retailer. Walmart has no real parser
 // yet — this is the seam where it gets added later (needs its own
 // sample-email-verified implementation, same as the two below) without
@@ -935,10 +1013,11 @@ function parseOrderEmail(retailer: Retailer, text: string, html: string | undefi
 // emails and new order-confirmation emails since their last check, pushing a
 // notification for either. Order confirmations also get parsed into a draft
 // product written to pendingGmailImports for the user to review and confirm.
-async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promise<{ checked: number; notified: number; ordersDetected: number; reauthNeeded: number }> {
+async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promise<{ checked: number; notified: number; ordersDetected: number; transactionsDetected: number; reauthNeeded: number }> {
     let checked = 0;
     let notified = 0;
     let ordersDetected = 0;
+    let transactionsDetected = 0;
     let reauthNeeded = 0;
 
     const usersSnapshot = await db.collection("users").get();
@@ -960,7 +1039,10 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promis
             const refreshToken = (await accountDoc.ref.collection("secret").doc("token").get()).data()?.refreshToken;
             if (!refreshToken) continue;
 
-            const retailers: Retailer[] = account.retailers ?? [];
+            const watchSources: GmailWatchSource[] = account.retailers ?? [];
+            // RETAILER_EMAIL_PATTERNS/ORDER_CONFIRMATION_PATTERNS are keyed by
+            // Retailer only — "paypal" is handled by its own pattern/loop below.
+            const retailers: Retailer[] = watchSources.filter((s): s is Retailer => s !== "paypal");
             const accountLabel = account.emailAddress ?? accountDoc.id;
 
             checked++;
@@ -1060,6 +1142,56 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promis
                 }
 
                 await accountDoc.ref.set({ lastOrderCheckedAt: new Date().toISOString() }, { merge: true });
+
+                // Separate cursor again — PayPal transaction detection runs
+                // independently of the retailer order-confirmation checks above.
+                if (watchSources.includes("paypal")) {
+                    const lastPaypalCheckedAt = account.lastPaypalCheckedAt && !ignoreCursors ? new Date(account.lastPaypalCheckedAt) : new Date(0);
+                    const paypalAfterEpoch = Math.floor(lastPaypalCheckedAt.getTime() / 1000);
+                    const query = paypalAfterEpoch > 0 ? `${PAYPAL_TRANSACTION_PATTERN} after:${paypalAfterEpoch}` : PAYPAL_TRANSACTION_PATTERN;
+
+                    const messageIds = await listGmailMessageIds(accessToken, query);
+                    logger.info(`Gmail PayPal search "${query}" → ${messageIds.length} match(es) for ${accountLabel} (user ${userDoc.id})`);
+
+                    let newTransactionsFound = 0;
+                    for (const messageId of messageIds) {
+                        const pendingRef = db
+                            .collection("users")
+                            .doc(userDoc.id)
+                            .collection("pendingGmailTransactionImports")
+                            .doc(`${accountDoc.id}_${messageId}`);
+                        if ((await pendingRef.get()).exists) continue;
+
+                        const { html, receivedAt, subject } = await fetchGmailMessage(accessToken, messageId);
+                        const draft = parsePaypalTransactionEmail(subject ?? "", html, receivedAt);
+                        if (!draft) {
+                            logger.warn(`Gmail PayPal message ${messageId} didn't parse into a usable draft`);
+                            continue;
+                        }
+
+                        await pendingRef.set({
+                            ...draft,
+                            detectedAt: new Date().toISOString(),
+                            sourceAccountId: accountDoc.id,
+                            sourceEmail: account.emailAddress ?? null,
+                            rawSubject: subject ?? "",
+                        });
+                        newTransactionsFound++;
+                    }
+
+                    transactionsDetected += newTransactionsFound;
+
+                    if (newTransactionsFound > 0) {
+                        await sendPushToAllSubscriptions(db, userDoc.id, {
+                            title: "💰 New PayPal transaction detected",
+                            body: `Found ${newTransactionsFound} new transaction${newTransactionsFound === 1 ? "" : "s"} in ${accountLabel} — review and add ${newTransactionsFound === 1 ? "it" : "them"} to the tracker.`,
+                            url: "/transactions",
+                            tag: `gmail-new-transaction-${accountDoc.id}`,
+                        });
+                    }
+
+                    await accountDoc.ref.set({ lastPaypalCheckedAt: new Date().toISOString() }, { merge: true });
+                }
             } catch (err: any) {
                 if (err?.statusCode === 401 || String(err?.message).includes("invalid_grant")) {
                     reauthNeeded++;
@@ -1078,7 +1210,7 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promis
         }
     }
 
-    return { checked, notified, ordersDetected, reauthNeeded };
+    return { checked, notified, ordersDetected, transactionsDetected, reauthNeeded };
 }
 
 // Runs the Gmail review-live check hourly for every connected user.
@@ -1091,7 +1223,7 @@ export const checkGmailForReviewLive = onSchedule(
         const db = getFirestore();
         configureWebPush();
         const result = await runGmailReviewCheck(db);
-        logger.info(`Gmail review check: ${result.checked} users checked, ${result.notified} notified, ${result.ordersDetected} orders detected, ${result.reauthNeeded} need reauth`);
+        logger.info(`Gmail review check: ${result.checked} users checked, ${result.notified} notified, ${result.ordersDetected} orders detected, ${result.transactionsDetected} transactions detected, ${result.reauthNeeded} need reauth`);
     }
 );
 
@@ -1112,7 +1244,7 @@ export const triggerGmailCheck = onRequest(
         // since the last check — handy for testing without waiting.
         const ignoreCursors = request.query.ignoreCursors === "true";
         const result = await runGmailReviewCheck(db, ignoreCursors);
-        logger.info(`Gmail review check (manual): ${result.checked} users checked, ${result.notified} notified, ${result.ordersDetected} orders detected, ${result.reauthNeeded} need reauth`);
+        logger.info(`Gmail review check (manual): ${result.checked} users checked, ${result.notified} notified, ${result.ordersDetected} orders detected, ${result.transactionsDetected} transactions detected, ${result.reauthNeeded} need reauth`);
         response.status(200).json(result);
     }
 );

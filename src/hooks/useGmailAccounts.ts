@@ -7,13 +7,19 @@ import { Retailer } from '../types/Product';
 const GMAIL_OAUTH_START_URL = 'https://us-central1-productreview-52e51.cloudfunctions.net/gmailOAuthStart';
 const DISCONNECT_GMAIL_ACCOUNT_URL = 'https://us-central1-productreview-52e51.cloudfunctions.net/disconnectGmailAccount';
 
+// What a connected Gmail account can be watched for. Deliberately not folded
+// into Retailer: PayPal is a payment method, not a retailer a product is
+// bought from (Retailer also drives Product.retailer), so it only widens the
+// account-level watch list, not anything product-related.
+export type GmailWatchSource = Retailer | 'paypal';
+
 export interface GmailAccount {
   id: string;
   emailAddress: string | null;
   connected: boolean;
   connectedAt?: string;
   lastCheckedAt?: string | null;
-  retailers: Retailer[];
+  retailers: GmailWatchSource[];
 }
 
 export const useGmailAccounts = () => {
@@ -53,7 +59,7 @@ export const useGmailAccounts = () => {
     return () => unsubscribe();
   }, [user]);
 
-  const toggleRetailer = async (accountId: string, retailer: Retailer, enabled: boolean) => {
+  const toggleRetailer = async (accountId: string, retailer: GmailWatchSource, enabled: boolean) => {
     const account = accounts.find((a) => a.id === accountId);
     if (!account) return;
     const retailers = enabled

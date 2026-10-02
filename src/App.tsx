@@ -1,6 +1,7 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import { useOnboardingStatus } from './hooks/useOnboardingStatus';
 import AppHeader from './components/Header/AppHeader';
 import { VendorsProvider } from './contexts/VendorsContext';
 import { PaymentMethodsProvider } from './contexts/PaymentMethodsContext';
@@ -19,10 +20,22 @@ import { TransactionsProvider } from './contexts/TransactionsContext';
  */
 const App: React.FC = () => {
   const { user, logout } = useAuth();
+  const { completed: onboardingCompleted, loading: onboardingLoading } = useOnboardingStatus();
 
   // Don't render if user is null (should be handled by ProtectedRoute, but extra safety)
   if (!user) {
     return null;
+  }
+
+  // Avoid a flash redirect before the first onboarding snapshot resolves
+  if (onboardingLoading) {
+    return null;
+  }
+
+  // Send anyone who hasn't finished onboarding to the wizard, which lives
+  // outside this layout (no header/nav) — see src/pages/OnboardingPage.tsx
+  if (!onboardingCompleted) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return (
