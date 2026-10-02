@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Bumps the minor number in src/utils/version.ts (e.g. 2.101 -> 2.102).
+// Bumps the patch segment in src/utils/version.ts (e.g. 2.120 -> 2.121, 2.999 -> 3.000).
 // Invoked by .husky/pre-push before a push to main.
 
 import { readFileSync, writeFileSync } from 'fs';
@@ -17,9 +17,17 @@ if (!match) {
   process.exit(1);
 }
 
-const major = match[1];
-const nextMinor = Number(match[2]) + 1;
-const nextVersion = `${major}.${nextMinor}`;
+const major = Number(match[1]);
+const minor = Number(match[2]);
+let nextMajor = major;
+let nextMinor = minor + 1;
+
+if (nextMinor >= 1000) {
+  nextMajor = major + 1;
+  nextMinor = 0;
+}
+
+const nextVersion = `${nextMajor}.${String(nextMinor).padStart(3, '0')}`;
 
 const updated = contents.replace(/APP_VERSION = '\d+\.\d+'/, `APP_VERSION = '${nextVersion}'`);
 writeFileSync(versionFilePath, updated);
