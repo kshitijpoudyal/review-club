@@ -990,11 +990,18 @@ function parsePaypalTransactionEmail(subject: string, html: string | undefined, 
     const nameMatch = cleanSubject.match(/^(.+?)\s+sent you/i);
     const name = nameMatch ? nameMatch[1].trim() : "";
 
-    const amountText = extractLabeledHtmlField(html, "Amount");
+    // Friends-&-family "sent you" emails label the line item "Amount"; a
+    // goods-&-services receive-money email instead labels it "Money
+    // received" and adds separate "Fee"/"Total" rows for the deduction.
+    const amountText = extractLabeledHtmlField(html, "Amount") ?? extractLabeledHtmlField(html, "Money received");
     const amountMatch = amountText?.match(/([\d,]+\.\d{2})\s*([A-Z]{3})/);
     if (!amountMatch) return null;
     const amount = parseFloat(amountMatch[1].replace(/,/g, ""));
     const currency = amountMatch[2];
+
+    const feeText = extractLabeledHtmlField(html, "Fee");
+    const feeMatch = feeText?.match(/([\d,]+\.\d{2})/);
+    const fee = feeMatch ? parseFloat(feeMatch[1].replace(/,/g, "")) : 0;
 
     const transactionId = extractLabeledHtmlField(html, "Transaction ID");
     if (!transactionId) return null;
@@ -1007,8 +1014,10 @@ function parsePaypalTransactionEmail(subject: string, html: string | undefined, 
         type: "Payment Received",
         currency,
         amount,
-        fees: 0,
-        total: amount,
+        // Stored negative to match the PayPal CSV import convention, where
+        // `total = amount + fees`.
+        fees: -fee,
+        total: amount - fee,
         transactionId,
         paymentMethod: "PayPal",
     };
