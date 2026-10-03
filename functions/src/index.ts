@@ -1037,7 +1037,7 @@ function parseOrderEmail(retailer: Retailer, text: string, html: string | undefi
 // emails and new order-confirmation emails since their last check, pushing a
 // notification for either. Order confirmations also get parsed into a draft
 // product written to pendingGmailImports for the user to review and confirm.
-async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promise<{ checked: number; notified: number; ordersDetected: number; transactionsDetected: number; reauthNeeded: number }> {
+async function runGmailReviewCheck(db: Firestore, ignoreCursors = false, onlyAccountEmail?: string): Promise<{ checked: number; notified: number; ordersDetected: number; transactionsDetected: number; reauthNeeded: number }> {
     let checked = 0;
     let notified = 0;
     let ordersDetected = 0;
@@ -1059,6 +1059,11 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false): Promis
         for (const accountDoc of accountsSnapshot.docs) {
             const account = accountDoc.data();
             if (account.connected !== true) continue;
+            // Lets a manual trigger rewind-and-rescan one specific account
+            // (e.g. after its cursor advanced past an email that failed to
+            // parse under an older parser version) without touching any
+            // other connected account.
+            if (onlyAccountEmail && account.emailAddress !== onlyAccountEmail) continue;
 
             const refreshToken = (await accountDoc.ref.collection("secret").doc("token").get()).data()?.refreshToken;
             if (!refreshToken) continue;
@@ -1266,8 +1271,11 @@ export const triggerGmailCheck = onRequest(
         configureWebPush();
         // ?ignoreCursors=true re-scans from the beginning instead of just
         // since the last check — handy for testing without waiting.
+        // ?email=<address> scopes that rescan (or even a normal check) to
+        // just one connected account instead of every user's every account.
         const ignoreCursors = request.query.ignoreCursors === "true";
-        const result = await runGmailReviewCheck(db, ignoreCursors);
+        const onlyAccountEmail = typeof request.query.email === "string" ? request.query.email : undefined;
+        const result = await runGmailReviewCheck(db, ignoreCursors, onlyAccountEmail);
         logger.info(`Gmail review check (manual): ${result.checked} users checked, ${result.notified} notified, ${result.ordersDetected} orders detected, ${result.transactionsDetected} transactions detected, ${result.reauthNeeded} need reauth`);
         response.status(200).json(result);
     }
