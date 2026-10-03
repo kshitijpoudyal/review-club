@@ -556,6 +556,7 @@ interface GmailMessagePart {
     mimeType?: string;
     body?: { data?: string };
     parts?: GmailMessagePart[];
+    headers?: { name: string; value: string }[];
 }
 
 interface GmailMessageGetResponse {
@@ -571,6 +572,35 @@ function decodeGmailBase64Url(data: string): string {
     return Buffer.from(data, "base64url").toString("utf-8");
 }
 
+// Gmail's API hands back each MIME part's body exactly as transmitted —
+// base64url-wrapped for JSON transport, but still carrying whatever
+// Content-Transfer-Encoding the part declared underneath. A part sent as
+// quoted-printable (common for PayPal's templates) still has literal "=3D",
+// "=C2=A0", and "=\n" soft line breaks in it after the base64url layer is
+// removed, which silently breaks every regex downstream expecting real
+// HTML/text. Decode that away here, once, in the only place that reads the
+// raw part bytes, rather than coping with it in every parser.
+function decodeQuotedPrintable(text: string): string {
+    const withoutSoftBreaks = text.replace(/=\r?\n/g, "");
+    const bytes: number[] = [];
+    for (let i = 0; i < withoutSoftBreaks.length; i++) {
+        const hex = withoutSoftBreaks[i] === "=" ? withoutSoftBreaks.slice(i + 1, i + 3) : "";
+        if (/^[0-9A-Fa-f]{2}$/.test(hex)) {
+            bytes.push(parseInt(hex, 16));
+            i += 2;
+        } else {
+            bytes.push(withoutSoftBreaks.charCodeAt(i));
+        }
+    }
+    return Buffer.from(bytes).toString("utf-8");
+}
+
+function decodeGmailPartBody(part: GmailMessagePart): string {
+    const decoded = decodeGmailBase64Url(part.body!.data!);
+    const transferEncoding = findGmailHeader(part.headers, "Content-Transfer-Encoding")?.toLowerCase();
+    return transferEncoding === "quoted-printable" ? decodeQuotedPrintable(decoded) : decoded;
+}
+
 // Walks the MIME part tree for a message, preferring text/plain (closer to
 // what a human sees when they copy the email as text) and falling back to a
 // tag-stripped text/html if no plain part exists.
@@ -578,10 +608,10 @@ function findGmailBodyText(part: GmailMessagePart | undefined): { plain?: string
     if (!part) return {};
 
     if (part.mimeType === "text/plain" && part.body?.data) {
-        return { plain: decodeGmailBase64Url(part.body.data) };
+        return { plain: decodeGmailPartBody(part) };
     }
     if (part.mimeType === "text/html" && part.body?.data) {
-        return { html: decodeGmailBase64Url(part.body.data) };
+        return { html: decodeGmailPartBody(part) };
     }
 
     let plain: string | undefined;
