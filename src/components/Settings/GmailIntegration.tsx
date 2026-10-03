@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronDownIcon, EnvelopeIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useGmailAccounts, GmailWatchSource } from '../../hooks/useGmailAccounts';
 import { useNotificationSettings } from '../../hooks/useNotificationSettings';
+import { useAuth } from '../../hooks/useAuth';
+import { usePendingGmailTransactionImports } from '../../hooks/usePendingGmailTransactionImports';
 import { ToggleSwitch } from '../common/ToggleSwitch';
 import { typography } from '../../utils/typography';
 import { colors, getBadgeClasses } from '../../utils/colors';
@@ -31,13 +33,20 @@ interface GmailIntegrationProps {
 }
 
 export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingActions = true }) => {
+  const { user } = useAuth();
   const { accounts, loading, connectUrl, toggleRetailer, disconnectAccount } = useGmailAccounts();
   const { gmailWatcherEnabled, loading: settingsLoading, setGmailWatcherEnabled } = useNotificationSettings();
+  const { pendingCount: pendingPaypalCount } = usePendingGmailTransactionImports();
   const [searchParams] = useSearchParams();
   const gmailParam = searchParams.get('gmail');
 
   const [isChecking, setIsChecking] = useState(false);
-  const [checkResult, setCheckResult] = useState<{ notified: number; ordersDetected: number; transactionsDetected: number } | null>(null);
+  const [checkResult, setCheckResult] = useState<{
+    notified: number;
+    ordersDetected: number;
+    transactionsDetected: number;
+    pendingPaypalQueue?: number;
+  } | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [accountsExpanded, setAccountsExpanded] = useState(false);
@@ -48,14 +57,20 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingA
     setIsChecking(true);
     setCheckError(null);
     try {
+      if (!user) throw new Error('Sign in required');
       const url = ignoreCursors ? `${TRIGGER_GMAIL_CHECK_URL}?ignoreCursors=true` : TRIGGER_GMAIL_CHECK_URL;
-      const response = await fetch(url, { method: 'POST' });
+      const token = await user.getIdToken();
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
       const result = await response.json();
       setCheckResult({
         notified: result.notified ?? 0,
         ordersDetected: result.ordersDetected ?? 0,
         transactionsDetected: result.transactionsDetected ?? 0,
+        pendingPaypalQueue: result.pendingPaypalQueue,
       });
     } catch (err) {
       console.error('Error triggering Gmail check:', err);
@@ -109,13 +124,32 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingA
               </div>
             )}
 
+            {pendingPaypalCount > 0 && (
+              <div className="bg-[#2563eb]/5 border border-[#2563eb]/20 text-[#1b1c19] p-3 rounded-xl text-sm">
+                <strong>{pendingPaypalCount}</strong> PayPal import{pendingPaypalCount === 1 ? '' : 's'} waiting in your
+                review queue — open{' '}
+                <Link to="/transactions" className="text-[#1d4ed8] font-medium underline">
+                  Transactions
+                </Link>{' '}
+                (above the table, not inside it).
+              </div>
+            )}
+
             {checkResult && (
               <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
-                Checked — {checkResult.notified} review alert{checkResult.notified === 1 ? '' : 's'},{' '}
+                Checked your account — {checkResult.notified} review alert{checkResult.notified === 1 ? '' : 's'},{' '}
                 {checkResult.ordersDetected} new order{checkResult.ordersDetected === 1 ? '' : 's'},{' '}
-                {checkResult.transactionsDetected} new transaction{checkResult.transactionsDetected === 1 ? '' : 's'} detected.
-                {checkResult.ordersDetected > 0 && ' Review and add orders from the Products page.'}
-                {checkResult.transactionsDetected > 0 && ' Review and add transactions from the Transactions page.'}
+                {checkResult.transactionsDetected} newly staged PayPal email
+                {checkResult.transactionsDetected === 1 ? '' : 's'}.
+                {typeof checkResult.pendingPaypalQueue === 'number' && (
+                  <>
+                    {' '}
+                    <strong>{checkResult.pendingPaypalQueue}</strong> total in your review queue on Transactions.
+                  </>
+                )}
+                {checkResult.ordersDetected > 0 && ' Review orders on Products.'}
+                {(checkResult.transactionsDetected > 0 || (checkResult.pendingPaypalQueue ?? 0) > 0) &&
+                  ' Review PayPal imports on Transactions (expand the blue Gmail panel).'}
               </div>
             )}
             {checkError && (
@@ -138,8 +172,14 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingA
                   disabled={isChecking}
                   className={`${colors.button.secondary} w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {isChecking ? 'Checking...' : 'Re-scan all (testing)'}
+                  {isChecking ? 'Checking...' : 'Re-scan Gmail history'}
                 </button>
+              )}
+              {anyConnected && showTestingActions && (
+                <p className={`${typography.caption} -mt-2`}>
+                  Re-scan reloads the full PayPal review queue from Gmail, including payments whose ID is already on
+                  your ledger.
+                </p>
               )}
               {connectUrl && (
                 <a

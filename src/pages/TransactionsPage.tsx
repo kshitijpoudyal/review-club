@@ -299,7 +299,10 @@ export const TransactionsPage: React.FC = () => {
       {/* Summary Cards */}
       <DashboardStats stats={statsData} loading={displayLoading} />
 
-      <PendingGmailTransactionImports onAdd={addTransaction} />
+      <PendingGmailTransactionImports
+        onAdd={handleAddTransaction}
+        existingLedgerTransactionIds={(data?.transactions ?? []).map((t) => t.transactionId)}
+      />
 
       <Toolbar
         actions={actions}

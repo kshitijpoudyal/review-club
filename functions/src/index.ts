@@ -9,6 +9,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
 import webpush from "web-push";
 import { OAuth2Client } from "google-auth-library";
@@ -92,7 +93,12 @@ const ORDER_CONFIRMATION_PATTERNS: Partial<Record<Retailer, string>> = {
 // Amount + Transaction ID to be extracted before anything is surfaced, so
 // an unrelated email that merely mentions the address is harmless noise
 // that gets logged and skipped, not reported as a transaction.
-const PAYPAL_TRANSACTION_PATTERN = 'service@paypal.com subject:("sent you")';
+//
+// Verified against RT002989 P2P receive-money mail (From: service@paypal.com,
+// Subject: "{name} sent you $X.XX USD"). Use subject:"sent you" — not
+// subject:("sent you"), which Gmail's parser treats differently and often
+// returns zero hits.
+const PAYPAL_TRANSACTION_PATTERN = '{from:paypal.com service@paypal.com} subject:"sent you"';
 
 // Checks every product for every user, and pushes a notification for any
 // item that needs attention: either it's past the user's return-reminder
@@ -466,7 +472,7 @@ export const gmailOAuthCallback = onRequest(
                     // emails just finds nothing) and saves a trip to Settings
                     // to turn on Wayfair detection on a freshly connected
                     // account. The user narrows this down per account.
-                    retailers: existingData?.retailers ?? ["amazon", "wayfair"],
+                    retailers: existingData?.retailers ?? ["amazon", "wayfair", "paypal"],
                 },
                 { merge: true }
             );
@@ -514,6 +520,7 @@ async function getGmailAccessToken(refreshToken: string): Promise<string> {
 
 interface GmailMessageListResponse {
     messages?: { id: string; threadId: string }[];
+    nextPageToken?: string;
 }
 
 async function countGmailMatches(accessToken: string, query: string): Promise<number> {
@@ -535,26 +542,34 @@ async function countGmailMatches(accessToken: string, query: string): Promise<nu
 }
 
 async function listGmailMessageIds(accessToken: string, query: string): Promise<string[]> {
-    const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?${new URLSearchParams({
-        q: query,
-        maxResults: "10",
-    })}`;
+    const ids: string[] = [];
+    let pageToken: string | undefined;
 
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    do {
+        const params = new URLSearchParams({ q: query, maxResults: "100" });
+        if (pageToken) params.set("pageToken", pageToken);
 
-    if (!res.ok) {
-        const err = new Error(`Gmail API error ${res.status}`) as Error & { statusCode: number };
-        err.statusCode = res.status;
-        throw err;
-    }
+        const res = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
 
-    const data = (await res.json()) as GmailMessageListResponse;
-    return (data.messages ?? []).map((m) => m.id);
+        if (!res.ok) {
+            const err = new Error(`Gmail API error ${res.status}`) as Error & { statusCode: number };
+            err.statusCode = res.status;
+            throw err;
+        }
+
+        const data = (await res.json()) as GmailMessageListResponse;
+        ids.push(...(data.messages ?? []).map((m) => m.id));
+        pageToken = data.nextPageToken;
+    } while (pageToken && ids.length < 500);
+
+    return ids;
 }
 
 interface GmailMessagePart {
     mimeType?: string;
-    body?: { data?: string };
+    body?: { data?: string; attachmentId?: string; size?: number };
     parts?: GmailMessagePart[];
     headers?: { name: string; value: string }[];
 }
@@ -595,29 +610,69 @@ function decodeQuotedPrintable(text: string): string {
     return Buffer.from(bytes).toString("utf-8");
 }
 
-function decodeGmailPartBody(part: GmailMessagePart): string {
+function looksQuotedPrintable(text: string): boolean {
+    const sample = text.slice(0, 8000);
+    return /=3D|=[0-9A-Fa-f]{2}(?:\r?\n|$)/.test(sample);
+}
+
+function decodeGmailPartBody(part: GmailMessagePart, inheritedTransferEncoding?: string): string {
     const decoded = decodeGmailBase64Url(part.body!.data!);
-    const transferEncoding = findGmailHeader(part.headers, "Content-Transfer-Encoding")?.toLowerCase();
-    return transferEncoding === "quoted-printable" ? decodeQuotedPrintable(decoded) : decoded;
+    const transferEncoding =
+        findGmailHeader(part.headers, "Content-Transfer-Encoding")?.toLowerCase() ?? inheritedTransferEncoding;
+    if (transferEncoding === "quoted-printable" || looksQuotedPrintable(decoded)) {
+        return decodeQuotedPrintable(decoded);
+    }
+    return decoded;
 }
 
 // Walks the MIME part tree for a message, preferring text/plain (closer to
 // what a human sees when they copy the email as text) and falling back to a
 // tag-stripped text/html if no plain part exists.
-function findGmailBodyText(part: GmailMessagePart | undefined): { plain?: string; html?: string } {
+async function readGmailPartBody(
+    accessToken: string,
+    messageId: string,
+    part: GmailMessagePart,
+    inheritedTransferEncoding?: string
+): Promise<string | undefined> {
+    if (part.body?.data) {
+        return decodeGmailPartBody(part, inheritedTransferEncoding);
+    }
+    if (!part.body?.attachmentId) return undefined;
+
+    const attachmentUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/attachments/${part.body.attachmentId}`;
+    const res = await fetch(attachmentUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) return undefined;
+
+    const attachment = (await res.json()) as { data?: string };
+    if (!attachment.data) return undefined;
+
+    return decodeGmailPartBody({ ...part, body: { data: attachment.data } }, inheritedTransferEncoding);
+}
+
+async function findGmailBodyText(
+    accessToken: string,
+    messageId: string,
+    part: GmailMessagePart | undefined,
+    inheritedTransferEncoding?: string
+): Promise<{ plain?: string; html?: string }> {
     if (!part) return {};
 
-    if (part.mimeType === "text/plain" && part.body?.data) {
-        return { plain: decodeGmailPartBody(part) };
+    const partTransferEncoding =
+        findGmailHeader(part.headers, "Content-Transfer-Encoding")?.toLowerCase() ?? inheritedTransferEncoding;
+
+    if (part.mimeType === "text/plain" && (part.body?.data || part.body?.attachmentId)) {
+        const plain = await readGmailPartBody(accessToken, messageId, part, inheritedTransferEncoding);
+        return plain ? { plain } : {};
     }
-    if (part.mimeType === "text/html" && part.body?.data) {
-        return { html: decodeGmailPartBody(part) };
+    if (part.mimeType === "text/html" && (part.body?.data || part.body?.attachmentId)) {
+        const html = await readGmailPartBody(accessToken, messageId, part, inheritedTransferEncoding);
+        return html ? { html } : {};
     }
 
     let plain: string | undefined;
     let html: string | undefined;
     for (const child of part.parts ?? []) {
-        const found = findGmailBodyText(child);
+        const found = await findGmailBodyText(accessToken, messageId, child, partTransferEncoding);
         plain = plain ?? found.plain;
         html = html ?? found.html;
     }
@@ -648,7 +703,7 @@ async function fetchGmailMessage(accessToken: string, messageId: string): Promis
     }
 
     const data = (await res.json()) as GmailMessageGetResponse;
-    const { plain, html } = findGmailBodyText(data.payload);
+    const { plain, html } = await findGmailBodyText(accessToken, messageId, data.payload);
     const receivedAt = data.internalDate ? new Date(Number(data.internalDate)) : new Date();
     const subject = findGmailHeader(data.payload?.headers, "Subject");
 
@@ -1007,49 +1062,122 @@ function extractLabeledHtmlField(html: string, label: string): string | null {
     return match ? stripHtmlTags(match[1]).trim() : null;
 }
 
+function decodeMimeEncodedWords(headerValue: string): string {
+    return headerValue.replace(/=\?([^?]+)\?([BQbq])\?([^?]*)\?=/g, (_match, _charset, encoding, encodedText) => {
+        if (encoding.toUpperCase() === "B") {
+            return Buffer.from(encodedText, "base64").toString("utf-8");
+        }
+        const qDecoded = encodedText
+            .replace(/_/g, " ")
+            .replace(/=([0-9A-Fa-f]{2})/g, (_m: string, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+        return qDecoded;
+    });
+}
+
+function normalizePaypalSubject(subject: string): string {
+    const decoded = decodeMimeEncodedWords(subject);
+    return decoded.replace(/^(?:(?:fwd|fw|re)\s*:\s*)+/i, "").trim();
+}
+
+function buildPaypalTextCorpus(html: string | undefined, plainText: string | undefined): string {
+    const chunks = [plainText?.trim(), html ? stripHtmlTags(html) : ""].filter(Boolean);
+    return chunks.join("\n").replace(/\u00a0/g, " ");
+}
+
+function extractPaypalDollarAmount(text: string): number | null {
+    const match = text.match(/([\d,]+\.\d{2})/);
+    return match ? parseFloat(match[1].replace(/,/g, "")) : null;
+}
+
+interface PaypalParseAttempt {
+    draft: PaypalTransactionPayload | null;
+    failureReason?: string;
+}
+
 // Parses a PayPal "{name} sent you $X USD" receive-money notification into a
 // Transaction draft. Returns null if the amount or transaction ID can't be
 // found, since a draft missing either isn't worth surfacing for review.
-function parsePaypalTransactionEmail(subject: string, html: string | undefined, receivedAt: Date): PaypalTransactionPayload | null {
-    if (!html) return null;
+function parsePaypalTransactionEmail(
+    subject: string,
+    html: string | undefined,
+    plainText: string | undefined,
+    receivedAt: Date
+): PaypalParseAttempt {
+    const cleanSubject = normalizePaypalSubject(subject);
+    const corpus = buildPaypalTextCorpus(html, plainText);
 
-    // A forwarded copy prefixes the subject with "Fwd:"/"Re:" (sometimes
-    // repeated) — strip those first so the sender's name doesn't come out
-    // as e.g. "Fwd: Jane Doe".
-    const cleanSubject = subject.replace(/^(?:(?:fwd|fw|re)\s*:\s*)+/i, "");
-    const nameMatch = cleanSubject.match(/^(.+?)\s+sent you/i);
+    if (!corpus && !cleanSubject) {
+        return { draft: null, failureReason: "empty subject and body" };
+    }
+
+    const nameMatch = cleanSubject.match(/^(.+?)\s+sent you/i) ?? corpus.match(/^(.+?)\s+sent you/im);
     const name = nameMatch ? nameMatch[1].trim() : "";
 
-    // Friends-&-family "sent you" emails label the line item "Amount"; a
-    // goods-&-services receive-money email instead labels it "Money
-    // received" and adds separate "Fee"/"Total" rows for the deduction.
-    const amountText = extractLabeledHtmlField(html, "Amount") ?? extractLabeledHtmlField(html, "Money received");
-    const amountMatch = amountText?.match(/([\d,]+\.\d{2})\s*([A-Z]{3})/);
-    if (!amountMatch) return null;
-    const amount = parseFloat(amountMatch[1].replace(/,/g, ""));
-    const currency = amountMatch[2];
+    const subjectAmountMatch = cleanSubject.match(/sent you\s+(?:[$€£]\s*)?([\d,]+\.\d{2})/i);
+    const labeledAmountText =
+        (html ? extractLabeledHtmlField(html, "Amount") : null) ??
+        (html ? extractLabeledHtmlField(html, "Money received") : null);
+    const labeledAmountMatch = labeledAmountText?.match(/([\d,]+\.\d{2})\s*([A-Z]{3})/);
+    const corpusAmountMatch = corpus.match(/(?:Money received|Amount)\s+[$€£]?\s*([\d,]+\.\d{2})/i);
+    const headlineAmountMatch = corpus.match(/sent you\s+[$€£]?\s*([\d,]+\.\d{2})/i);
 
-    const feeText = extractLabeledHtmlField(html, "Fee");
-    const feeMatch = feeText?.match(/([\d,]+\.\d{2})/);
-    const fee = feeMatch ? parseFloat(feeMatch[1].replace(/,/g, "")) : 0;
+    if (!subjectAmountMatch && !labeledAmountMatch && !corpusAmountMatch && !headlineAmountMatch) {
+        return {
+            draft: null,
+            failureReason: `no amount (subject="${cleanSubject.slice(0, 120)}", corpusLen=${corpus.length}, htmlLen=${html?.length ?? 0})`,
+        };
+    }
 
-    const transactionId = extractLabeledHtmlField(html, "Transaction ID");
-    if (!transactionId) return null;
+    const amount = parseFloat(
+        (subjectAmountMatch?.[1] ??
+            labeledAmountMatch?.[1] ??
+            corpusAmountMatch?.[1] ??
+            headlineAmountMatch?.[1]!).replace(/,/g, "")
+    );
+    const subjectCurrencyMatch = cleanSubject.match(/\b([A-Z]{3})\s*$/i);
+    const corpusCurrencyMatch = corpus.match(/(?:Money received|Amount)[\s\S]{0,40}?[\d,]+\.\d{2}\s*([A-Z]{3})/i);
+    const currency = (labeledAmountMatch?.[2] ?? subjectCurrencyMatch?.[1] ?? corpusCurrencyMatch?.[1] ?? "USD").toUpperCase();
+
+    const feeText =
+        (html ? extractLabeledHtmlField(html, "Fee") : null) ??
+        (corpus.match(/\bFee\s+[$€£]?\s*([\d,]+\.\d{2})/i)?.[1] ?? null);
+    const fee = feeText ? extractPaypalDollarAmount(feeText) ?? 0 : 0;
+
+    let transactionId =
+        (html ? extractLabeledHtmlField(html, "Transaction ID") : null) ??
+        corpus.match(/Transaction ID\s+([A-Z0-9]{10,20})/i)?.[1]?.trim() ??
+        null;
+    if (!transactionId && html) {
+        const idMatch = html.match(/Transaction ID[\s\S]{0,800}?>\s*([A-Z0-9]{10,20})\s*</i);
+        transactionId = idMatch?.[1]?.trim() ?? null;
+    }
+    if (!transactionId) {
+        const idMatch = corpus.match(/\b([A-Z0-9]{17})\b/);
+        transactionId = idMatch?.[1] ?? null;
+    }
+    if (!transactionId) {
+        return {
+            draft: null,
+            failureReason: `no transaction id (subject="${cleanSubject.slice(0, 120)}", corpusLen=${corpus.length})`,
+        };
+    }
 
     return {
-        date: receivedAt.toISOString().slice(0, 10),
-        time: receivedAt.toISOString().slice(11, 16),
-        timeZone: "UTC",
-        name,
-        type: "Payment Received",
-        currency,
-        amount,
-        // Stored negative to match the PayPal CSV import convention, where
-        // `total = amount + fees`.
-        fees: -fee,
-        total: amount - fee,
-        transactionId,
-        paymentMethod: "PayPal",
+        draft: {
+            date: receivedAt.toISOString().slice(0, 10),
+            time: receivedAt.toISOString().slice(11, 16),
+            timeZone: "UTC",
+            name,
+            type: "Payment Received",
+            currency,
+            amount,
+            // Stored negative to match the PayPal CSV import convention, where
+            // `total = amount + fees`.
+            fees: -fee,
+            total: amount - fee,
+            transactionId,
+            paymentMethod: "PayPal",
+        },
     };
 }
 
@@ -1067,16 +1195,54 @@ function parseOrderEmail(retailer: Retailer, text: string, html: string | undefi
 // emails and new order-confirmation emails since their last check, pushing a
 // notification for either. Order confirmations also get parsed into a draft
 // product written to pendingGmailImports for the user to review and confirm.
-async function runGmailReviewCheck(db: Firestore, ignoreCursors = false, onlyAccountEmail?: string): Promise<{ checked: number; notified: number; ordersDetected: number; transactionsDetected: number; reauthNeeded: number }> {
+interface PaypalGmailDebugEntry {
+    accountEmail: string;
+    messageId: string;
+    subject: string;
+    status: "imported" | "already_pending" | "parse_failed";
+    failureReason?: string;
+    transactionId?: string;
+}
+
+interface PaypalGmailScanSummary {
+    accountEmail: string;
+    query: string;
+    gmailMatches: number;
+    alreadyPending: number;
+    newlyImported: number;
+    parseFailed: number;
+    pendingInFirestore: number;
+}
+
+async function runGmailReviewCheck(
+    db: Firestore,
+    ignoreCursors = false,
+    onlyAccountEmail?: string,
+    debugPaypal = false,
+    onlyUserId?: string
+): Promise<{
+    checked: number;
+    notified: number;
+    ordersDetected: number;
+    transactionsDetected: number;
+    reauthNeeded: number;
+    pendingPaypalQueue?: number;
+    paypalDebug?: PaypalGmailDebugEntry[];
+    paypalScan?: PaypalGmailScanSummary[];
+}> {
     let checked = 0;
     let notified = 0;
     let ordersDetected = 0;
     let transactionsDetected = 0;
     let reauthNeeded = 0;
+    const paypalDebug: PaypalGmailDebugEntry[] = [];
+    const paypalScan: PaypalGmailScanSummary[] = [];
 
     const usersSnapshot = await db.collection("users").get();
 
     for (const userDoc of usersSnapshot.docs) {
+        if (onlyUserId && userDoc.id !== onlyUserId) continue;
+
         const settingsData = (await db.collection("users").doc(userDoc.id).collection("settings").doc("notifications").get()).data();
         // Pauses every connected account for this user without touching their
         // individual connected/retailers state or tokens — re-enabling just
@@ -1212,30 +1378,84 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false, onlyAcc
                     const messageIds = await listGmailMessageIds(accessToken, query);
                     logger.info(`Gmail PayPal search "${query}" → ${messageIds.length} match(es) for ${accountLabel} (user ${userDoc.id})`);
 
-                    let newTransactionsFound = 0;
-                    for (const messageId of messageIds) {
-                        const pendingRef = db
-                            .collection("users")
-                            .doc(userDoc.id)
-                            .collection("pendingGmailTransactionImports")
-                            .doc(`${accountDoc.id}_${messageId}`);
-                        if ((await pendingRef.get()).exists) continue;
+                    const pendingCollection = db.collection("users").doc(userDoc.id).collection("pendingGmailTransactionImports");
+                    const pendingInFirestore = debugPaypal ? (await pendingCollection.get()).size : 0;
 
-                        const { html, receivedAt, subject } = await fetchGmailMessage(accessToken, messageId);
-                        const draft = parsePaypalTransactionEmail(subject ?? "", html, receivedAt);
-                        if (!draft) {
-                            logger.warn(`Gmail PayPal message ${messageId} didn't parse into a usable draft`);
+                    let newTransactionsFound = 0;
+                    let alreadyPending = 0;
+                    let parseFailed = 0;
+                    for (const messageId of messageIds) {
+                        const pendingRef = pendingCollection.doc(`${accountDoc.id}_${messageId}`);
+                        const pendingSnap = await pendingRef.get();
+                        // A normal incremental check skips messages already staged for
+                        // review. ignoreCursors re-stages the full Gmail history so
+                        // older mail (including PayPal IDs already on the ledger) shows
+                        // up again in the review queue.
+                        if (pendingSnap.exists && !ignoreCursors) {
+                            alreadyPending++;
+                            if (debugPaypal && paypalDebug.length < 25) {
+                                paypalDebug.push({
+                                    accountEmail: accountLabel,
+                                    messageId,
+                                    subject: "(already imported — open Transactions to review)",
+                                    status: "already_pending",
+                                });
+                            }
                             continue;
                         }
 
-                        await pendingRef.set({
-                            ...draft,
-                            detectedAt: new Date().toISOString(),
-                            sourceAccountId: accountDoc.id,
-                            sourceEmail: account.emailAddress ?? null,
-                            rawSubject: subject ?? "",
-                        });
+                        const { html, text, receivedAt, subject } = await fetchGmailMessage(accessToken, messageId);
+                        const { draft, failureReason } = parsePaypalTransactionEmail(subject ?? "", html, text, receivedAt);
+                        if (!draft) {
+                            parseFailed++;
+                            logger.warn(
+                                `Gmail PayPal message ${messageId} didn't parse into a usable draft: ${failureReason ?? "unknown"}`
+                            );
+                            if (debugPaypal && paypalDebug.length < 25) {
+                                paypalDebug.push({
+                                    accountEmail: accountLabel,
+                                    messageId,
+                                    subject: normalizePaypalSubject(subject ?? ""),
+                                    status: "parse_failed",
+                                    failureReason,
+                                });
+                            }
+                            continue;
+                        }
+
+                        if (debugPaypal && paypalDebug.length < 25) {
+                            paypalDebug.push({
+                                accountEmail: accountLabel,
+                                messageId,
+                                subject: normalizePaypalSubject(subject ?? ""),
+                                status: "imported",
+                                transactionId: draft.transactionId,
+                            });
+                        }
+
+                        await pendingRef.set(
+                            {
+                                ...draft,
+                                detectedAt: new Date().toISOString(),
+                                sourceAccountId: accountDoc.id,
+                                sourceEmail: account.emailAddress ?? null,
+                                rawSubject: subject ?? "",
+                            },
+                            { merge: true }
+                        );
                         newTransactionsFound++;
+                    }
+
+                    if (debugPaypal) {
+                        paypalScan.push({
+                            accountEmail: accountLabel,
+                            query,
+                            gmailMatches: messageIds.length,
+                            alreadyPending,
+                            newlyImported: newTransactionsFound,
+                            parseFailed,
+                            pendingInFirestore: pendingInFirestore + newTransactionsFound,
+                        });
                     }
 
                     transactionsDetected += newTransactionsFound;
@@ -1269,7 +1489,20 @@ async function runGmailReviewCheck(db: Firestore, ignoreCursors = false, onlyAcc
         }
     }
 
-    return { checked, notified, ordersDetected, transactionsDetected, reauthNeeded };
+    let pendingPaypalQueue: number | undefined;
+    if (onlyUserId) {
+        pendingPaypalQueue = (await db.collection("users").doc(onlyUserId).collection("pendingGmailTransactionImports").get()).size;
+    }
+
+    return {
+        checked,
+        notified,
+        ordersDetected,
+        transactionsDetected,
+        reauthNeeded,
+        ...(onlyUserId ? { pendingPaypalQueue } : {}),
+        ...(debugPaypal ? { paypalDebug, paypalScan } : {}),
+    };
 }
 
 // Runs the Gmail review-live check hourly for every connected user.
@@ -1305,7 +1538,20 @@ export const triggerGmailCheck = onRequest(
         // just one connected account instead of every user's every account.
         const ignoreCursors = request.query.ignoreCursors === "true";
         const onlyAccountEmail = typeof request.query.email === "string" ? request.query.email : undefined;
-        const result = await runGmailReviewCheck(db, ignoreCursors, onlyAccountEmail);
+        const debugPaypal = request.query.debugPaypal === "true";
+
+        let onlyUserId: string | undefined;
+        const authHeader = request.headers.authorization;
+        if (authHeader?.startsWith("Bearer ")) {
+            try {
+                onlyUserId = (await getAuth().verifyIdToken(authHeader.slice(7).trim())).uid;
+            } catch {
+                response.status(401).json({ error: "Invalid auth token" });
+                return;
+            }
+        }
+
+        const result = await runGmailReviewCheck(db, ignoreCursors, onlyAccountEmail, debugPaypal, onlyUserId);
         logger.info(`Gmail review check (manual): ${result.checked} users checked, ${result.notified} notified, ${result.ordersDetected} orders detected, ${result.transactionsDetected} transactions detected, ${result.reauthNeeded} need reauth`);
         response.status(200).json(result);
     }
