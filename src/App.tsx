@@ -6,6 +6,7 @@ import AppHeader from './components/Header/AppHeader';
 import { VendorsProvider } from './contexts/VendorsContext';
 import { PaymentMethodsProvider } from './contexts/PaymentMethodsContext';
 import { TransactionsProvider } from './contexts/TransactionsContext';
+import { NotificationsProvider } from './contexts/NotificationsContext';
 
 /**
  * App Layout Component
@@ -42,12 +43,14 @@ const App: React.FC = () => {
     <VendorsProvider userId={user.uid}>
       <PaymentMethodsProvider userId={user.uid}>
         <TransactionsProvider userId={user.uid}>
-          <div className="min-h-screen bg-[#fbf9f3]">
-            <AppHeader user={user} onLogout={logout} />
-            <main>
-              <Outlet />
-            </main>
-          </div>
+          <NotificationsProvider>
+            <div className="min-h-screen bg-[#fbf9f3]">
+              <AppHeader user={user} onLogout={logout} />
+              <main>
+                <Outlet />
+              </main>
+            </div>
+          </NotificationsProvider>
         </TransactionsProvider>
       </PaymentMethodsProvider>
     </VendorsProvider>

@@ -6,6 +6,7 @@ import { User } from 'firebase/auth';
 import { typography } from '../../utils/typography';
 import { colors } from '../../utils/colors';
 import { APP_VERSION } from '../../utils/version';
+import { NotificationBell } from '../Notifications/NotificationBell';
 
 interface AppHeaderProps {
     user: User;
@@ -85,15 +86,8 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                         })}
                     </div>
                 </div>
-                <div className="flex md:hidden items-center gap-3">
-                    <a
-                        href="https://www.kshitijstudio.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`${typography.caption} text-white hover:text-white/80 transition-colors`}
-                    >
-                        Powered by KshitijStudio
-                    </a>
+                <div className="flex md:hidden items-center gap-2">
+                    <NotificationBell />
                     <button
                         type="button"
                         onClick={() => setMobileMenuOpen(true)}
@@ -112,6 +106,7 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                   >
                     Powered by KshitijStudio
                   </a>
+                  <NotificationBell />
                   {/* User icon with dropdown */}
                   <div className="relative" ref={userMenuRef}>
                     <button
@@ -191,6 +186,13 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                                 })}
                             </div>
                             <div className="py-6 space-y-1">
+                                <Link
+                                    to="/notifications"
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className={`-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold ${colors.header.mobile.menuLink}`}
+                                >
+                                    Notifications
+                                </Link>
                                 {installPrompt && (
                                     <button
                                         onClick={() => { setMobileMenuOpen(false); handleInstall(); }}

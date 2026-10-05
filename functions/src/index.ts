@@ -10,7 +10,7 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { getFirestore, Firestore, FieldValue } from "firebase-admin/firestore";
 import webpush from "web-push";
 import { OAuth2Client } from "google-auth-library";
 
@@ -280,11 +280,61 @@ function configureWebPush(): void {
     webPushConfigured = true;
 }
 
-interface PushPayload {
+type NotificationKind =
+    | "stuck_status"
+    | "return_reminder"
+    | "gmail_review"
+    | "gmail_order"
+    | "gmail_paypal"
+    | "gmail_reconnect";
+
+interface WebPushPayload {
     title: string;
     body: string;
     url?: string;
     tag?: string;
+}
+
+interface UserNotificationPayload extends WebPushPayload {
+    kind: NotificationKind;
+}
+
+async function persistInAppNotification(db: Firestore, userId: string, payload: UserNotificationPayload): Promise<void> {
+    const notificationsRef = db.collection("users").doc(userId).collection("notifications");
+
+    if (payload.tag) {
+        const existing = await notificationsRef
+            .where("tag", "==", payload.tag)
+            .where("readAt", "==", null)
+            .limit(1)
+            .get();
+        if (!existing.empty) {
+            await existing.docs[0].ref.update({
+                title: payload.title,
+                body: payload.body,
+                url: payload.url ?? null,
+                kind: payload.kind,
+                createdAt: FieldValue.serverTimestamp(),
+            });
+            return;
+        }
+    }
+
+    await notificationsRef.add({
+        title: payload.title,
+        body: payload.body,
+        url: payload.url ?? null,
+        tag: payload.tag ?? null,
+        kind: payload.kind,
+        readAt: null,
+        createdAt: FieldValue.serverTimestamp(),
+    });
+}
+
+async function notifyUser(db: Firestore, userId: string, payload: UserNotificationPayload): Promise<boolean> {
+    await persistInAppNotification(db, userId, payload);
+    const { kind: _kind, ...pushPayload } = payload;
+    return sendPushToAllSubscriptions(db, userId, pushPayload);
 }
 
 // Sends a push to every device the user has subscribed on, cleaning up dead
@@ -294,7 +344,7 @@ interface PushPayload {
 async function sendPushToAllSubscriptions(
     db: Firestore,
     userId: string,
-    payload: PushPayload
+    payload: WebPushPayload
 ): Promise<boolean> {
     const subsSnapshot = await db.collection("users").doc(userId).collection("pushSubscriptions").get();
     if (subsSnapshot.empty) return false;
@@ -329,11 +379,12 @@ async function sendStuckStatusPush(
     days: number
 ): Promise<boolean> {
     const statusLabel = STATUS_LABELS[status] ?? status;
-    return sendPushToAllSubscriptions(db, userId, {
+    return notifyUser(db, userId, {
         title: `⏰ Stuck in "${statusLabel}"`,
         body: `${product.item} has been in "${statusLabel}" for ${days} days.`,
         url: "/products",
         tag: `stuck-${productRef.id}`,
+        kind: "stuck_status",
     });
 }
 
@@ -344,11 +395,12 @@ async function sendReturnReminderPush(
     product: any,
     daysSinceOrder: number
 ): Promise<boolean> {
-    const wasSent = await sendPushToAllSubscriptions(db, userId, {
+    const wasSent = await notifyUser(db, userId, {
         title: "⚠️ Check your return window",
         body: `${product.item}: ordered ${daysSinceOrder} days ago — if a refund hasn't come through, start a return with the seller now.`,
         url: "/products",
         tag: `return-reminder-${productRef.id}`,
+        kind: "return_reminder",
     });
 
     if (wasSent) {
@@ -1298,11 +1350,12 @@ async function runGmailReviewCheck(
                 }
 
                 if (matches > 0) {
-                    const wasSent = await sendPushToAllSubscriptions(db, userDoc.id, {
+                    const wasSent = await notifyUser(db, userDoc.id, {
                         title: "📝 A review may be live",
                         body: `Found ${matches} new email${matches === 1 ? "" : "s"} in ${accountLabel} that look like a review confirmation — check your inbox and update the tracker.`,
                         url: "/products",
                         tag: `gmail-review-live-${accountDoc.id}`,
+                        kind: "gmail_review",
                     });
                     if (wasSent) notified++;
                 }
@@ -1358,11 +1411,12 @@ async function runGmailReviewCheck(
                 ordersDetected += newOrdersFound;
 
                 if (newOrdersFound > 0) {
-                    await sendPushToAllSubscriptions(db, userDoc.id, {
+                    await notifyUser(db, userDoc.id, {
                         title: "📦 New order detected",
                         body: `Found ${newOrdersFound} new order${newOrdersFound === 1 ? "" : "s"} in ${accountLabel} — review and add ${newOrdersFound === 1 ? "it" : "them"} to the tracker.`,
                         url: "/products",
                         tag: `gmail-new-order-${accountDoc.id}`,
+                        kind: "gmail_order",
                     });
                 }
 
@@ -1461,11 +1515,12 @@ async function runGmailReviewCheck(
                     transactionsDetected += newTransactionsFound;
 
                     if (newTransactionsFound > 0) {
-                        await sendPushToAllSubscriptions(db, userDoc.id, {
+                        await notifyUser(db, userDoc.id, {
                             title: "💰 New PayPal transaction detected",
                             body: `Found ${newTransactionsFound} new transaction${newTransactionsFound === 1 ? "" : "s"} in ${accountLabel} — review and add ${newTransactionsFound === 1 ? "it" : "them"} to the tracker.`,
                             url: "/transactions",
                             tag: `gmail-new-transaction-${accountDoc.id}`,
+                            kind: "gmail_paypal",
                         });
                     }
 
@@ -1475,11 +1530,12 @@ async function runGmailReviewCheck(
                 if (err?.statusCode === 401 || String(err?.message).includes("invalid_grant")) {
                     reauthNeeded++;
                     await accountDoc.ref.set({ connected: false }, { merge: true });
-                    await sendPushToAllSubscriptions(db, userDoc.id, {
+                    await notifyUser(db, userDoc.id, {
                         title: "🔌 Reconnect Gmail",
                         body: `Your Gmail connection for ${accountLabel} expired — reconnect it in Settings to keep getting review alerts.`,
                         url: "/settings",
                         tag: `gmail-reconnect-${accountDoc.id}`,
+                        kind: "gmail_reconnect",
                     });
                     logger.warn(`Gmail token expired for ${accountLabel} (user ${userDoc.id}), marked disconnected`);
                 } else {

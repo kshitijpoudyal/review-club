@@ -43,6 +43,11 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
 
+      // In-app notification inbox — same events as web push, persisted for history
+      match /notifications/{notificationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
       // Connected Gmail accounts (one doc per linked inbox). Created by the
       // OAuth callback and removed by the disconnect endpoint (both Admin
       // SDK, which bypasses these rules). The only field a client may write
