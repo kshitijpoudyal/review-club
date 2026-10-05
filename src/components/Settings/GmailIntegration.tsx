@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronDownIcon, EnvelopeIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useGmailAccounts, GmailWatchSource } from '../../hooks/useGmailAccounts';
@@ -30,9 +30,14 @@ interface GmailIntegrationProps {
   /** Hide the internal "Re-scan all (testing)" action — defaults on for the
    * regular Settings page, off when embedded in the onboarding wizard. */
   showTestingActions?: boolean;
+  /** Onboarding wizard: after connect, offer import-history vs new-mail-only sync. */
+  onboardingMode?: boolean;
 }
 
-export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingActions = true }) => {
+export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
+  showTestingActions = true,
+  onboardingMode = false,
+}) => {
   const { user } = useAuth();
   const { accounts, loading, connectUrl, toggleRetailer, disconnectAccount } = useGmailAccounts();
   const { gmailWatcherEnabled, loading: settingsLoading, setGmailWatcherEnabled } = useNotificationSettings();
@@ -46,6 +51,7 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingA
     ordersDetected: number;
     transactionsDetected: number;
     pendingPaypalQueue?: number;
+    startFromNow?: boolean;
   } | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
@@ -53,12 +59,21 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingA
 
   const anyConnected = accounts.some((a) => a.connected);
 
-  const handleCheckNow = async (ignoreCursors = false) => {
+  useEffect(() => {
+    if (onboardingMode && anyConnected) setAccountsExpanded(true);
+  }, [onboardingMode, anyConnected]);
+
+  const handleCheckNow = async (ignoreCursors = false, startFromNow = false) => {
     setIsChecking(true);
     setCheckError(null);
+    setCheckResult(null);
     try {
       if (!user) throw new Error('Sign in required');
-      const url = ignoreCursors ? `${TRIGGER_GMAIL_CHECK_URL}?ignoreCursors=true` : TRIGGER_GMAIL_CHECK_URL;
+      const params = new URLSearchParams();
+      if (ignoreCursors) params.set('ignoreCursors', 'true');
+      if (startFromNow) params.set('startFromNow', 'true');
+      const query = params.toString();
+      const url = query ? `${TRIGGER_GMAIL_CHECK_URL}?${query}` : TRIGGER_GMAIL_CHECK_URL;
       const token = await user.getIdToken();
       const response = await fetch(url, {
         method: 'POST',
@@ -71,6 +86,7 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingA
         ordersDetected: result.ordersDetected ?? 0,
         transactionsDetected: result.transactionsDetected ?? 0,
         pendingPaypalQueue: result.pendingPaypalQueue,
+        startFromNow: result.startFromNow === true,
       });
     } catch (err) {
       console.error('Error triggering Gmail check:', err);
@@ -79,6 +95,8 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingA
       setIsChecking(false);
     }
   };
+
+  const handleStartFromNow = () => handleCheckNow(false, true);
 
   const handleDisconnect = async (accountId: string) => {
     setDisconnectingId(accountId);
@@ -135,7 +153,13 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingA
               </div>
             )}
 
-            {checkResult && (
+            {checkResult && checkResult.startFromNow && (
+              <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
+                You&apos;re all set — we&apos;ll only pick up new order and payment emails from now on. Older mail
+                won&apos;t be imported.
+              </div>
+            )}
+            {checkResult && !checkResult.startFromNow && (
               <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
                 Checked your account — {checkResult.notified} review alert{checkResult.notified === 1 ? '' : 's'},{' '}
                 {checkResult.ordersDetected} new order{checkResult.ordersDetected === 1 ? '' : 's'},{' '}
@@ -154,6 +178,46 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({ showTestingA
             )}
             {checkError && (
               <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-sm">{checkError}</div>
+            )}
+
+            {anyConnected && onboardingMode && (
+              <div className={`rounded-xl border p-4 space-y-4 ${colors.card.border}`}>
+                <div>
+                  <h3 className="text-sm font-semibold text-[#1b1c19]">Sync your inbox</h3>
+                  <p className={`${typography.caption} mt-1`}>
+                    Your Gmail is connected. Choose whether to import orders from older emails or only watch for new
+                    mail going forward.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div className="space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleCheckNow(true)}
+                      disabled={isChecking}
+                      className={`${colors.button.primary} w-full px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {isChecking ? 'Syncing...' : 'Import past order emails'}
+                    </button>
+                    <p className={typography.caption}>
+                      Scans your Gmail history for supported Amazon, Wayfair, and PayPal order messages.
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={handleStartFromNow}
+                      disabled={isChecking}
+                      className={`${colors.button.secondary} w-full px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {isChecking ? 'Setting up...' : 'Only new emails from now on'}
+                    </button>
+                    <p className={typography.caption}>
+                      Skips older mail and starts watching for new orders from this point forward.
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
 
             <div className="flex flex-col sm:flex-row flex-wrap items-start gap-3 pt-1">

@@ -48,7 +48,7 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
     title: 'Connect Gmail',
     description: 'Automatically detect new orders from your inbox. You can always connect this later from Settings.',
     Component: GmailIntegration,
-    props: { showTestingActions: false },
+    props: { showTestingActions: false, onboardingMode: true },
     skippable: true,
   },
   {

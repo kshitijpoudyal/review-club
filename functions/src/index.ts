@@ -1266,6 +1266,32 @@ interface PaypalGmailScanSummary {
     pendingInFirestore: number;
 }
 
+/** Sets sync cursors to now so the next scheduled check only sees new mail. */
+async function advanceGmailSyncCursorsToNow(
+    db: Firestore,
+    onlyUserId: string,
+    onlyAccountEmail?: string
+): Promise<number> {
+    const now = new Date().toISOString();
+    let updated = 0;
+    const accountsSnapshot = await db.collection("users").doc(onlyUserId).collection("gmailAccounts").get();
+    for (const accountDoc of accountsSnapshot.docs) {
+        const account = accountDoc.data();
+        if (account.connected !== true) continue;
+        if (onlyAccountEmail && account.emailAddress !== onlyAccountEmail) continue;
+        await accountDoc.ref.set(
+            {
+                lastCheckedAt: now,
+                lastOrderCheckedAt: now,
+                lastPaypalCheckedAt: now,
+            },
+            { merge: true }
+        );
+        updated++;
+    }
+    return updated;
+}
+
 async function runGmailReviewCheck(
     db: Firestore,
     ignoreCursors = false,
@@ -1593,6 +1619,7 @@ export const triggerGmailCheck = onRequest(
         // ?email=<address> scopes that rescan (or even a normal check) to
         // just one connected account instead of every user's every account.
         const ignoreCursors = request.query.ignoreCursors === "true";
+        const startFromNow = request.query.startFromNow === "true";
         const onlyAccountEmail = typeof request.query.email === "string" ? request.query.email : undefined;
         const debugPaypal = request.query.debugPaypal === "true";
 
@@ -1605,6 +1632,22 @@ export const triggerGmailCheck = onRequest(
                 response.status(401).json({ error: "Invalid auth token" });
                 return;
             }
+        }
+
+        if (startFromNow) {
+            if (!onlyUserId) {
+                response.status(401).json({ error: "Sign in required" });
+                return;
+            }
+            const cursorsAdvanced = await advanceGmailSyncCursorsToNow(db, onlyUserId, onlyAccountEmail);
+            response.status(200).json({
+                notified: 0,
+                ordersDetected: 0,
+                transactionsDetected: 0,
+                cursorsAdvanced,
+                startFromNow: true,
+            });
+            return;
         }
 
         const result = await runGmailReviewCheck(db, ignoreCursors, onlyAccountEmail, debugPaypal, onlyUserId);

@@ -21,13 +21,15 @@ const SettingsPage: React.FC = () => {
   // If the Gmail OAuth round trip lands here while onboarding isn't finished
   // yet, bounce back into the wizard — landing back ON the Gmail step (not past
   // it) so the user sees their now-connected account, retailer checkboxes, and
-  // the "Check Gmail now" button. No-op for already-onboarded users (existing
+  // the inbox sync options. No-op for already-onboarded users (existing
   // behavior below is unaffected in that case).
   const gmailParam = searchParams.get('gmail');
   useEffect(() => {
     if (onboardingLoading) return;
     if ((gmailParam === 'connected' || gmailParam === 'error') && !onboardingCompleted) {
-      setCurrentStep(GMAIL_STEP_INDEX).then(() => navigate('/onboarding', { replace: true }));
+      setCurrentStep(GMAIL_STEP_INDEX).then(() =>
+        navigate(`/onboarding?gmail=${gmailParam}`, { replace: true })
+      );
     }
   }, [gmailParam, onboardingCompleted, onboardingLoading, navigate, setCurrentStep]);
 
