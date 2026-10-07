@@ -184,7 +184,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <StarSVG filled size="sm" />
             </div>
             <span className={`${typography.overline} text-white/55`}>
-              Amazon Review Tracker
+              Review Club
             </span>
           </div>
 
@@ -307,10 +307,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             <div className="flex items-center justify-center gap-2 mb-1.5">
               <StarSVG filled size="sm" />
               <span className={`${typography.overline} text-white/55`}>
-                Review Tracker
+                Review Club
               </span>
             </div>
-            <h1 className={`${typography.modalTitle}`}>Amazon Review Tracker</h1>
+            <h1 className={`${typography.modalTitle}`}>Review Club</h1>
             <p className="text-white/55 text-xs mt-1">Track reviews. Stay ahead.</p>
           </div>
         </div>

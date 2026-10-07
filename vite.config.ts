@@ -16,9 +16,9 @@ export default defineConfig({
       },
       includeAssets: ['favicon.svg', 'icons/*.svg'],
       manifest: {
-        name: 'Amazon Review Tracker',
-        short_name: 'Review Tracker',
-        description: 'Track Amazon product reviews and manage PayPal transactions',
+        name: 'Review Club',
+        short_name: 'Review Club',
+        description: 'Track product reviews and manage transactions',
         theme_color: '#022448',
         background_color: '#022448',
         display: 'standalone',

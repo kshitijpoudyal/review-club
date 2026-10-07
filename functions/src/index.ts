@@ -1,5 +1,5 @@
 /**
- * Firebase Functions for Amazon Review Tracker
+ * Firebase Functions for Review Club
  * Push notifications (stuck-status + Gmail review-live watcher)
  */
 

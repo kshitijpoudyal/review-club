@@ -1,4 +1,4 @@
-# Amazon Review Dashboard - Firebase Edition
+# Review Club
 
 A modern React.js dashboard application built with TypeScript, Vite, Tailwind CSS, and Firebase to track Amazon product orders, reviews, and financial performance with cloud storage.
 

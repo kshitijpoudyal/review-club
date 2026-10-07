@@ -1,5 +1,5 @@
 /**
- * Retailer bookmarklets scrape order pages and redirect into the Review Tracker PWA
+ * Retailer bookmarklets scrape order pages and redirect into the Review Club PWA
  * with a URL fragment payload (#import=…). JSON is also copied to the clipboard.
  */
 

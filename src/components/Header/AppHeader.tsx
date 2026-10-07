@@ -64,7 +64,7 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                 {/* Brand + Nav */}
                 <div className="flex items-center gap-x-6">
                     <span className={`${typography.bodyStrong} text-white tracking-tight select-none`}>
-                        📦 Review Tracker
+                        📦 Review Club
                     </span>
                     <div className="hidden md:flex md:gap-x-1">
                         {navigation.map((item) => {

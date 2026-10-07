@@ -35,7 +35,7 @@ interface PushPayload {
 }
 
 self.addEventListener('push', (event) => {
-  let payload: PushPayload = { title: 'Review Tracker', body: 'You have an update.' };
+  let payload: PushPayload = { title: 'Review Club', body: 'You have an update.' };
   if (event.data) {
     try {
       payload = { ...payload, ...event.data.json() };
