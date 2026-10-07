@@ -86,13 +86,13 @@ function isTypingTarget(target: EventTarget | null): boolean {
   );
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({
+const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
   filters,
   actions,
   onClearFilters,
   showClearButton = true,
   loading = false,
-}) => {
+}, ref) => {
   const searchFilter = filters.find((f) => f.type === 'search');
   const selectFilters = filters.filter((f) => f.type === 'select');
   const hasActiveFilters = filters.some((f) => f.value && f.value !== '');
@@ -253,7 +253,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     ) : null;
 
   const ToolbarShimmer = () => (
-    <div className="sticky top-0 z-30 bg-[#fbf9f3] pb-2 pt-1">
+    <div ref={ref} className="sticky top-0 z-30 bg-[#fbf9f3] pb-2 pt-1">
       <div className="px-4 sm:px-6 lg:px-8 py-2">
         <div className="block lg:hidden space-y-3">
           <div className={`${CONTROL_HEIGHT} bg-[#eae8e2] ${CONTROL_RADIUS} animate-pulse`} />
@@ -277,7 +277,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   }
 
   return (
-    <div className="sticky top-0 z-30 bg-[#fbf9f3] pb-2 pt-1">
+    <div ref={ref} className="sticky top-0 z-30 bg-[#fbf9f3] pb-2 pt-1">
       <div className="px-4 sm:px-6 lg:px-8 py-2">
         {/* Mobile */}
         <div className="lg:hidden space-y-3">
@@ -334,6 +334,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
       </div>
     </div>
   );
-};
+});
+
+Toolbar.displayName = 'Toolbar';
 
 export default Toolbar;

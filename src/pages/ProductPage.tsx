@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import ProductTable from '../components/ProductDashboard/ProductTable';
 import AddProductForm from '../components/ProductDashboard/AddProductForm';
 import { usePendingRetailerImport } from '../hooks/usePendingRetailerImport';
@@ -46,11 +47,12 @@ const ProductPage: React.FC = () => {
   const { activeVendors } = useVendors();
   const { showToast } = useToast();
   
-  const urlParams = new URLSearchParams(window.location.search);
-  const urlStatus = urlParams.get('status') ?? '';
+  const location = useLocation();
+  const urlStatus = new URLSearchParams(location.search).get('status') ?? '';
 
   // Dashboard state management
   const { showAddForm, handleShowAddForm, handleHideAddForm } = useDashboardState();
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const { pendingImport, dismissImport } = usePendingRetailerImport(!!user);
   const [externalImport, setExternalImport] = useState<{
     payload: BookmarkletPayload;
@@ -215,6 +217,40 @@ const ProductPage: React.FC = () => {
     }
   ];
 
+  // On mobile, bring the sticky toolbar (search bar) to the top so the
+  // filtered list is what the user sees.
+  const scrollToolbarIntoViewOnMobile = useCallback(() => {
+    const isMobile = window.matchMedia('(max-width: 1023px)').matches;
+    if (!isMobile) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    toolbarRef.current?.scrollIntoView({
+      block: 'start',
+      behavior: reduceMotion ? 'auto' : 'smooth',
+    });
+  }, []);
+
+  const handleStatusFilterFromStrip = useCallback((filter: StatusFilter) => {
+    updateFilter('statusFilter', filter);
+    if (filter) scrollToolbarIntoViewOnMobile();
+  }, [updateFilter, scrollToolbarIntoViewOnMobile]);
+
+  // Apply `?status=` whenever a navigation lands here with one (e.g. tapping
+  // a notification while this page is already mounted). Keyed on
+  // location.key so re-tapping the same link re-applies the filter. The
+  // initial mount is already covered by the hook's initial state, and we
+  // skip the scroll there because the layout is still settling.
+  const isFirstLocationRef = useRef(true);
+  useEffect(() => {
+    if (isFirstLocationRef.current) {
+      isFirstLocationRef.current = false;
+      return;
+    }
+    if (!urlStatus) return;
+    updateFilter('statusFilter', urlStatus);
+    scrollToolbarIntoViewOnMobile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
+
   if (error) {
     return (
       <DashboardError
@@ -269,12 +305,13 @@ const ProductPage: React.FC = () => {
       <NextActionsStrip
         products={data?.products || []}
         activeStatusFilter={statusFilter}
-        onStatusFilter={(filter) => updateFilter('statusFilter', filter)}
+        onStatusFilter={handleStatusFilterFromStrip}
         unlinkedTransactionCount={unlinkedTransactionStats.count}
         unlinkedTransactionAmount={unlinkedTransactionStats.amount}
       />
 
       <Toolbar
+        ref={toolbarRef}
         actions={actions}
         filters={filterConfigs}
         onClearFilters={clearAllFilters}

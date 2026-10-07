@@ -242,6 +242,15 @@ const STATUS_LABELS: Record<string, string> = {
     "refund-pending": "Refund Pending",
 };
 
+// Deep link into the products page with the matching status filter applied
+// (see ProductPage's `?status=` handling). Falls back to the unfiltered page
+// for statuses the filter UI doesn't know about.
+function productsUrlForStatus(status: string | undefined | null): string {
+    return status && status in STATUS_LABELS
+        ? `/products?status=${encodeURIComponent(status)}`
+        : "/products";
+}
+
 function daysSince(isoDate: string): number {
     return Math.floor((Date.now() - new Date(isoDate).getTime()) / (1000 * 3600 * 24));
 }
@@ -382,7 +391,7 @@ async function sendStuckStatusPush(
     return notifyUser(db, userId, {
         title: `⏰ Stuck in "${statusLabel}"`,
         body: `${product.item} has been in "${statusLabel}" for ${days} days.`,
-        url: "/products",
+        url: productsUrlForStatus(status),
         tag: `stuck-${productRef.id}`,
         kind: "stuck_status",
     });
@@ -398,7 +407,7 @@ async function sendReturnReminderPush(
     const wasSent = await notifyUser(db, userId, {
         title: "⚠️ Check your return window",
         body: `${product.item}: ordered ${daysSinceOrder} days ago — if a refund hasn't come through, start a return with the seller now.`,
-        url: "/products",
+        url: productsUrlForStatus(product.lastStatus),
         tag: `return-reminder-${productRef.id}`,
         kind: "return_reminder",
     });
@@ -1379,7 +1388,7 @@ async function runGmailReviewCheck(
                     const wasSent = await notifyUser(db, userDoc.id, {
                         title: "📝 A review may be live",
                         body: `Found ${matches} new email${matches === 1 ? "" : "s"} in ${accountLabel} that look like a review confirmation — check your inbox and update the tracker.`,
-                        url: "/products",
+                        url: productsUrlForStatus("review-pending"),
                         tag: `gmail-review-live-${accountDoc.id}`,
                         kind: "gmail_review",
                     });

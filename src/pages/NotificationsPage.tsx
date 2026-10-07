@@ -4,6 +4,7 @@ import { useNotificationInbox } from '../contexts/NotificationsContext';
 import { NotificationListItem } from '../components/Notifications/NotificationListItem';
 import { AppNotification } from '../types/Notification';
 import { typography } from '../utils/typography';
+import { getNotificationTarget } from '../utils/notificationTarget';
 
 const NotificationsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ const NotificationsPage: React.FC = () => {
     if (!notification.readAt) {
       await markRead(notification.id);
     }
-    navigate(notification.url || '/products');
+    navigate(getNotificationTarget(notification));
   };
 
   return (

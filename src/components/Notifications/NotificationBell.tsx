@@ -5,6 +5,7 @@ import { useNotificationInbox } from '../../contexts/NotificationsContext';
 import { AppNotification } from '../../types/Notification';
 import { NotificationListItem } from './NotificationListItem';
 import { typography } from '../../utils/typography';
+import { getNotificationTarget } from '../../utils/notificationTarget';
 
 export const NotificationBell: React.FC = () => {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ export const NotificationBell: React.FC = () => {
       await markRead(notification.id);
     }
     setOpen(false);
-    navigate(notification.url || '/products');
+    navigate(getNotificationTarget(notification));
   };
 
   return (

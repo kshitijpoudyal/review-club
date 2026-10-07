@@ -61,10 +61,18 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     (async () => {
+      const target = new URL(url, self.location.origin);
       const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      const existing = allClients.find((c) => new URL(c.url).pathname === new URL(url, self.location.origin).pathname);
+      const existing = allClients.find((c) => new URL(c.url).pathname === target.pathname) as
+        | WindowClient
+        | undefined;
       if (existing) {
-        await (existing as WindowClient).focus();
+        const focused = (await existing.focus()) ?? existing;
+        // Same path but different query (e.g. a status filter): load the
+        // exact URL so the page picks the filter up.
+        if (new URL(focused.url).search !== target.search && 'navigate' in focused) {
+          await focused.navigate(target.href);
+        }
       } else {
         await self.clients.openWindow(url);
       }
