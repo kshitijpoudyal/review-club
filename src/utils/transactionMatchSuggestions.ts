@@ -1,73 +1,70 @@
 import { Product } from '../types/Product';
 import { Transaction } from '../types/Transaction';
-import { getProductStatusType } from './productStatus';
-import {
-  getAmountDiffFromBand,
-  getExpectedReceivedForProduct,
-  getProductRefundExpectation,
-  getRefundConfidence,
-  hasRefundExpectation,
-} from './refundUtils';
+import { getProductStatusType, ProductStatusType } from './productStatus';
+import { getExpectedReceivedForProduct } from './refundUtils';
 
 export interface TransactionMatchSuggestion {
   product: Product;
-  score: number;
-  amountDiff: number;
-  confidence: 'high' | 'medium' | 'low';
+  /** Expected net refund for the product after its configured deductions. */
+  expected: number;
+  /** Absolute distance between the transaction's net received and `expected`. */
+  diff: number;
+  isExact: boolean;
 }
 
-const ELIGIBLE_STATUSES = new Set(['refund-pending', 'send-screenshot', 'review-pending']);
+const EXACT_TOLERANCE = 0.01;
+const MIN_CUTOFF = 25;
+const CUTOFF_RATE = 0.25;
 
-const ROUND_SHORTFALLS = [10, 20];
+/** Products closest to a refund come first when amounts tie. */
+const STATUS_RANK: Partial<Record<ProductStatusType, number>> = {
+  'refund-pending': 0,
+  'send-screenshot': 1,
+  'review-pending': 2,
+};
+const DEFAULT_STATUS_RANK = 3;
 
-function isRoundSellerShortfall(paid: number, targetAmount: number): boolean {
-  const shortfall = paid - targetAmount;
-  return ROUND_SHORTFALLS.some((s) => Math.abs(shortfall - s) < 0.02);
+function getStatusRank(product: Product): number {
+  return STATUS_RANK[getProductStatusType(product)] ?? DEFAULT_STATUS_RANK;
 }
 
+/** Furthest a transaction may be from the expected refund and still be suggested. */
+function getMaxDiff(expected: number): number {
+  return Math.max(MIN_CUTOFF, expected * CUTOFF_RATE);
+}
+
+/**
+ * Suggests unlinked products still awaiting a refund whose expected refund is
+ * closest to the transaction's net received amount.
+ */
 export function getTransactionMatchSuggestions(
   transaction: Transaction,
   products: Product[],
   linkedProductIds: string[] = [],
-  limit = 3
+  limit = 2
 ): TransactionMatchSuggestion[] {
   const linkedSet = new Set(linkedProductIds);
-  const targetAmount = transaction.total;
+  const suggestions: TransactionMatchSuggestion[] = [];
 
-  const candidates = products.filter((p) => {
-    if (!p.id || linkedSet.has(p.id)) return false;
-    if (p.isVoid) return false;
-    const status = getProductStatusType(p);
-    if (!ELIGIBLE_STATUSES.has(status) && p.received != null) return false;
-    if (p.paid == null) return false;
-    return true;
-  });
+  for (const product of products) {
+    if (!product.id || linkedSet.has(product.id)) continue;
+    if (product.isVoid || product.received != null) continue;
 
-  const scored = candidates.map((product) => {
-    const paid = product.paid ?? 0;
-    const expectation = getProductRefundExpectation(product);
-    const expectedReceived = getExpectedReceivedForProduct(product);
-    const amountDiff = hasRefundExpectation(expectation) || expectedReceived != null
-      ? getAmountDiffFromBand(paid, targetAmount, expectation.taxAmount, expectedReceived)
-      : getAmountDiffFromBand(paid, targetAmount, product.tax);
-    let score = amountDiff;
+    const expected = getExpectedReceivedForProduct(product);
+    if (expected == null) continue;
 
-    const status = getProductStatusType(product);
-    if (status === 'refund-pending') score *= 0.5;
-    if (status === 'send-screenshot') score *= 0.7;
+    const diff = Math.round(Math.abs(transaction.total - expected) * 100) / 100;
+    if (diff > getMaxDiff(expected)) continue;
 
-    if (isRoundSellerShortfall(paid, targetAmount)) score *= 0.6;
+    suggestions.push({ product, expected, diff, isExact: diff < EXACT_TOLERANCE });
+  }
 
-    const nameLower = transaction.name.toLowerCase();
-    const itemLower = (product.item || '').toLowerCase();
-    if (itemLower && nameLower.includes(itemLower.slice(0, 20))) score *= 0.3;
-
-    const confidence = hasRefundExpectation(expectation) || expectedReceived != null
-      ? getRefundConfidence(paid, targetAmount, expectation.taxAmount, expectedReceived)
-      : getRefundConfidence(paid, targetAmount, product.tax);
-
-    return { product, score, amountDiff, confidence };
-  });
-
-  return scored.sort((a, b) => a.score - b.score).slice(0, limit);
+  return suggestions
+    .sort(
+      (a, b) =>
+        a.diff - b.diff ||
+        getStatusRank(a.product) - getStatusRank(b.product) ||
+        (a.product.orderDate ?? '').localeCompare(b.product.orderDate ?? '')
+    )
+    .slice(0, limit);
 }

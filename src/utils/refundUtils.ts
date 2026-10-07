@@ -1,6 +1,6 @@
 /**
- * Refund band and shortfall helpers for partial PayPal refunds
- * (tax, fees, seller-defined $10–$20 shortfalls).
+ * Refund expectation helpers: configured deductions (tax, PayPal fee, custom
+ * seller shortfall) and the expected net refund they produce.
  */
 
 import {
@@ -9,13 +9,7 @@ import {
   RefundExpectation,
 } from '../types/Product';
 
-export interface RefundBand {
-  low: number;
-  high: number;
-}
-
 const PAYPAL_FEE_RATE = 0.045;
-const MATCH_TOLERANCE = 0.02;
 
 /** Default PayPal fee estimate (4.5% of paid). */
 export function getDefaultPayPalFee(paid: number | null | undefined): number | null {
@@ -156,81 +150,4 @@ export function getRefundVariance(
     variance,
     label: `$${variance.toFixed(2)} over expected`,
   };
-}
-
-/** Expected refund range: explicit expectation or heuristic band from paid/tax. */
-export function getRefundBand(
-  paid: number,
-  tax?: number | null,
-  expectedReceived?: number | null
-): RefundBand {
-  if (expectedReceived != null && expectedReceived >= 0) {
-    return {
-      low: Math.max(0, expectedReceived - MATCH_TOLERANCE),
-      high: expectedReceived + MATCH_TOLERANCE,
-    };
-  }
-
-  const taxAmount = tax ?? 0;
-  const low = Math.max(0, Math.min(paid - taxAmount, paid * 0.75, paid - 25));
-  return { low, high: paid };
-}
-
-/** Distance from refund band; 0 if target is inside the band. */
-export function getAmountDiffFromBand(
-  paid: number,
-  targetAmount: number,
-  tax?: number | null,
-  expectedReceived?: number | null
-): number {
-  const { low, high } = getRefundBand(paid, tax, expectedReceived);
-  if (targetAmount >= low && targetAmount <= high) return 0;
-  if (targetAmount < low) return low - targetAmount;
-  return targetAmount - high;
-}
-
-export function isWithinRefundBand(
-  paid: number,
-  targetAmount: number,
-  tax?: number | null,
-  expectedReceived?: number | null
-): boolean {
-  return getAmountDiffFromBand(paid, targetAmount, tax, expectedReceived) < 0.01;
-}
-
-export type ShortfallReason = 'none' | 'likely_tax_fees' | 'seller_partial' | 'large_shortfall';
-
-export function getShortfall(paid: number, refund: number): number {
-  return Math.max(0, paid - refund);
-}
-
-export function classifyShortfall(paid: number, refund: number): {
-  shortfall: number;
-  reason: ShortfallReason;
-  label: string;
-} {
-  const shortfall = getShortfall(paid, refund);
-  if (shortfall < 0.01) {
-    return { shortfall: 0, reason: 'none', label: 'Full refund' };
-  }
-  if (shortfall <= 8) {
-    return { shortfall, reason: 'likely_tax_fees', label: 'Likely tax/fees' };
-  }
-  const rounded = Math.round(shortfall);
-  if (rounded === 10 || rounded === 20 || (shortfall >= 8 && shortfall <= 22)) {
-    return { shortfall, reason: 'seller_partial', label: 'Seller partial refund' };
-  }
-  return { shortfall, reason: 'large_shortfall', label: 'Partial refund' };
-}
-
-export function getRefundConfidence(
-  paid: number,
-  targetAmount: number,
-  tax?: number | null,
-  expectedReceived?: number | null
-): 'high' | 'medium' | 'low' {
-  const diff = getAmountDiffFromBand(paid, targetAmount, tax, expectedReceived);
-  if (diff < 0.01) return 'high';
-  if (diff <= 5) return 'medium';
-  return 'low';
 }

@@ -3,6 +3,7 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   CheckIcon,
+  ChevronDownIcon,
   EyeIcon,
   EyeSlashIcon,
 } from '@heroicons/react/24/outline';
@@ -10,14 +11,14 @@ import { Product, ProductLinkOptions } from '../types/Product';
 import { Transaction } from '../types/Transaction';
 import { Modal, ProductThumbnail } from './common';
 import ConfirmDeleteModal from './common/ConfirmDeleteModal';
-import { getProductStatus, isVoid, isRefundPending } from '../utils/productStatus';
+import { getProductStatus, isVoid } from '../utils/productStatus';
+import { getProductLinkList, isLinkedOrComplete } from '../utils/productLinkList';
 import { formatCurrency } from '../utils/currency';
-import { getTransactionMatchSuggestions } from '../utils/transactionMatchSuggestions';
 import {
-  getExpectedReceivedForProduct,
-  hasRefundExpectation,
-  getProductRefundExpectation,
-} from '../utils/refundUtils';
+  getTransactionMatchSuggestions,
+  TransactionMatchSuggestion,
+} from '../utils/transactionMatchSuggestions';
+import { getExpectedReceivedForProduct, getRefundVariance } from '../utils/refundUtils';
 import { getBadgeClasses } from '../utils/colors';
 import { typography } from '../utils/typography';
 import {
@@ -67,26 +68,119 @@ function formatTransactionDate(dateStr: string): string {
   return dateStr;
 }
 
-function formatProductAmountLine(product: Product, transactionTotal?: number): string {
-  const paidLabel = product.paid != null ? formatCurrency(product.paid) : '—';
-  const expected = getExpectedReceivedForProduct(product);
-  const expectation = getProductRefundExpectation(product);
-  const parts = [`Paid ${paidLabel}`];
-
-  if (hasRefundExpectation(expectation) && expected != null) {
+/** "Paid $X", plus "Expected $Y" when deductions make it differ from paid. */
+function formatPaidAndExpected(product: Product, expected: number | null): string[] {
+  const parts = [`Paid ${product.paid != null ? formatCurrency(product.paid) : '—'}`];
+  if (expected != null && product.paid != null && Math.abs(expected - product.paid) >= 0.01) {
     parts.push(`Expected ${formatCurrency(expected)}`);
   }
+  return parts;
+}
 
-  if (transactionTotal != null) {
-    const compareAmount =
-      hasRefundExpectation(expectation) && expected != null ? expected : product.paid;
-    if (compareAmount != null) {
-      parts.push(`Difference ${formatCurrency(Math.abs(compareAmount - transactionTotal))}`);
-    }
+function formatProductAmountLine(product: Product, transactionTotal?: number): string {
+  const expected = getExpectedReceivedForProduct(product);
+  const parts = formatPaidAndExpected(product, expected);
+
+  if (transactionTotal != null && expected != null) {
+    parts.push(`Difference ${formatCurrency(Math.abs(expected - transactionTotal))}`);
   }
 
   return parts.join(' · ');
 }
+
+const SUGGESTED_MATCHES_EXPANDED_KEY = 'art_suggested_matches_expanded';
+
+/** Expanded unless the user collapsed it before. */
+function readSuggestedMatchesExpanded(): boolean {
+  try {
+    return localStorage.getItem(SUGGESTED_MATCHES_EXPANDED_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+interface SuggestedMatchesProps {
+  suggestions: TransactionMatchSuggestion[];
+  transactionTotal: number;
+  selectedIds: string[];
+  onToggle: (productId: string) => void;
+}
+
+const SuggestedMatches: React.FC<SuggestedMatchesProps> = ({
+  suggestions,
+  transactionTotal,
+  selectedIds,
+  onToggle,
+}) => {
+  const [expanded, setExpanded] = useState(readSuggestedMatchesExpanded);
+
+  const toggleExpanded = () => {
+    setExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SUGGESTED_MATCHES_EXPANDED_KEY, String(next));
+      } catch {
+        /* preference just won't persist */
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        aria-expanded={expanded}
+        className={`${typography.label} w-full flex items-center justify-between gap-2 text-[#74777f] hover:text-[#43474e] transition-colors`}
+      >
+        <span>Suggested matches ({suggestions.length})</span>
+        <ChevronDownIcon
+          className={`w-4 h-4 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+      {expanded && (
+        <div className="space-y-1.5">
+          {suggestions.map(({ product, expected }) => {
+            const id = product.id || '';
+            const isSelected = selectedIds.includes(id);
+            const amountLine = [
+              ...formatPaidAndExpected(product, expected),
+              getRefundVariance(expected, transactionTotal).label,
+            ].join(' · ');
+
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => id && onToggle(id)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-colors text-left ${
+                  isSelected
+                    ? 'border-[#006a68]/35 bg-[#006a68]/10 ring-1 ring-[#006a68]/20'
+                    : 'border-[rgba(196,198,207,0.45)] bg-white hover:bg-[#fbf9f3] hover:border-[rgba(196,198,207,0.65)]'
+                }`}
+              >
+                <ProductThumbnail imageUrl={product.imageUrl} productName={product.item} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className={`${typography.bodyStrong} line-clamp-1 text-[#1b1c19]`}>
+                    {product.item}
+                  </p>
+                  <p className={`${typography.caption} tabular-nums text-[#43474e] mt-0.5`}>
+                    {amountLine}
+                  </p>
+                </div>
+                {isSelected && (
+                  <CheckIcon className="w-4 h-4 text-[#006a68] shrink-0" aria-hidden="true" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
 
 function equalSplitAmounts(productIds: string[], netReceived: number): Record<string, string> {
   const perProduct = netReceived / productIds.length;
@@ -222,32 +316,15 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
     closeModal();
   };
 
-  const sortPriority = (product: Product): number => {
-    if (isVoid(product)) return 3;
-    if (isRefundPending(product)) return 0;
-    const status = getProductStatus(product);
-    return status.type === 'complete' ? 2 : 1;
-  };
+  const filteredProducts = useMemo(
+    () => getProductLinkList(products, { searchTerm, linkedProductIds, hideLinked, hideVoid }),
+    [products, searchTerm, linkedProductIds, hideLinked, hideVoid]
+  );
 
-  const filteredProducts = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    return products
-      .filter((p) => {
-        if (hideLinked && (linkedProductIds.includes(p.id || '') || getProductStatus(p).type === 'complete')) {
-          return false;
-        }
-        if (hideVoid && isVoid(p)) return false;
-        if (!q) return true;
-        return [p.item?.toLowerCase(), p.paid?.toString(), p.orderNumber?.toLowerCase()].some((f) =>
-          f?.includes(q)
-        );
-      })
-      .sort((a, b) => sortPriority(a) - sortPriority(b));
-  }, [products, searchTerm, linkedProductIds, hideLinked, hideVoid]);
-
-  const linkedCount = useMemo(() => products.filter(
-    (p) => linkedProductIds.includes(p.id || '') || getProductStatus(p).type === 'complete'
-  ).length, [products, linkedProductIds]);
+  const linkedCount = useMemo(
+    () => products.filter((p) => isLinkedOrComplete(p, linkedProductIds)).length,
+    [products, linkedProductIds]
+  );
   const voidCount = useMemo(() => products.filter((p) => isVoid(p)).length, [products]);
 
   const matchSuggestions = useMemo(() => {
@@ -514,43 +591,12 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
       ) : (
         transaction &&
         matchSuggestions.length > 0 && (
-          <div className="space-y-2">
-            <p className={`${typography.label} text-[#74777f]`}>
-              Suggested matches ({matchSuggestions.length})
-            </p>
-            <div className="space-y-1.5">
-              {matchSuggestions.map(({ product }) => {
-                const id = product.id || '';
-                const isSelected = tempSelectedIds.includes(id);
-
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => id && handleToggle(id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-colors text-left ${
-                      isSelected
-                        ? 'border-[#006a68]/35 bg-[#006a68]/10 ring-1 ring-[#006a68]/20'
-                        : 'border-[rgba(196,198,207,0.45)] bg-white hover:bg-[#fbf9f3] hover:border-[rgba(196,198,207,0.65)]'
-                    }`}
-                  >
-                    <ProductThumbnail imageUrl={product.imageUrl} productName={product.item} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <p className={`${typography.bodyStrong} line-clamp-1 text-[#1b1c19]`}>
-                        {product.item}
-                      </p>
-                      <p className={`${typography.caption} tabular-nums text-[#43474e] mt-0.5`}>
-                        {formatProductAmountLine(product, transaction.total)}
-                      </p>
-                    </div>
-                    {isSelected && (
-                      <CheckIcon className="w-4 h-4 text-[#006a68] shrink-0" aria-hidden="true" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <SuggestedMatches
+            suggestions={matchSuggestions}
+            transactionTotal={transaction.total}
+            selectedIds={tempSelectedIds}
+            onToggle={handleToggle}
+          />
         )
       )}
     </div>
