@@ -23,7 +23,7 @@ const STORE_BORDER_CLASSES: Record<StoreKey, string> = {
   amazon: 'border-[#FF9900]',
   walmart: 'border-[#0071DC]',
   wayfair: 'border-[#7B189F]',
-  other: 'border-[#006a68]',
+  other: 'border-brand',
 };
 
 const STORE_ROW_CLASSES: Record<StoreKey, string> = {

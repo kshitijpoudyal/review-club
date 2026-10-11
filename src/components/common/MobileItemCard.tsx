@@ -15,19 +15,19 @@ export const MobileItemCard: React.FC<MobileItemCardProps> = ({
   headerContent,
   financialContent,
   actionsContent,
-  borderColor = 'border-l-[#022448]',
+  borderColor = 'border-l-primary',
   className = '',
   noDividers = false,
 }) => {
-  const divider = noDividers ? '' : 'border-t border-[#e4e2dd]';
-  const backgroundClass = className.includes('bg-') ? '' : 'bg-[#fbf9f3]';
+  const divider = noDividers ? '' : 'border-t border-border/60';
+  const backgroundClass = className.includes('bg-') ? '' : 'bg-card';
 
   return (
     <div className={`
       ${backgroundClass}
-      shadow-[0_4px_16px_rgba(2,36,72,0.07)]
+      shadow-soft
       rounded-2xl
-      border-l-4 ${borderColor}
+      border border-border/60 border-l-4 ${borderColor}
       mx-0 mb-3
       transition-all duration-200
       active:scale-[0.99]
@@ -50,7 +50,7 @@ export const MobileItemCard: React.FC<MobileItemCardProps> = ({
       {/* Actions Section — only rendered if content provided */}
       {actionsContent && (
         <div className={`px-4 py-3 ${divider} rounded-b-2xl`}>
-          <div className="flex justify-end items-center relative dropdown-container">
+          <div className="flex justify-end items-center">
             {actionsContent}
           </div>
         </div>
@@ -61,12 +61,11 @@ export const MobileItemCard: React.FC<MobileItemCardProps> = ({
 
 export const MobileCardSkeleton: React.FC = () => (
   <div className={`
-    bg-[#fbf9f3]
-    shadow-[0_4px_16px_rgba(2,36,72,0.07)]
+    bg-card
+    shadow-soft
     rounded-2xl
-    border-l-4 border-l-[#e4e2dd]
+    border border-border/60 border-l-4 border-l-surface-variant
     mx-0 mb-3
-    animate-pulse
   `}>
     {/* Header Section */}
     <div className="px-4 pt-4 pb-3">
@@ -81,7 +80,7 @@ export const MobileCardSkeleton: React.FC = () => (
     </div>
 
     {/* Financial Section */}
-    <div className="px-4 py-3 border-t border-[#e4e2dd]">
+    <div className="px-4 py-3 border-t border-border/60">
       <div className="grid grid-cols-3 gap-3 text-sm">
         {[0, 1, 2].map((i) => (
           <div key={i} className="text-center">
@@ -93,7 +92,7 @@ export const MobileCardSkeleton: React.FC = () => (
     </div>
 
     {/* Actions Section */}
-    <div className="px-4 py-3 border-t border-[#e4e2dd]">
+    <div className="px-4 py-3 border-t border-border/60">
       <div className="flex justify-end items-center">
         <div className={`w-8 h-8 ${colors.loading.skeleton} rounded-full`}></div>
       </div>

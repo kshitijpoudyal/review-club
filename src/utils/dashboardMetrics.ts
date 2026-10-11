@@ -398,7 +398,7 @@ export function computeDashboardMetrics(
 }
 
 export function getReconciliationGapColor(gap: number, unlinkedTransactionNet: number): string {
-  if (Math.abs(gap) < 0.01) return 'text-[#006a68]';
-  if (Math.abs(gap - unlinkedTransactionNet) < 0.01) return 'text-amber-800';
-  return 'text-[#ba1a1a]';
+  if (Math.abs(gap) < 0.01) return 'text-brand';
+  if (Math.abs(gap - unlinkedTransactionNet) < 0.01) return 'text-status-amber-fg';
+  return 'text-destructive';
 }

@@ -1,8 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { motion } from 'motion/react';
+import { STAGGER_LIMIT } from '@/lib/motion';
 import { MobileItemCard, MobileCardSkeleton } from './MobileItemCard';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
-import { Button } from './Button';
+import { ArrowDown, ArrowUp, ChevronsUpDown, MoreVertical, PackageOpen, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow as UITableRow } from '@/components/ui/table';
 
 export interface TableColumn {
   key: string;
@@ -54,20 +65,18 @@ interface TableViewProps {
   loading?: boolean;
   loadingRows?: number;
   onRowAction?: (rowId: string | number, action: string) => void;
-  
-  // Dropdown state management
-  activeDropdown?: string | number | null;
-  onDropdownToggle?: (rowId: string | number | null) => void;
 
   /** Adds a blank spacer row/card at the end of the list */
   trailingSpacerRow?: boolean;
 }
 
+const MotionTableRow = motion.create(UITableRow);
+
 // Desktop Table Shimmer Loading Components
 const TableRowSkeleton: React.FC<{ columns: TableColumn[] }> = ({ columns }) => (
-  <tr className="group hover:bg-[#eae8e2]/60 transition-colors duration-150">
+  <UITableRow className="group">
     {columns.map((column, index) => (
-      <td 
+      <TableCell 
         key={`skeleton-${index}`}
         className={`px-6 py-5 ${
           column.align === 'right' ? 'text-right' : 
@@ -91,9 +100,9 @@ const TableRowSkeleton: React.FC<{ columns: TableColumn[] }> = ({ columns }) => 
             column.align === 'right' ? 'w-16 ml-auto' : 'w-3/4'
           }`}></div>
         )}
-      </td>
+      </TableCell>
     ))}
-  </tr>
+  </UITableRow>
 );
 
 const TableLoadingView: React.FC<{ columns: TableColumn[]; loadingRows?: number }> = ({ 
@@ -110,14 +119,14 @@ const TableLoadingView: React.FC<{ columns: TableColumn[]; loadingRows?: number 
 
     {/* Desktop Loading Layout */}
     <div className="hidden md:block">
-      <div className="overflow-hidden border border-[rgba(196,198,207,0.15)] bg-[#fbf9f3] shadow-navy rounded-2xl">
+      <div className="overflow-hidden border border-border/60 bg-card shadow-soft rounded-2xl">
         <div className="max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-hidden pb-1">
-          <table className="w-full table-fixed">
+          <Table className="w-full table-fixed">
             {/* Table Header */}
-            <thead className={`${colors.background.gradient} border-b border-[rgba(196,198,207,0.1)] sticky top-0 z-10`}>
-              <tr>
+            <TableHeader className={`bg-muted/95 backdrop-blur border-b border-border sticky top-0 z-10`}>
+              <UITableRow>
                 {columns.map((column) => (
-                  <th
+                  <TableHead
                     key={`header-${column.key}`}
                     className={`px-4 py-3 lg:px-6 lg:py-4 ${typography.tableHeader} ${
                       column.align === 'right' ? 'text-right' : 
@@ -128,18 +137,18 @@ const TableLoadingView: React.FC<{ columns: TableColumn[]; loadingRows?: number 
                       column.align === 'right' ? 'ml-auto' : 
                       column.align === 'center' ? 'mx-auto' : ''
                     }`}></div>
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
-            </thead>
+              </UITableRow>
+            </TableHeader>
 
             {/* Table Body */}
-            <tbody className="divide-y divide-[rgba(196,198,207,0.1)]">
+            <TableBody className="divide-y divide-input/10">
               {Array.from({ length: loadingRows }).map((_, index) => (
                 <TableRowSkeleton key={`row-skeleton-${index}`} columns={columns} />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>
@@ -154,12 +163,26 @@ export const TableView: React.FC<TableViewProps> = ({
   onClearFilters,
   loading = false,
   loadingRows = 6,
-  activeDropdown,
-  onDropdownToggle,
   trailingSpacerRow = false,
 }) => {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  // Rows rise in on the first paint after loading; later filter and sort
+  // changes swap content without replaying the entrance.
+  const hasEntered = useRef(false);
+  useEffect(() => {
+    if (!loading) hasEntered.current = true;
+  }, [loading]);
+  const entrance = (index: number) => {
+    const animated = !hasEntered.current && index < STAGGER_LIMIT;
+    return {
+      // `animate` stays constant so a re-render mid-entrance can't strand a row hidden
+      initial: animated ? { opacity: 0, y: 10 } : (false as const),
+      animate: { opacity: 1, y: 0 },
+      transition: { duration: 0.32, delay: animated ? 0.04 * index : 0, ease: [0.22, 1, 0.36, 1] as const },
+    };
+  };
 
   const handleSortClick = (key: string) => {
     if (sortKey === key) {
@@ -192,20 +215,16 @@ export const TableView: React.FC<TableViewProps> = ({
   if (rows.length === 0 && (!mobileCards || mobileCards.length === 0)) {
     return (
       <div className="text-center py-16">
-        <svg className="mx-auto mb-4 w-12 h-12 text-[#c4c6cf]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-        </svg>
-        <p className="text-[#74777f] text-base">{emptyMessage}</p>
+        <span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/8 text-primary">
+          <PackageOpen className="h-8 w-8" strokeWidth={1.5} />
+        </span>
+        <p className={`${typography.sectionTitle} font-display`}>Nothing here yet</p>
+        <p className="mt-1 text-muted-foreground text-sm">{emptyMessage}</p>
         {onClearFilters && (
-          <button
-            onClick={onClearFilters}
-            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full bg-gradient-to-br from-[#022448] to-[#1e3a5f] text-white shadow-[0_4px_12px_rgba(2,36,72,0.15)] hover:shadow-[0_6px_16px_rgba(2,36,72,0.22)] active:scale-95 transition-all"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <Button onClick={onClearFilters} className="mt-4 px-5 font-semibold">
+            <X className="w-4 h-4" />
             Clear filters
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -216,15 +235,16 @@ export const TableView: React.FC<TableViewProps> = ({
       {/* Mobile Card Layout */}
       <div className="block md:hidden space-y-2">
         {mobileCards?.map((card, index) => (
-          <MobileItemCard
-            key={index}
-            headerContent={card.headerContent}
-            financialContent={card.financialContent}
-            actionsContent={card.actionsContent}
-            borderColor={card.borderColor}
-            className={card.className}
-            noDividers={card.noDividers}
-          />
+          <motion.div key={index} {...entrance(index)}>
+            <MobileItemCard
+              headerContent={card.headerContent}
+              financialContent={card.financialContent}
+              actionsContent={card.actionsContent}
+              borderColor={card.borderColor}
+              className={card.className}
+              noDividers={card.noDividers}
+            />
+          </motion.div>
         ))}
         {trailingSpacerRow && (mobileCards?.length ?? 0) > 0 && (
           <div aria-hidden="true" className="h-16" />
@@ -233,53 +253,52 @@ export const TableView: React.FC<TableViewProps> = ({
 
       {/* Desktop Table Layout */}
       <div className="hidden md:block">
-        <div className={`overflow-hidden border border-[rgba(196,198,207,0.15)] ${colors.background.primary} shadow-navy rounded-2xl`}>
+        <div className={`overflow-hidden border border-border/60 bg-card shadow-soft rounded-2xl`}>
           <div className="max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-hidden pb-1">
-            <table className="w-full table-fixed">
+            <Table className="w-full table-fixed">
               {/* Table Header */}
-              <thead className={`${colors.background.gradient} border-b border-[rgba(196,198,207,0.1)] sticky top-0 z-10`}>
-                <tr>
+              <TableHeader className={`bg-muted/95 backdrop-blur border-b border-border sticky top-0 z-10`}>
+                <UITableRow>
                   {columns.map((column) => (
-                    <th
+                    <TableHead
                       key={column.key}
                       onClick={column.sortable ? () => handleSortClick(column.key) : undefined}
-                      className={`py-3 lg:py-4 ${typography.tableHeader} ${
+                      className={`py-3 ${typography.tableHeader} ${
                         column.key === 'actions'
                           ? 'px-3 lg:px-4 text-center'
                           : `px-4 lg:px-6 ${
                               column.align === 'right' ? 'text-right' :
                               column.align === 'center' ? 'text-center' : 'text-left'
                             }`
-                      } ${column.width || ''} ${column.className || ''} ${column.sortable ? 'cursor-pointer select-none hover:text-white' : ''}`}
+                      } ${column.width || ''} ${column.className || ''} ${column.sortable ? 'cursor-pointer select-none hover:text-foreground transition-colors' : ''}`}
                     >
                       {column.key === 'actions' ? (
                         <span className="block w-full text-center">{column.label}</span>
                       ) : column.sortable ? (
                         <span className="inline-flex items-center gap-1">
                           {column.label}
-                          <span className="opacity-60">
-                            {sortKey === column.key
-                              ? sortDir === 'asc' ? '↑' : '↓'
-                              : '↕'}
-                          </span>
+                          {sortKey === column.key
+                            ? sortDir === 'asc'
+                              ? <ArrowUp className="h-3.5 w-3.5" />
+                              : <ArrowDown className="h-3.5 w-3.5" />
+                            : <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />}
                         </span>
                       ) : column.label}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
+                </UITableRow>
+              </TableHeader>
 
               {/* Table Body */}
-              <tbody className="divide-y divide-[rgba(196,198,207,0.1)]">
-                {sortedRows.map((row) => (
-                  <tr
+              <TableBody className="divide-y divide-input/10">
+                {sortedRows.map((row, rowIndex) => (
+                  <MotionTableRow
                     key={row.id}
-                    className={`group hover:bg-[#eae8e2]/60 transition-colors duration-150 ${row.className || ''} ${
-                      activeDropdown === row.id ? 'relative z-30' : ''
-                    }`}
+                    className={cn('group', row.className)}
+                    {...entrance(rowIndex)}
                   >
                     {columns.map((column, colIndex) => (
-                      <td
+                      <TableCell
                         key={`${row.id}-${column.key}`}
                         className={`${
                           column.align === 'right' ? 'text-right' : 
@@ -301,59 +320,47 @@ export const TableView: React.FC<TableViewProps> = ({
                         
                         {/* Actions dropdown */}
                         {column.key === 'actions' && row.actions && (
-                          <div className="relative dropdown-container flex justify-center py-4">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => onDropdownToggle?.(row.id)}
-                              icon={
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                                </svg>
-                              }
-                              title="More actions"
-                            />
-
-                            {activeDropdown === row.id && (
-                              <div className="absolute right-0 top-full mt-2 w-52 bg-[#fbf9f3] rounded-2xl shadow-[0_12px_32px_rgba(2,36,72,0.10)] z-50 py-2 border border-[rgba(196,198,207,0.15)]">
+                          <div className="flex justify-center py-4">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" title="More actions" aria-label="More actions">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-52">
                                 {row.actions.map((action, actionIndex) => (
-                                  <button
+                                  <DropdownMenuItem
                                     key={actionIndex}
-                                    onClick={() => {
-                                      action.onClick();
-                                      onDropdownToggle?.(null);
-                                    }}
-                                    className={`flex items-center justify-start text-left w-full px-4 py-2.5 text-sm transition-colors ${
-                                      action.variant === 'danger'
-                                        ? 'text-[#ba1a1a] hover:bg-[#ffdad6]'
-                                        : action.variant === 'warn'
-                                          ? 'text-amber-700 hover:bg-amber-50'
-                                          : 'text-[#1b1c19] hover:bg-[#eae8e2]'
-                                    } ${action.className || ''}`}
+                                    onSelect={action.onClick}
+                                    className={cn(
+                                      action.variant === 'danger' && 'text-destructive focus:bg-destructive-container focus:text-destructive',
+                                      action.variant === 'warn' && 'text-status-amber-fg focus:bg-status-amber/10 focus:text-status-amber-fg',
+                                      action.className
+                                    )}
                                   >
                                     {action.icon && (
-                                      <span className={`w-4 h-4 mr-3 ${action.variant === 'danger' ? 'text-[#ba1a1a]' : action.variant === 'warn' ? 'text-amber-600' : 'text-[#74777f]'}`}>
+                                      <span className={`w-4 h-4 mr-1 ${action.variant === 'danger' ? 'text-destructive' : action.variant === 'warn' ? 'text-status-amber-fg' : 'text-muted-foreground'}`}>
                                         {action.icon}
                                       </span>
                                     )}
                                     {action.label}
-                                  </button>
+                                  </DropdownMenuItem>
                                 ))}
-                              </div>
-                            )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         )}
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </MotionTableRow>
                 ))}
                 {trailingSpacerRow && sortedRows.length > 0 && (
-                  <tr aria-hidden="true" className="pointer-events-none">
-                    <td colSpan={columns.length} className="h-16" />
-                  </tr>
+                  <UITableRow aria-hidden="true" className="pointer-events-none">
+                    <TableCell colSpan={columns.length} className="h-16" />
+                  </UITableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       </div>

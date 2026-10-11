@@ -15,7 +15,8 @@ import { ProductFormProductDetailsSection } from "./ProductFormProductDetailsSec
 import { ProductFormRefundExpectationSection } from "./ProductFormRefundExpectationSection";
 import { updateProductPaid } from "./productFormUtils";
 import { ProductFormReviewRequirementSection } from "./ProductFormReviewRequirementSection";
-import { formFooterCancelClass, formFooterPrimaryClass } from "./productFormStyles";
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 
 interface AddProductFormProps {
   isOpen: boolean;
@@ -125,7 +126,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({
   const clipboardLabel = getClipboardImportLabel(importStatus);
 
   const modalHeader = (
-    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-[rgba(196,198,207,0.15)]">
+    <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-input/15">
       <h2 className={typography.modalTitle}>Add Product</h2>
       <div className="flex items-center gap-2 shrink-0">
         <button
@@ -137,46 +138,47 @@ const AddProductForm: React.FC<AddProductFormProps> = ({
         >
           <PaperClipIcon className="w-4 h-4" />
         </button>
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           type="button"
           onClick={handleCancel}
-          className="w-8 h-8 flex items-center justify-center text-[#74777f] hover:text-[#1b1c19] hover:bg-[#eae8e2] rounded-full transition-colors"
           aria-label="Close"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
-        </button>
+        </Button>
       </div>
     </div>
   );
 
   const modalBody = (
     <form id="add-product-form" onSubmit={handleSubmit}>
-      <div className="divide-y divide-[rgba(196,198,207,0.12)]">
+      <div className="divide-y divide-input/12">
         {importStatus !== 'idle' && (
           <div className="px-6 py-3">
-            <p className={`${typography.caption} text-[#74777f]`}>{clipboardLabel.text}</p>
+            <p className={`${typography.caption} text-muted-foreground`}>{clipboardLabel.text}</p>
           </div>
         )}
 
         {showPasteBox && (
           <div className="px-6 py-3">
-            <div className="rounded-xl border border-[rgba(196,198,207,0.4)] bg-white p-3 space-y-2">
-              <p className={`${typography.caption} text-[#74777f]`}>
+            <div className="rounded-xl border border-input/40 bg-card p-3 space-y-2">
+              <p className={`${typography.caption} text-muted-foreground`}>
                 Long-press below and tap <strong>Paste</strong>
               </p>
-              <textarea
+              <Textarea
                 autoFocus
                 rows={3}
                 placeholder="Paste bookmarklet data here…"
                 onPaste={handlePasteBoxPaste}
-                className={`w-full ${typography.caption} tabular-nums bg-white border border-[rgba(196,198,207,0.4)] rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#022448]/20 text-[#1b1c19] placeholder:text-[#c4c6cf]`}
+                className="min-h-0 rounded-lg py-2 text-caption md:text-caption tabular-nums placeholder:text-input"
               />
               <button
                 type="button"
                 onClick={() => setShowPasteBox(false)}
-                className={`${typography.caption} text-[#74777f] hover:text-[#1b1c19]`}
+                className={`${typography.caption} text-muted-foreground hover:text-foreground`}
               >
                 Cancel
               </button>
@@ -216,12 +218,12 @@ const AddProductForm: React.FC<AddProductFormProps> = ({
 
   const modalFooter = (
     <div className="flex gap-3 w-full">
-      <button type="button" onClick={handleCancel} className={formFooterCancelClass}>
+      <Button variant="outline" size="control" type="button" onClick={handleCancel} className="flex-1">
         Cancel
-      </button>
-      <button type="submit" form="add-product-form" className={formFooterPrimaryClass}>
+      </Button>
+      <Button size="control" type="submit" form="add-product-form" className="flex-1">
         Add Product
-      </button>
+      </Button>
     </div>
   );
 

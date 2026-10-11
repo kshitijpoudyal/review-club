@@ -41,12 +41,12 @@ const ProductThumbnail: React.FC<ProductThumbnailProps> = ({
   const showPlaceholder = !imageUrl || imageError;
 
   return (
-    <div className={`${sizeClasses[size]} rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 ${className}`}>
+    <div className={`${sizeClasses[size]} rounded-xl overflow-hidden bg-muted ring-1 ring-border/70 flex-shrink-0 ${className}`}>
       {showPlaceholder ? (
         // Placeholder with package icon
-        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+        <div className="w-full h-full bg-gradient-to-br from-muted to-surface-variant flex items-center justify-center">
           <svg
-            className={`${iconSizes[size]} text-gray-400`}
+            className={`${iconSizes[size]} text-muted-foreground`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -64,8 +64,8 @@ const ProductThumbnail: React.FC<ProductThumbnailProps> = ({
         <>
           {/* Loading state */}
           {imageLoading && (
-            <div className="w-full h-full bg-gray-200 animate-pulse flex items-center justify-center">
-              <div className={`${iconSizes[size]} bg-gray-300 rounded`}></div>
+            <div className="w-full h-full bg-surface-variant animate-pulse flex items-center justify-center">
+              <div className={`${iconSizes[size]} bg-input rounded`}></div>
             </div>
           )}
           {/* Actual image */}

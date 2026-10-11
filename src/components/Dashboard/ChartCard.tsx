@@ -1,4 +1,6 @@
 import React from 'react';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { typography } from '../../utils/typography';
 
 interface ChartCardProps {
@@ -14,17 +16,12 @@ export const ChartCard: React.FC<ChartCardProps> = ({
   children,
   className = '',
 }) => (
-  <div
-    className={`bg-white rounded-2xl overflow-hidden shadow-[0_2px_12px_rgba(2,36,72,0.07)] ${className}`}
-  >
-    <div className="h-0.5 bg-[#e4e2dd]" />
-    <div className="p-4 sm:p-5">
-      <h3 className={`${typography.bodyStrong} mb-0.5`}>{title}</h3>
-      {subtitle && (
-        <p className={`${typography.caption} mb-3`}>{subtitle}</p>
-      )}
-      {!subtitle && <div className="mb-3" />}
-      {children}
-    </div>
-  </div>
+  <Card className={cn('overflow-hidden p-4 sm:p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-soft-lg', className)}>
+    <h3 className={`${typography.bodyStrong} mb-0.5`}>{title}</h3>
+    {subtitle && (
+      <p className={`${typography.caption} mb-3`}>{subtitle}</p>
+    )}
+    {!subtitle && <div className="mb-3" />}
+    {children}
+  </Card>
 );

@@ -4,6 +4,9 @@ import { PayPalCSVImporter } from './PayPalCSVImporter';
 import { colors } from '../../utils/colors';
 import { Modal } from '../common';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 interface AddTransactionFormProps {
   isOpen: boolean;
@@ -43,8 +46,11 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setField(e.target.name, e.target.value);
+  };
+
+  const setField = (name: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -185,12 +191,11 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
               <label className={`block text-sm ${colors.form.label} mb-1`}>
                 Date *
               </label>
-              <input
+              <Input
                 type="date"
                 name="date"
                 value={formData.date}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 rounded-md ${colors.form.input.base}`}
                 required
                 disabled={isLoading}
               />
@@ -200,12 +205,11 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
               <label className={`block text-sm ${colors.form.label} mb-1`}>
                 Time *
               </label>
-              <input
+              <Input
                 type="time"
                 name="time"
                 value={formData.time}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 rounded-md ${colors.form.input.base}`}
                 required
                 disabled={isLoading}
               />
@@ -216,14 +220,14 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
               <label className={`block text-sm ${colors.form.label} mb-1`}>
                 Name *
               </label>
-              <input
+              <Input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
                 placeholder="Payer/Recipient name"
-                className={`w-full px-3 py-2 rounded-md ${errors.name ? colors.form.input.error : colors.form.input.base
-                  }`}
+                className={`${errors.name ? colors.form.input.error : ''
+ }`}
                 required
                 disabled={isLoading}
               />
@@ -235,17 +239,21 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
               <label className={`block text-sm ${colors.form.label} mb-1`}>
                 Payment method
               </label>
-              <select
+              <Select
                 name="paymentMethod"
-                value={formData.paymentMethod}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 rounded-md ${colors.form.input.base}`}
+                value={formData.paymentMethod || undefined}
+                onValueChange={(value) => setField('paymentMethod', value)}
                 disabled={isLoading}
               >
-                {activePaymentMethods.map(pm => (
-                  <option key={pm.id} value={pm.name}>{pm.name}</option>
-                ))}
-              </select>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {activePaymentMethods.map(pm => (
+                    <SelectItem key={pm.id} value={pm.name}>{pm.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Amount */}
@@ -253,15 +261,15 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
               <label className={`block text-sm ${colors.form.label} mb-1`}>
                 Amount *
               </label>
-              <input
+              <Input
                 type="number"
                 step="0.01"
                 name="amount"
                 value={formData.amount}
                 onChange={handleInputChange}
                 placeholder="0.00"
-                className={`w-full px-3 py-2 rounded-md ${errors.amount ? colors.form.input.error : colors.form.input.base
-                  }`}
+                className={`${errors.amount ? colors.form.input.error : ''
+ }`}
                 required
                 disabled={isLoading}
               />
@@ -273,15 +281,15 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
               <label className={`block text-sm ${colors.form.label} mb-1`}>
                 Fees
               </label>
-              <input
+              <Input
                 type="number"
                 step="0.01"
                 name="fees"
                 value={formData.fees}
                 onChange={handleInputChange}
                 placeholder="0.00"
-                className={`w-full px-3 py-2 rounded-md ${errors.fees ? colors.form.input.error : colors.form.input.base
-                  }`}
+                className={`${errors.fees ? colors.form.input.error : ''
+ }`}
                 disabled={isLoading}
               />
               {errors.fees && <p className={`${colors.text.danger} text-sm mt-1`}>{errors.fees}</p>}
@@ -292,14 +300,14 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
               <label className={`block text-sm ${colors.form.label} mb-1`}>
                 Total (Auto-calculated)
               </label>
-              <input
+              <Input
                 type="number"
                 step="0.01"
                 name="total"
                 value={formData.total}
                 onChange={handleInputChange}
                 placeholder="0.00"
-                className={`w-full px-3 py-2 rounded-md ${colors.form.input.disabled} ${colors.form.input.base}`}
+                className={`${colors.form.input.disabled}`}
                 disabled={isLoading}
               />
             </div>
@@ -309,14 +317,14 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
               <label className={`block text-sm ${colors.form.label} mb-1`}>
                 Transaction ID *
               </label>
-              <input
+              <Input
                 type="text"
                 name="transactionId"
                 value={formData.transactionId}
                 onChange={handleInputChange}
                 placeholder="Unique transaction ID"
-                className={`w-full px-3 py-2 rounded-md ${errors.transactionId ? colors.form.input.error : colors.form.input.base
-                  }`}
+                className={`${errors.transactionId ? colors.form.input.error : ''
+ }`}
                 required
                 disabled={isLoading}
               />
@@ -327,13 +335,12 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
               <label className={`block text-sm ${colors.form.label} mb-1`}>
                 Receipt ID
               </label>
-              <input
+              <Input
                 type="text"
                 name="receiptId"
                 value={formData.receiptId}
                 onChange={handleInputChange}
                 placeholder="Optional"
-                className={`w-full px-3 py-2 rounded-md ${colors.form.input.base}`}
                 disabled={isLoading}
               />
             </div>
@@ -354,19 +361,20 @@ export const AddTransactionForm: React.FC<AddTransactionFormProps> = ({
   const modalFooter = activeTab === 'manual' ? (
     <form onSubmit={handleSubmit}>
       <div className="flex space-x-3">
-        <button
+        <Button
+          variant="secondary"
           type="button"
           onClick={onCancel}
-          className={`flex-1 px-4 py-3 ${colors.button.secondary} rounded-lg font-medium text-base`}
+          className="flex-1 py-3 rounded-lg text-base"
         >
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
-          className={`flex-1 px-4 py-3 ${colors.button.primary} rounded-lg font-medium text-base`}
+          className="flex-1 py-3 rounded-lg text-base"
         >
           Update
-        </button>
+        </Button>
       </div>
     </form>
   ) : null;

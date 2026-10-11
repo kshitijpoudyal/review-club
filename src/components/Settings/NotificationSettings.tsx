@@ -4,6 +4,8 @@ import { useNotificationSettings } from '../../hooks/useNotificationSettings';
 import { ToggleSwitch } from '../common/ToggleSwitch';
 import { typography } from '../../utils/typography';
 import { colors } from '../../utils/colors';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export const NotificationSettings: React.FC = () => {
   const { returnReminderDays, returnReminderEnabled, loading, setReturnReminderDays, setReturnReminderEnabled } =
@@ -34,7 +36,7 @@ export const NotificationSettings: React.FC = () => {
     <section className={`${colors.card.background} rounded-2xl ${colors.card.border} ${colors.card.shadow} overflow-hidden`}>
       <div className="p-4 sm:p-6 md:p-8">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[#006a68]/10 text-[#006a68] border border-[#006a68]/20 flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-brand/10 text-brand border border-brand/20 flex items-center justify-center shrink-0">
             <ClockIcon className="w-6 h-6" />
           </div>
           <div className="space-y-3 flex-1 min-w-0">
@@ -56,25 +58,26 @@ export const NotificationSettings: React.FC = () => {
               <label htmlFor="return-reminder-days" className="text-sm font-medium">
                 Remind me after
               </label>
-              <input
+              <Input
                 id="return-reminder-days"
                 type="number"
                 min={1}
                 value={draft}
                 onChange={(e) => setDraft(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                className="w-20 px-3 py-1.5 rounded-lg border border-[rgba(196,198,207,0.4)] text-sm text-center"
+                className="h-9 w-20 rounded-lg px-2 text-center"
               />
               <span className="text-sm">days since order</span>
 
-              <button
+              <Button
+                variant="secondary"
                 onClick={handleSave}
                 disabled={!isDirty || isSaving}
-                className={`${colors.button.secondary} px-4 py-1.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                className="py-1.5 rounded-lg"
               >
                 {isSaving ? 'Saving...' : 'Save'}
-              </button>
+              </Button>
 
-              {saved && <span className="text-sm text-green-700">Saved</span>}
+              {saved && <span className="text-sm text-brand">Saved</span>}
             </div>
           </div>
         </div>

@@ -5,11 +5,11 @@ import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { usePaymentMethods } from '../../hooks/usePaymentMethods';
 import {
-  formFooterCancelClass,
-  formFooterPrimaryClass,
-  formInputClass,
   formLabelClass,
 } from '../ProductDashboard/productFormStyles';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 interface EditTransactionModalProps {
   transaction: Transaction | null;
@@ -69,8 +69,11 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     setErrors({});
   }, [isOpen, transaction]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setField(e.target.name, e.target.value);
+  };
+
+  const setField = (name: string, value: string) => {
     setFormData((prev) => {
       const next = { ...prev, [name]: value };
       if (name === 'amount' || name === 'fees') {
@@ -131,39 +134,37 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label htmlFor="edit-pp-date" className={formLabelClass}>Date</label>
-        <input
+        <Input
           id="edit-pp-date"
           type="date"
           name="date"
           value={formData.date}
           onChange={handleInputChange}
-          className={formInputClass}
           disabled={disabled}
           required
         />
       </div>
       <div>
         <label htmlFor="edit-pp-time" className={formLabelClass}>Time</label>
-        <input
+        <Input
           id="edit-pp-time"
           type="time"
           name="time"
           value={formData.time}
           onChange={handleInputChange}
-          className={formInputClass}
           disabled={disabled}
           required
         />
       </div>
       <div className="sm:col-span-2">
         <label htmlFor="edit-pp-name" className={formLabelClass}>Name</label>
-        <input
+        <Input
           id="edit-pp-name"
           type="text"
           name="name"
           value={formData.name}
           onChange={handleInputChange}
-          className={`${formInputClass} ${errors.name ? colors.form.input.error : ''}`}
+          className={`${errors.name ? colors.form.input.error : ''}`}
           disabled={disabled}
           required
         />
@@ -171,29 +172,32 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
       </div>
       <div>
         <label htmlFor="edit-pp-payment-method" className={formLabelClass}>Payment method</label>
-        <select
-          id="edit-pp-payment-method"
+        <Select
           name="paymentMethod"
-          value={formData.paymentMethod}
-          onChange={handleInputChange}
-          className={formInputClass}
+          value={formData.paymentMethod || undefined}
+          onValueChange={(value) => setField('paymentMethod', value)}
           disabled={disabled}
         >
-          {activePaymentMethods.map(pm => (
-            <option key={pm.id} value={pm.name}>{pm.name}</option>
-          ))}
-        </select>
+          <SelectTrigger id="edit-pp-payment-method">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {activePaymentMethods.map(pm => (
+              <SelectItem key={pm.id} value={pm.name}>{pm.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <label htmlFor="edit-pp-amount" className={formLabelClass}>Amount</label>
-        <input
+        <Input
           id="edit-pp-amount"
           type="number"
           step="0.01"
           name="amount"
           value={formData.amount}
           onChange={handleInputChange}
-          className={`${formInputClass} tabular-nums ${errors.amount ? colors.form.input.error : ''}`}
+          className={`tabular-nums ${errors.amount ? colors.form.input.error : ''}`}
           disabled={disabled}
           required
         />
@@ -201,40 +205,40 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
       </div>
       <div>
         <label htmlFor="edit-pp-fees" className={formLabelClass}>Fees</label>
-        <input
+        <Input
           id="edit-pp-fees"
           type="number"
           step="0.01"
           name="fees"
           value={formData.fees}
           onChange={handleInputChange}
-          className={`${formInputClass} tabular-nums ${errors.fees ? colors.form.input.error : ''}`}
+          className={`tabular-nums ${errors.fees ? colors.form.input.error : ''}`}
           disabled={disabled}
         />
         {errors.fees && <p className={`${typography.caption} ${colors.text.danger} mt-1`}>{errors.fees}</p>}
       </div>
       <div>
         <label htmlFor="edit-pp-total" className={formLabelClass}>Net received</label>
-        <input
+        <Input
           id="edit-pp-total"
           type="number"
           step="0.01"
           name="total"
           value={formData.total}
           onChange={handleInputChange}
-          className={`${formInputClass} tabular-nums ${colors.form.input.disabled}`}
+          className={`tabular-nums ${colors.form.input.disabled}`}
           disabled={disabled}
         />
       </div>
       <div className="sm:col-span-2">
         <label htmlFor="edit-pp-transaction-id" className={formLabelClass}>Transaction ID</label>
-        <input
+        <Input
           id="edit-pp-transaction-id"
           type="text"
           name="transactionId"
           value={formData.transactionId}
           onChange={handleInputChange}
-          className={`${formInputClass} ${errors.transactionId ? colors.form.input.error : ''}`}
+          className={`${errors.transactionId ? colors.form.input.error : ''}`}
           disabled={disabled}
           required
         />
@@ -244,25 +248,23 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
       </div>
       <div className="sm:col-span-2">
         <label htmlFor="edit-pp-item-title" className={formLabelClass}>Item title</label>
-        <input
+        <Input
           id="edit-pp-item-title"
           type="text"
           name="itemTitle"
           value={formData.itemTitle}
           onChange={handleInputChange}
-          className={formInputClass}
           disabled={disabled}
         />
       </div>
       <div className="sm:col-span-2">
         <label htmlFor="edit-pp-receipt-id" className={formLabelClass}>Receipt ID</label>
-        <input
+        <Input
           id="edit-pp-receipt-id"
           type="text"
           name="receiptId"
           value={formData.receiptId}
           onChange={handleInputChange}
-          className={formInputClass}
           disabled={disabled}
         />
       </div>
@@ -272,12 +274,12 @@ export const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
 
   const footer = (
     <form onSubmit={handleSubmit} className="flex gap-3 w-full">
-      <button type="button" onClick={onClose} className={formFooterCancelClass} disabled={disabled}>
+      <Button variant="outline" size="control" type="button" onClick={onClose} className="flex-1" disabled={disabled}>
         Cancel
-      </button>
-      <button type="submit" className={formFooterPrimaryClass} disabled={disabled}>
+      </Button>
+      <Button size="control" type="submit" className="flex-1" disabled={disabled}>
         {saving ? 'Saving…' : 'Save changes'}
-      </button>
+      </Button>
     </form>
   );
 

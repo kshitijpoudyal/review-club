@@ -1,4 +1,10 @@
 import React, { ReactNode } from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { X } from 'lucide-react';
+import { Dialog, DialogOverlay, DialogPortal, DialogTitle } from '@/components/ui/dialog';
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { cn } from '@/lib/utils';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 
@@ -15,12 +21,22 @@ interface ModalProps {
     className?: string;
 }
 
+// Size classes for responsive modal widths
+const sizeClasses = {
+    sm: 'max-w-sm',
+    md: 'max-w-2xl',
+    lg: 'max-w-4xl',
+    xl: 'max-w-6xl'
+};
+
 /**
  * Reusable Modal Component
- * 
- * A flexible modal component that can be used across the application.
+ *
+ * A flexible modal built on the shadcn/ui Dialog (Radix), which provides the
+ * focus trap, scroll lock, Escape/backdrop dismissal and open/close animation.
+ * Below the `md` breakpoint it renders as a swipe-to-dismiss bottom sheet (vaul).
  * Supports custom header, body, and footer content with responsive design.
- * 
+ *
  * @param isOpen - Whether the modal is visible
  * @param onClose - Function to call when modal should be closed
  * @param title - Optional title for the header (used if header prop not provided)
@@ -42,103 +58,104 @@ const Modal: React.FC<ModalProps> = ({
     footer,
     className = ''
 }) => {
-    if (!isOpen) return null;
-
-    // Size classes for responsive modal widths
-    const sizeClasses = {
-        sm: 'max-w-sm',
-        md: 'max-w-2xl',
-        lg: 'max-w-4xl',
-        xl: 'max-w-6xl'
+    const isMobile = useIsMobile();
+    const Title = isMobile ? DrawerTitle : DialogTitle;
+    const Close = isMobile ? DrawerClose : DialogPrimitive.Close;
+    const handleOpenChange = (open: boolean) => {
+        if (!open) onClose();
     };
-
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            onClose();
+    // Toasts render outside the dialog; clicking one shouldn't close it.
+    const keepOpenForToasts = (e: Event) => {
+        if ((e.target as Element | null)?.closest?.('[data-sonner-toaster]')) {
+            e.preventDefault();
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Escape') {
-            onClose();
-        }
-    };
+    const sections = (
+        <>
+            {/* Header — custom headers manage their own padding/border */}
+            {header ? (
+                <div className="flex-shrink-0">
+                    <Title className="sr-only">{title || 'Dialog'}</Title>
+                    {header}
+                </div>
+            ) : (title || showCloseButton) ? (
+                <div className={`flex-shrink-0 p-4 sm:p-6 border-b ${colors.border.default}`}>
+                    <div className="flex justify-between items-center">
+                        <Title className={title ? `${typography.modalTitle} ${colors.text.primary}` : 'sr-only'}>
+                            {title || 'Dialog'}
+                        </Title>
+                        {showCloseButton && (
+                            <Close
+                                className={`${colors.button.close} rounded-full transition-colors p-2 sm:p-1 -mr-2 sm:-mr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                                aria-label="Close modal"
+                            >
+                                <X className="w-6 h-6" />
+                            </Close>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <Title className="sr-only">Dialog</Title>
+            )}
+
+            {/* Body - Scrollable */}
+            <div className="flex-1 overflow-y-auto modern-scrollbar">
+                {body}
+            </div>
+
+            {/* Footer */}
+            {footer && (
+                <div className={`flex-shrink-0 bg-background border-t ${colors.border.default} p-4 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6 justify-between`}>
+                    {footer}
+                </div>
+            )}
+        </>
+    );
+
+    if (isMobile) {
+        return (
+            <Drawer open={isOpen} onOpenChange={handleOpenChange}>
+                <DrawerContent
+                    aria-describedby={undefined}
+                    onInteractOutside={keepOpenForToasts}
+                    className={cn('max-h-[92svh] overflow-hidden', className)}
+                >
+                    {sections}
+                </DrawerContent>
+            </Drawer>
+        );
+    }
 
     return (
-        <div
-            className={`fixed inset-0 ${colors.modal.overlay} flex items-start justify-center p-2 pt-4 sm:p-4 sm:pt-8 z-50`}
-            onClick={handleBackdropClick}
-            onKeyDown={handleKeyDown}
-            tabIndex={-1}
-            role="dialog"
-            aria-modal="true"
-        >
-            <div
-                className={`
-                bg-[#fbf9f3]/95 backdrop-blur-[12px]
-                rounded-2xl
-                ${colors.modal.shadow} 
-                ${sizeClasses[size]} 
-                w-full 
-                max-h-[90svh]
-                overflow-hidden 
-                relative 
-                flex 
-                flex-col
-                ${className}
-                `}
-            >
-                {/* Header — custom headers manage their own padding/border */}
-                {header ? (
-                    <div className="flex-shrink-0">
-                        {header}
-                    </div>
-                ) : (title || showCloseButton) ? (
-                    <div className={`flex-shrink-0 p-4 sm:p-6 border-b ${colors.border.default}`}>
-                        <div className="flex justify-between items-center">
-                            {title && (
-                                <h2 className={`${typography.modalTitle} ${colors.text.primary}`}>
-                                    {title}
-                                </h2>
-                            )}
-                            {showCloseButton && (
-                                <button
-                                    onClick={onClose}
-                                    className={`${colors.button.close} transition-colors p-2 sm:p-1 -mr-2 sm:-mr-1`}
-                                    aria-label="Close modal"
-                                >
-                                    <svg
-                                        className="w-6 h-6"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M6 18L18 6M6 6l12 12"
-                                        />
-                                    </svg>
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ) : null}
-
-                {/* Body - Scrollable */}
-                <div className="flex-1 overflow-y-auto overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                    {body}
-                </div>
-
-                {/* Footer */}
-                {footer && (
-                    <div className={`flex-shrink-0 bg-[#fbf9f3] border-t ${colors.border.default} p-4 sm:p-6 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-6 justify-between`}>
-                        {footer}
-                    </div>
-                )}
-            </div>
-        </div>
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+            <DialogPortal>
+                <DialogOverlay className="flex items-start justify-center p-2 pt-4 sm:p-4 sm:pt-8">
+                    <DialogPrimitive.Content
+                        aria-describedby={undefined}
+                        // Keep focus on the panel instead of the first field; explicit autoFocus still wins.
+                        onOpenAutoFocus={(e) => {
+                            e.preventDefault();
+                            const panel = e.currentTarget as HTMLElement;
+                            if (!panel.contains(document.activeElement)) panel.focus();
+                        }}
+                        onInteractOutside={keepOpenForToasts}
+                        className={cn(
+                            'relative flex max-h-[90svh] w-full flex-col overflow-hidden rounded-2xl',
+                            'bg-background/95 backdrop-blur-[12px] shadow-navy-lg focus:outline-none',
+                            'data-[state=open]:duration-300 data-[state=closed]:duration-150 data-[state=open]:ease-[cubic-bezier(0.34,1.4,0.64,1)] data-[state=open]:animate-in data-[state=closed]:animate-out',
+                            'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
+                            'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
+                            'data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-2',
+                            sizeClasses[size],
+                            className
+                        )}
+                    >
+                        {sections}
+                    </DialogPrimitive.Content>
+                </DialogOverlay>
+            </DialogPortal>
+        </Dialog>
     );
 };
 

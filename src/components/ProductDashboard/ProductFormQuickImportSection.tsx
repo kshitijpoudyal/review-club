@@ -2,6 +2,7 @@ import { typography } from '../../utils/typography';
 import React from 'react';
 import { PaperClipIcon } from '@heroicons/react/24/outline';
 import { getClipboardImportLabel, ImportStatus } from './productFormUtils';
+import { Textarea } from '@/components/ui/textarea';
 
 interface ProductFormQuickImportSectionProps {
   importStatus: ImportStatus;
@@ -15,10 +16,10 @@ interface ProductFormQuickImportSectionProps {
 
 export function clipboardIconButtonClass(status: ImportStatus): string {
   const base = 'inline-flex items-center justify-center w-9 h-9 rounded-lg border transition-colors shrink-0';
-  if (status === 'success') return `${base} bg-[#006a68]/10 text-[#006a68] border-[#006a68]/25`;
-  if (status === 'url-only') return `${base} bg-amber-50 text-amber-700 border-amber-200`;
-  if (status === 'error') return `${base} bg-[#ffdad6] text-[#ba1a1a] border-[#ba1a1a]/20`;
-  return `${base} bg-[#eae8e2] text-[#43474e] border-transparent hover:bg-[#e4e2dd]`;
+  if (status === 'success') return `${base} bg-brand/10 text-brand border-brand/25`;
+  if (status === 'url-only') return `${base} bg-status-amber/10 text-status-amber-fg border-status-amber/30`;
+  if (status === 'error') return `${base} bg-destructive-container text-destructive border-destructive/20`;
+  return `${base} bg-secondary text-on-surface-variant border-transparent hover:bg-surface-variant`;
 }
 
 export const ProductFormQuickImportSection: React.FC<ProductFormQuickImportSectionProps> = ({
@@ -45,26 +46,26 @@ export const ProductFormQuickImportSection: React.FC<ProductFormQuickImportSecti
           <PaperClipIcon className="w-4 h-4" />
         </button>
         {importStatus !== 'idle' && (
-          <span className={`${typography.caption} text-[#74777f]`}>{clipboardLabel.text}</span>
+          <span className={`${typography.caption} text-muted-foreground`}>{clipboardLabel.text}</span>
         )}
       </div>
 
       {showPasteBox && (
-        <div className="rounded-xl border border-[rgba(196,198,207,0.4)] bg-white p-3 space-y-2">
-          <p className={`${typography.caption} text-[#74777f]`}>
+        <div className="rounded-xl border border-input/40 bg-card p-3 space-y-2">
+          <p className={`${typography.caption} text-muted-foreground`}>
             Long-press below and tap <strong>Paste</strong>
           </p>
-          <textarea
+          <Textarea
             autoFocus
             rows={3}
             placeholder="Paste bookmarklet data here…"
             onPaste={onPasteBoxPaste}
-            className={`w-full ${typography.caption} tabular-nums bg-white border border-[rgba(196,198,207,0.4)] rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#022448]/20 text-[#1b1c19] placeholder:text-[#c4c6cf]`}
+            className="min-h-0 rounded-lg py-2 text-caption md:text-caption tabular-nums placeholder:text-input"
           />
           <button
             type="button"
             onClick={onPasteBoxClose}
-            className={`${typography.caption} text-[#74777f] hover:text-[#1b1c19]`}
+            className={`${typography.caption} text-muted-foreground hover:text-foreground`}
           >
             Cancel
           </button>

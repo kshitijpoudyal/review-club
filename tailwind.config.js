@@ -1,5 +1,8 @@
+import tailwindcssAnimate from 'tailwindcss-animate'
+
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -13,40 +16,70 @@ export default {
   theme: {
     extend: {
       colors: {
-        // HustleBooks "Synthetic Naturalist" palette
+        // Semantic tokens (shadcn/ui) — values live in src/index.css
+        border: 'hsl(var(--border) / <alpha-value>)',
+        input: 'hsl(var(--input) / <alpha-value>)',
+        ring: 'hsl(var(--ring) / <alpha-value>)',
+        background: 'hsl(var(--background) / <alpha-value>)',
+        foreground: 'hsl(var(--foreground) / <alpha-value>)',
         primary: {
-          DEFAULT: '#022448',
-          container: '#1e3a5f',
-          foreground: '#ffffff',
+          DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+          container: 'hsl(var(--primary-container) / <alpha-value>)',
+          foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
         },
         secondary: {
-          DEFAULT: '#006a68',
-          container: '#86f4f1',
-          foreground: '#ffffff',
+          DEFAULT: 'hsl(var(--secondary) / <alpha-value>)',
+          foreground: 'hsl(var(--secondary-foreground) / <alpha-value>)',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+          foreground: 'hsl(var(--muted-foreground) / <alpha-value>)',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+          foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
+          foreground: 'hsl(var(--popover-foreground) / <alpha-value>)',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card) / <alpha-value>)',
+          foreground: 'hsl(var(--card-foreground) / <alpha-value>)',
+        },
+        // Teal accent of the Synthetic Naturalist palette
+        brand: {
+          DEFAULT: 'hsl(var(--brand) / <alpha-value>)',
+          foreground: 'hsl(var(--brand-foreground) / <alpha-value>)',
         },
         surface: {
-          DEFAULT: '#fbf9f3',
-          dim: '#dcdad4',
-          variant: '#e4e2dd',
-          'container-lowest': '#ffffff',
-          'container-low': '#f5f3ee',
-          'container': '#f0eee8',
-          'container-high': '#eae8e2',
-          'container-highest': '#e4e2dd',
+          variant: 'hsl(var(--surface-variant) / <alpha-value>)',
+          'container-low': 'hsl(var(--surface-container-low) / <alpha-value>)',
+          dim: 'hsl(var(--surface-dim) / <alpha-value>)',
         },
-        'on-surface': '#1b1c19',
-        'on-surface-variant': '#43474e',
-        outline: {
-          DEFAULT: '#74777f',
-          variant: '#c4c6cf',
+        'on-surface': 'hsl(var(--foreground) / <alpha-value>)',
+        'on-surface-variant': 'hsl(var(--on-surface-variant) / <alpha-value>)',
+        header: {
+          DEFAULT: 'hsl(var(--header) / <alpha-value>)',
+          container: 'hsl(var(--header-container) / <alpha-value>)',
+        },
+        status: {
+          blue: 'hsl(var(--status-blue) / <alpha-value>)',
+          'blue-fg': 'hsl(var(--status-blue-fg) / <alpha-value>)',
+          indigo: 'hsl(var(--status-indigo) / <alpha-value>)',
+          'indigo-fg': 'hsl(var(--status-indigo-fg) / <alpha-value>)',
+          amber: 'hsl(var(--status-amber) / <alpha-value>)',
+          'amber-fg': 'hsl(var(--status-amber-fg) / <alpha-value>)',
+          slate: 'hsl(var(--status-slate) / <alpha-value>)',
+          'slate-fg': 'hsl(var(--status-slate-fg) / <alpha-value>)',
+          gray: 'hsl(var(--status-gray) / <alpha-value>)',
+          paypal: 'hsl(var(--status-paypal) / <alpha-value>)',
+          'paypal-fg': 'hsl(var(--status-paypal-fg) / <alpha-value>)',
         },
         destructive: {
-          DEFAULT: '#ba1a1a',
-          container: '#ffdad6',
-        },
-        tertiary: {
-          DEFAULT: '#341f00',
-          container: '#503300',
+          DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
+          container: 'hsl(var(--destructive-container) / <alpha-value>)',
+          foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
         },
         store: {
           amazon: '#FF9900',
@@ -63,6 +96,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        display: ['"Fraunces Variable"', 'Georgia', 'ui-serif', 'serif'],
       },
       fontSize: {
         'page-title': ['1.5rem', { lineHeight: '2rem' }],
@@ -75,15 +109,25 @@ export default {
         'stat-value': ['1.25rem', { lineHeight: '1.5rem' }],
         'stat-label': ['0.75rem', { lineHeight: '1rem' }],
       },
+      // Tint steps used by status badges and row highlights (bg-brand/12, bg-primary/8)
+      opacity: {
+        8: '0.08',
+        12: '0.12',
+      },
       borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
         squircle: '1.25rem',
         'squircle-lg': '2rem',
       },
       boxShadow: {
-        navy: '0 12px 32px rgba(2, 36, 72, 0.06)',
-        'navy-md': '0 12px 32px rgba(2, 36, 72, 0.10)',
-        'navy-lg': '0 24px 64px rgba(2, 36, 72, 0.12)',
-        card: '0 20px 40px rgba(2, 36, 72, 0.08)',
+        navy: '0 12px 32px rgb(var(--shadow-color) / 0.06)',
+        'navy-md': '0 12px 32px rgb(var(--shadow-color) / 0.10)',
+        'navy-lg': '0 24px 64px rgb(var(--shadow-color) / 0.12)',
+        card: '0 20px 40px rgb(var(--shadow-color) / 0.08)',
+        soft: '0 2px 12px rgb(var(--shadow-color) / 0.07)',
+        'soft-lg': '0 6px 20px rgb(var(--shadow-color) / 0.11)',
       },
       animation: {
         shimmer: 'shimmer 2s infinite linear',
@@ -96,5 +140,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [tailwindcssAnimate],
 }

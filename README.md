@@ -24,7 +24,8 @@ A modern React.js dashboard application built with TypeScript, Vite, Tailwind CS
 
 - **Frontend**: React 18 with TypeScript
 - **Build Tool**: Vite
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS with design tokens as CSS variables (`src/index.css`)
+- **UI Components**: shadcn/ui (Radix primitives) in `src/components/ui`, plus sonner (toasts) and vaul (mobile sheets)
 - **Database**: Firebase Firestore
 - **State Management**: React Hooks (useState, useEffect, useMemo)
 

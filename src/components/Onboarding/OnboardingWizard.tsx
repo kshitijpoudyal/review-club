@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOnboardingStatus } from '../../hooks/useOnboardingStatus';
 import { typography } from '../../utils/typography';
-import { colors } from '../../utils/colors';
 import { ONBOARDING_STEPS, ONBOARDING_TOTAL_STEPS } from './onboardingSteps';
+import { Button } from '@/components/ui/button';
 
 export const OnboardingWizard: React.FC = () => {
   const navigate = useNavigate();
@@ -48,11 +48,11 @@ export const OnboardingWizard: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-[#fbf9f3]" />;
+    return <div className="min-h-screen bg-background" />;
   }
 
   return (
-    <div className="h-dvh bg-[#fbf9f3] flex flex-col overflow-hidden">
+    <div className="h-dvh bg-background flex flex-col overflow-hidden">
       <div className="shrink-0 max-w-2xl w-full mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-4">
         <div className="flex items-center justify-between gap-4 mb-2">
           <span className={typography.caption}>
@@ -63,7 +63,7 @@ export const OnboardingWizard: React.FC = () => {
               <span
                 key={s.key}
                 className={`w-2 h-2 rounded-full transition-colors ${
-                  i <= step ? 'bg-[#006a68]' : 'bg-[rgba(196,198,207,0.5)]'
+                  i <= step ? 'bg-brand' : 'bg-input/50'
                 }`}
               />
             ))}
@@ -96,32 +96,34 @@ export const OnboardingWizard: React.FC = () => {
       </div>
 
       <div className="shrink-0 max-w-2xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 flex items-center justify-between gap-3">
-        <button
+        <Button
+          variant="secondary"
           type="button"
           onClick={goBack}
           disabled={step === 0}
-          className={`${colors.button.secondary} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-0 disabled:pointer-events-none`}
+          className="rounded-xl disabled:opacity-0 disabled:pointer-events-none"
         >
           Back
-        </button>
+        </Button>
         <div className="flex items-center gap-3">
           {current.skippable && (
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={goNext}
-              className={`${colors.button.secondary} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors`}
+              className="rounded-xl"
             >
               Skip for now
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="button"
             onClick={goNext}
             disabled={finishing}
-            className={`${colors.button.primary} px-6 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+            className="px-6 rounded-xl"
           >
             {isLastStep ? (finishing ? 'Finishing...' : 'Finish') : 'Next'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

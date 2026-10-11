@@ -40,8 +40,8 @@ export const ProductFormReviewJourneySection: React.FC<ProductFormReviewJourneyS
               >
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-150 ${
                   done
-                    ? 'bg-[#006a68] border-[#006a68] text-white group-hover:bg-[#005856]'
-                    : 'bg-white border-[#c4c6cf] text-[#74777f] group-hover:border-[#006a68] group-hover:text-[#006a68]'
+                    ? 'bg-brand border-brand text-brand-foreground group-hover:bg-brand/90'
+                    : 'bg-card border-input text-muted-foreground group-hover:border-brand group-hover:text-brand'
                 }`}>
                   {done ? (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,14 +52,14 @@ export const ProductFormReviewJourneySection: React.FC<ProductFormReviewJourneyS
                   )}
                 </div>
                 <span className={`${typography.caption} text-center leading-tight transition-colors ${
-                  done ? 'text-[#006a68] font-semibold' : 'text-[#74777f]'
+                  done ? 'text-brand font-semibold' : 'text-muted-foreground'
                 }`}>
                   {step.label}
                 </span>
               </button>
               {i < REVIEW_STEPS.length - 1 && (
                 <div className={`h-0.5 flex-1 mx-1 mt-[18px] transition-colors duration-300 ${
-                  done && nextDone ? 'bg-[#006a68]' : 'bg-[#e4e2dd]'
+                  done && nextDone ? 'bg-brand' : 'bg-surface-variant'
                 }`} />
               )}
             </React.Fragment>
@@ -68,7 +68,7 @@ export const ProductFormReviewJourneySection: React.FC<ProductFormReviewJourneyS
       </div>
 
       {allStepsDone && (
-        <p className="text-xs text-[#006a68] font-medium mt-3 text-center">
+        <p className="text-xs text-brand font-medium mt-3 text-center">
           🎉 All steps complete!
         </p>
       )}

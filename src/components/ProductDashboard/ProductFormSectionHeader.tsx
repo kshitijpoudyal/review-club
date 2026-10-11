@@ -10,7 +10,7 @@ export const ProductFormSectionHeader: React.FC<ProductFormSectionHeaderProps> =
   title,
   className = 'mb-3',
 }) => (
-  <p className={`${typography.label} text-[#74777f] ${className}`}>
+  <p className={`${typography.label} text-muted-foreground ${className}`}>
     {title}
   </p>
 );

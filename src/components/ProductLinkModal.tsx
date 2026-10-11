@@ -22,12 +22,12 @@ import { getExpectedReceivedForProduct, getRefundVariance } from '../utils/refun
 import { getBadgeClasses } from '../utils/colors';
 import { typography } from '../utils/typography';
 import {
-  formFooterCancelClass,
-  formFooterPrimaryClass,
-  formInputClass,
   formLabelClass,
 } from './ProductDashboard/productFormStyles';
 import { ProductFormCurrencyInput } from './ProductDashboard/ProductFormCurrencyInput';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 
 interface ProductLinkModalProps {
   products: Product[];
@@ -132,7 +132,7 @@ const SuggestedMatches: React.FC<SuggestedMatchesProps> = ({
         type="button"
         onClick={toggleExpanded}
         aria-expanded={expanded}
-        className={`${typography.label} w-full flex items-center justify-between gap-2 text-[#74777f] hover:text-[#43474e] transition-colors`}
+        className={`${typography.label} w-full flex items-center justify-between gap-2 text-muted-foreground hover:text-on-surface-variant transition-colors`}
       >
         <span>Suggested matches ({suggestions.length})</span>
         <ChevronDownIcon
@@ -157,21 +157,21 @@ const SuggestedMatches: React.FC<SuggestedMatchesProps> = ({
                 onClick={() => id && onToggle(id)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-colors text-left ${
                   isSelected
-                    ? 'border-[#006a68]/35 bg-[#006a68]/10 ring-1 ring-[#006a68]/20'
-                    : 'border-[rgba(196,198,207,0.45)] bg-white hover:bg-[#fbf9f3] hover:border-[rgba(196,198,207,0.65)]'
+                    ? 'border-brand/35 bg-brand/10 ring-1 ring-brand/20'
+                    : 'border-input/45 bg-card hover:bg-background hover:border-input/65'
                 }`}
               >
                 <ProductThumbnail imageUrl={product.imageUrl} productName={product.item} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <p className={`${typography.bodyStrong} line-clamp-1 text-[#1b1c19]`}>
+                  <p className={`${typography.bodyStrong} line-clamp-1 text-foreground`}>
                     {product.item}
                   </p>
-                  <p className={`${typography.caption} tabular-nums text-[#43474e] mt-0.5`}>
+                  <p className={`${typography.caption} tabular-nums text-on-surface-variant mt-0.5`}>
                     {amountLine}
                   </p>
                 </div>
                 {isSelected && (
-                  <CheckIcon className="w-4 h-4 text-[#006a68] shrink-0" aria-hidden="true" />
+                  <CheckIcon className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
                 )}
               </button>
             );
@@ -201,12 +201,12 @@ function parseSplitAmountInputs(
 }
 
 const visibilityPillActive =
-  'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[rgba(196,198,207,0.55)] bg-white text-[#43474e] ' +
-  `${typography.captionStrong} transition-colors hover:bg-[#fbf9f3]`;
+  'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-input/55 bg-card text-on-surface-variant ' +
+  `${typography.captionStrong} transition-colors hover:bg-background`;
 
 const visibilityPillInactive =
-  'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[rgba(196,198,207,0.35)] bg-[#eae8e2]/60 text-[#74777f] ' +
-  `${typography.captionStrong} transition-colors hover:bg-[#eae8e2]`;
+  'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-input/35 bg-secondary/60 text-muted-foreground ' +
+  `${typography.captionStrong} transition-colors hover:bg-secondary`;
 
 export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
   products,
@@ -393,12 +393,12 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
       <li
         onClick={() => id && handleToggle(id)}
         className={`flex items-start gap-2.5 px-3 py-2 cursor-pointer transition-colors rounded-xl mx-1 ${
-          isSelected ? 'bg-[#006a68]/10 ring-1 ring-[#006a68]/25' : 'hover:bg-[#fbf9f3]'
+          isSelected ? 'bg-brand/10 ring-1 ring-brand/25' : 'hover:bg-background'
         }`}
       >
         <div
           className={`flex-shrink-0 mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-            isSelected ? 'bg-[#006a68] border-[#006a68]' : 'border-[#c4c6cf]'
+            isSelected ? 'bg-brand border-brand' : 'border-input'
           }`}
           aria-hidden="true"
         >
@@ -428,7 +428,7 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
           <div className="flex items-start justify-between gap-2">
             <p
               className={`${typography.bodyStrong} leading-snug line-clamp-2 min-w-0 ${
-                isSelected ? 'text-[#022448]' : 'text-[#1b1c19]'
+                isSelected ? 'text-primary' : 'text-foreground'
               }`}
             >
               {product.item}
@@ -441,15 +441,15 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
           <div className={`${typography.caption} mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5`}>
             {product.orderDate && <span>{formatOrderDate(product.orderDate)}</span>}
             {isAlreadyLinkedRow && (
-              <span className="text-[#006a68] font-medium">linked</span>
+              <span className="text-brand font-medium">linked</span>
             )}
           </div>
 
-          <p className={`${typography.caption} tabular-nums mt-0.5 text-[#43474e]`}>
+          <p className={`${typography.caption} tabular-nums mt-0.5 text-on-surface-variant`}>
             {formatProductAmountLine(product)}
             {' · Received '}
             {product.received != null && product.received !== 0 ? (
-              <span className="text-[#006a68]">{formatCurrency(product.received)}</span>
+              <span className="text-brand">{formatCurrency(product.received)}</span>
             ) : (
               '—'
             )}
@@ -460,26 +460,26 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
   };
 
   const header = (
-    <div className="px-4 sm:px-6 pt-4 pb-3 border-b border-[rgba(196,198,207,0.15)] space-y-3">
+    <div className="px-4 sm:px-6 pt-4 pb-3 border-b border-input/15 space-y-3">
       <h3 className={typography.modalTitle}>
         {isAlreadyLinked ? 'Edit linked products' : 'Link Products'}
       </h3>
 
       {transaction && (
-        <div className="px-3 py-2.5 rounded-xl bg-[#eae8e2]/50 border border-[rgba(196,198,207,0.4)] min-w-0 space-y-1">
+        <div className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-input/40 min-w-0 space-y-1">
           <div className="flex items-center gap-3 min-w-0">
             <p className={`${typography.bodyStrong} truncate min-w-0 flex-1`}>{transaction.name}</p>
-            <p className={`${typography.caption} shrink-0 text-[#74777f]`}>
+            <p className={`${typography.caption} shrink-0 text-muted-foreground`}>
               {formatTransactionDate(transaction.date)}
             </p>
           </div>
-          <div className={`${typography.caption} flex flex-wrap items-center gap-x-3 gap-y-0.5 tabular-nums text-[#43474e]`}>
+          <div className={`${typography.caption} flex flex-wrap items-center gap-x-3 gap-y-0.5 tabular-nums text-on-surface-variant`}>
             <span>
-              Amount <span className={`${typography.bodyStrong} text-[#1b1c19]`}>{formatCurrency(transaction.amount)}</span>
+              Amount <span className={`${typography.bodyStrong} text-foreground`}>{formatCurrency(transaction.amount)}</span>
             </span>
             <span>
               Net received{' '}
-              <span className={`${typography.bodyStrong} text-[#1b1c19]`}>{formatCurrency(transaction.total)}</span>
+              <span className={`${typography.bodyStrong} text-foreground`}>{formatCurrency(transaction.total)}</span>
             </span>
           </div>
         </div>
@@ -487,10 +487,10 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
 
       <div className="relative">
         <MagnifyingGlassIcon
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#74777f] pointer-events-none"
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground pointer-events-none"
           aria-hidden="true"
         />
-        <input
+        <Input
           ref={inputRef}
           type="text"
           role="searchbox"
@@ -505,7 +505,7 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
               else inputRef.current?.blur();
             }
           }}
-          className={`${formInputClass} pl-10 pr-10`}
+          className="pl-10 pr-10"
           autoComplete="off"
         />
         {searchTerm ? (
@@ -516,13 +516,13 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
               inputRef.current?.focus();
             }}
             aria-label="Clear search"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#74777f] hover:text-[#43474e]"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-on-surface-variant"
           >
             <XMarkIcon className="w-4 h-4" aria-hidden="true" />
           </button>
         ) : (
           <kbd
-            className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 text-caption text-[#74777f]/50 pointer-events-none"
+            className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 text-caption text-muted-foreground/50 pointer-events-none"
             aria-hidden="true"
           >
             /
@@ -565,25 +565,25 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
 
       {isAlreadyLinked && transactionLinkedProducts.length > 0 && transaction ? (
         <div className="space-y-2">
-          <p className={`${typography.label} text-[#74777f]`}>
+          <p className={`${typography.label} text-muted-foreground`}>
             Linked {transactionLinkedProducts.length === 1 ? 'product' : 'products'}
           </p>
           <div className="space-y-1.5">
             {transactionLinkedProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-[#006a68]/35 bg-[#006a68]/10"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-brand/35 bg-brand/10"
                 >
                   <ProductThumbnail imageUrl={product.imageUrl} productName={product.item} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <p className={`${typography.bodyStrong} line-clamp-2 text-[#1b1c19]`}>
+                    <p className={`${typography.bodyStrong} line-clamp-2 text-foreground`}>
                       {product.item}
                     </p>
-                    <p className={`${typography.caption} tabular-nums text-[#43474e] mt-0.5`}>
+                    <p className={`${typography.caption} tabular-nums text-on-surface-variant mt-0.5`}>
                       {formatProductAmountLine(product, transaction.total)}
                     </p>
                   </div>
-                  <CheckIcon className="w-4 h-4 text-[#006a68] shrink-0" aria-hidden="true" />
+                  <CheckIcon className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
                 </div>
             ))}
           </div>
@@ -604,7 +604,7 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
 
   const body = (
     <div className="max-h-[45vh] overflow-y-auto py-2">
-      <p className={`${typography.label} text-[#74777f] px-4 sm:px-6 mb-1.5`}>
+      <p className={`${typography.label} text-muted-foreground px-4 sm:px-6 mb-1.5`}>
         All eligible products
       </p>
       {filteredProducts.length > 0 ? (
@@ -615,20 +615,20 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
         </ul>
       ) : searchTerm ? (
         <div className="text-center py-10 px-4">
-          <p className={`${typography.body} text-[#74777f] mb-3`}>
+          <p className={`${typography.body} text-muted-foreground mb-3`}>
             No products match &ldquo;{searchTerm}&rdquo;
           </p>
           <button
             type="button"
             onClick={() => setSearchTerm('')}
-            className={`${typography.captionStrong} px-4 py-2 rounded-xl bg-[#eae8e2] text-[#43474e] hover:bg-[#e4e2dd]`}
+            className={`${typography.captionStrong} px-4 py-2 rounded-xl bg-secondary text-on-surface-variant hover:bg-surface-variant`}
           >
             Clear search
           </button>
         </div>
       ) : (
         <div className="text-center py-10 px-4">
-          <p className={`${typography.body} text-[#74777f]`}>No products available to link.</p>
+          <p className={`${typography.body} text-muted-foreground`}>No products available to link.</p>
         </div>
       )}
     </div>
@@ -650,18 +650,18 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
       {tempSelectedIds.length > 0 && transaction && (
         <div className="px-1 space-y-1">
           <div className="flex items-center justify-between gap-2">
-            <p className={`${typography.bodyStrong} text-[#1b1c19]`}>
+            <p className={`${typography.bodyStrong} text-foreground`}>
               {tempSelectedIds.length} product{tempSelectedIds.length !== 1 ? 's' : ''} selected
             </p>
             <button
               type="button"
               onClick={() => setTempSelectedIds([])}
-              className={`${typography.caption} text-[#74777f] hover:text-[#1b1c19] underline`}
+              className={`${typography.caption} text-muted-foreground hover:text-foreground underline`}
             >
               Clear all
             </button>
           </div>
-          <p className={`${typography.caption} tabular-nums text-[#43474e]`}>
+          <p className={`${typography.caption} tabular-nums text-on-surface-variant`}>
             Selected paid {formatCurrency(totalSelectedPaid)} · Net received{' '}
             {formatCurrency(netReceived)} · Difference {formatCurrency(selectionDifference)}
           </p>
@@ -671,20 +671,19 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
       {tempSelectedIds.length >= 2 && (
         <div className="px-1 space-y-2.5">
           <label className="flex items-start gap-2.5 cursor-pointer">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={splitEnabled}
-              onChange={(e) => {
-                const enabled = e.target.checked;
+              onCheckedChange={(value) => {
+                const enabled = value === true;
                 setSplitEnabled(enabled);
                 if (enabled) {
                   setSplitAmounts(equalSplitAmounts(tempSelectedIds, netReceived));
                 }
               }}
-              className="mt-0.5 rounded border-[#c4c6cf] text-[#006a68] focus:ring-[#006a68]/40"
+              className="mt-0.5 data-[state=checked]:border-brand data-[state=checked]:bg-brand"
             />
-            <span className={`${typography.caption} text-[#43474e]`}>
-              <span className={`${typography.bodyStrong} text-[#1b1c19]`}>
+            <span className={`${typography.caption} text-on-surface-variant`}>
+              <span className={`${typography.bodyStrong} text-foreground`}>
                 Split net received between products
               </span>
               {!splitEnabled && (
@@ -698,11 +697,11 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
           {splitEnabled && (
             <div className="space-y-2 pl-7">
               <div className="flex items-center justify-between gap-2">
-                <p className={`${typography.caption} text-[#74777f]`}>Custom amount per product</p>
+                <p className={`${typography.caption} text-muted-foreground`}>Custom amount per product</p>
                 <button
                   type="button"
                   onClick={() => setSplitAmounts(equalSplitAmounts(tempSelectedIds, netReceived))}
-                  className={`${typography.captionStrong} text-[#006a68] hover:text-[#022448] underline`}
+                  className={`${typography.captionStrong} text-brand hover:text-primary underline`}
                 >
                   Split equally
                 </button>
@@ -730,7 +729,7 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
               })}
               <p
                 className={`${typography.caption} tabular-nums ${
-                  splitAmountsValid ? 'text-[#43474e]' : 'text-[#ba1a1a]'
+                  splitAmountsValid ? 'text-on-surface-variant' : 'text-destructive'
                 }`}
               >
                 Allocated {formatCurrency(allocatedSplitTotal)} / {formatCurrency(netReceived)}
@@ -743,14 +742,13 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
 
       {tempSelectedIds.length === 1 && !isAlreadyLinked && !selectedProducts[0]?.isVoid && (
         <label className="flex items-start gap-2.5 px-1 cursor-pointer">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={completeWorkflow}
-            onChange={(e) => setCompleteWorkflow(e.target.checked)}
-            className="mt-0.5 rounded border-[#c4c6cf] text-[#006a68] focus:ring-[#006a68]/40"
+            onCheckedChange={(value) => setCompleteWorkflow(value === true)}
+            className="mt-0.5 data-[state=checked]:border-brand data-[state=checked]:bg-brand"
           />
-          <span className={`${typography.caption} text-[#43474e]`}>
-            <span className={`${typography.bodyStrong} text-[#1b1c19]`}>Accept refund &amp; finish</span>
+          <span className={`${typography.caption} text-on-surface-variant`}>
+            <span className={`${typography.bodyStrong} text-foreground`}>Accept refund &amp; finish</span>
             <span className="block mt-0.5">
               Mark workflow complete and set refund from this transaction
             </span>
@@ -763,21 +761,22 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
           <button
             type="button"
             onClick={() => setShowUnlinkConfirm(true)}
-            className="inline-flex items-center justify-center gap-1.5 h-11 px-4 rounded-xl border border-[#ba1a1a]/30 text-[#ba1a1a] bg-[#ba1a1a]/5 hover:bg-[#ba1a1a]/10 transition-colors shrink-0"
+            className="inline-flex items-center justify-center gap-1.5 h-11 px-4 rounded-xl border border-destructive/30 text-destructive bg-destructive/5 hover:bg-destructive/10 transition-colors shrink-0"
           >
             Unlink
           </button>
         )}
-        <button type="button" onClick={closeModal} className={formFooterCancelClass}>
+        <Button variant="outline" size="control" type="button" onClick={closeModal} className="flex-1">
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
+          size="control"
           type="submit"
           disabled={tempSelectedIds.length === 0 || !splitAmountsValid}
-          className={formFooterPrimaryClass}
+          className="flex-1"
         >
           {linkButtonLabel}
-        </button>
+        </Button>
       </div>
     </form>
   );

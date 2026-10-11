@@ -11,7 +11,7 @@ const OnboardingPage: React.FC = () => {
   const { completed, loading } = useOnboardingStatus();
 
   if (loading) {
-    return <div className="min-h-screen bg-[#fbf9f3]" />;
+    return <div className="min-h-screen bg-background" />;
   }
 
   // Already-onboarded users hitting this route directly (stale bookmark, etc.)

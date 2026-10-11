@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Transaction } from '../../types/Transaction';
 import { Product, ProductLinkOptions } from '../../types/Product';
 import ProductLinkModal from '../ProductLinkModal';
@@ -12,6 +12,14 @@ import {
 } from '../../utils/colors';
 import { typography } from '../../utils/typography';
 import { formatCurrency } from '../../utils/currency';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { MoreVertical } from 'lucide-react';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -57,14 +65,14 @@ function LinkedProductLinkContent({
         ))}
         {overflowThumbCount > 0 && (
           <span
-            className="inline-flex items-center justify-center w-10 h-10 rounded-md bg-[#eae8e2] text-[#43474e] text-xs font-medium flex-shrink-0"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-md bg-secondary text-on-surface-variant text-xs font-medium flex-shrink-0"
             aria-hidden="true"
           >
             +{overflowThumbCount}
           </span>
         )}
       </div>
-      <span className="truncate text-sm font-medium text-[#43474e] min-w-0">{label}</span>
+      <span className="truncate text-sm font-medium text-on-surface-variant min-w-0">{label}</span>
     </div>
   );
 }
@@ -85,24 +93,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       .filter((id): id is string => id !== null && id !== undefined);
   }, [transactions]);
 
-  const [showDropdown, setShowDropdown] = useState<string | number | null>(null);
   const [isModalActive, setIsModalActive] = useState<boolean>(false);
   const [activeTransactionId, setActiveTransactionId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!(event.target as Element).closest('.dropdown-container')) {
-        setShowDropdown(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   const filteredAndSortedTransactions = useMemo(() => {
     // Sort transactions with unlinked ones first
@@ -215,7 +208,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
     return {
       id: transaction.id || index,
-      borderColor: isLinked ? 'border-l-[#0070BA]/30' : 'border-l-amber-500',
+      borderColor: isLinked ? 'border-l-status-paypal/30' : 'border-l-amber-500',
       className: '',
       sortValues: {
         datetime: transaction.date || '',
@@ -252,7 +245,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               ) : (
                 <span className={getBadgeClasses('unlinked')}>Unlinked</span>
               )}
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#43474e]/8 text-[#43474e] text-xs font-medium">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-on-surface-variant/8 text-on-surface-variant text-xs font-medium">
                 {transaction.paymentMethod ?? 'PayPal'}
               </span>
             </div>
@@ -286,7 +279,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                   type="button"
                   onClick={() => transaction.id && openLinkModal(transaction.id)}
                   disabled={loading}
-                  className={`group flex items-center gap-2 min-w-0 w-full max-w-full px-3 py-2 rounded-full text-sm font-medium transition-all duration-150 bg-amber-500/10 text-amber-800 border border-amber-500/25 hover:bg-amber-500/15 ${
+                  className={`group flex items-center gap-2 min-w-0 w-full max-w-full px-3 py-2 rounded-full text-sm font-medium transition-all duration-150 bg-status-amber/10 text-status-amber-fg border border-status-amber/25 hover:bg-status-amber/15 ${
                     loading ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
@@ -298,7 +291,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 </button>
               )
             ) : (
-              <span className="text-sm text-[#74777f]">No link action available</span>
+              <span className="text-sm text-muted-foreground">No link action available</span>
             )}
           </div>
         ),
@@ -345,7 +338,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   });
 
   // Mobile cards data
-  const mobileCards: MobileCardContent[] = filteredAndSortedTransactions.map((transaction, index) => {
+  const mobileCards: MobileCardContent[] = filteredAndSortedTransactions.map((transaction) => {
     const isLinked = !!(transaction.linkedProductIds && transaction.linkedProductIds.length > 0);
 
     const headerContent = (
@@ -360,7 +353,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
             ) : (
               <span className={getBadgeClasses('unlinked')}>Unlinked</span>
             )}
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#43474e]/8 text-[#43474e] text-xs font-medium">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-on-surface-variant/8 text-on-surface-variant text-xs font-medium">
               {transaction.paymentMethod ?? 'PayPal'}
             </span>
           </div>
@@ -396,7 +389,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               type="button"
               onClick={() => transaction.id && openLinkModal(transaction.id)}
               disabled={loading}
-              className={`flex items-center gap-1.5 text-sm font-medium transition-colors truncate max-w-[75%] text-[#9e9e9e] hover:text-[#74777f] ${
+              className={`flex items-center gap-1.5 text-sm font-medium transition-colors truncate max-w-[75%] text-status-gray hover:text-muted-foreground ${
                 loading ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
@@ -409,7 +402,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
           ) : (
             <span
               className={`truncate text-sm font-medium min-w-0 ${
-                isLinked ? 'text-[#43474e]' : 'text-[#9e9e9e]'
+                isLinked ? 'text-on-surface-variant' : 'text-status-gray'
               }`}
             >
               {isLinked ? getLinkedProductLabel(transaction.linkedProductIds!) : 'Not linked'}
@@ -417,51 +410,39 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
           )}
 
           {(onDeleteTransaction || onEditTransaction || (onUpdateProductLink && isLinked)) && (
-            <div className="relative dropdown-container flex-shrink-0">
-              <button
-                onClick={() => setShowDropdown(showDropdown === index ? null : index)}
-                className={`flex items-center justify-center w-8 h-8 ${colors.button.secondary} rounded-full transition focus:outline-none focus:ring-2 focus:ring-[#022448]`}
-                title="More actions"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                </svg>
-              </button>
-              {showDropdown === index && (
-                <div className="absolute right-0 top-full mt-2 bg-[#fbf9f3] border border-[rgba(196,198,207,0.15)] rounded-2xl shadow-[0_12px_32px_rgba(2,36,72,0.10)] z-50 min-w-[160px] py-2">
+            <div className="flex-shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="icon" title="More actions" aria-label="More actions">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[160px]">
                   {onEditTransaction && (
-                    <button
-                      onClick={() => {
-                        onEditTransaction(transaction);
-                        setShowDropdown(null);
-                      }}
-                      className="block w-full text-left px-4 py-2.5 text-sm text-[#1b1c19] hover:bg-[#eae8e2] transition-colors"
-                    >
+                    <DropdownMenuItem onSelect={() => onEditTransaction(transaction)}>
                       Edit transaction
-                    </button>
+                    </DropdownMenuItem>
                   )}
                   {onUpdateProductLink && isLinked && (
-                    <button
-                      onClick={() => {
-                        if (transaction.id) openLinkModal(transaction.id);
-                        setShowDropdown(null);
-                      }}
+                    <DropdownMenuItem
                       disabled={loading}
-                      className="block w-full text-left px-4 py-2.5 text-sm text-[#1b1c19] hover:bg-[#eae8e2] transition-colors disabled:opacity-50"
+                      onSelect={() => {
+                        if (transaction.id) openLinkModal(transaction.id);
+                      }}
                     >
                       Edit link
-                    </button>
+                    </DropdownMenuItem>
                   )}
                   {onDeleteTransaction && (
-                    <button
-                      onClick={() => { setDeleteTarget(transaction); setShowDropdown(null); }}
-                      className={`block w-full text-left px-4 py-2.5 text-sm ${colors.modal.danger} transition-colors`}
+                    <DropdownMenuItem
+                      onSelect={() => setDeleteTarget(transaction)}
+                      className="text-destructive focus:bg-destructive-container focus:text-destructive"
                     >
                       Delete
-                    </button>
+                    </DropdownMenuItem>
                   )}
-                </div>
-              )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>
@@ -475,7 +456,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       headerContent,
       financialContent,
       actionsContent,
-      borderColor: isLinked ? 'border-l-[#006a68]' : 'border-l-amber-500',
+      borderColor: isLinked ? 'border-l-brand' : 'border-l-amber-500',
       noDividers: true,
       className: ''
     };
@@ -489,8 +470,6 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         mobileCards={mobileCards}
         emptyMessage="No transactions found."
         loading={loading}
-        activeDropdown={showDropdown}
-        onDropdownToggle={(rowId) => setShowDropdown(prev => prev === rowId ? null : rowId as number)}
         trailingSpacerRow
       />
       

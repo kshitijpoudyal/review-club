@@ -1,5 +1,5 @@
 import React from 'react';
-import { formInputClass } from './productFormStyles';
+import { Input } from '@/components/ui/input';
 
 interface ProductFormCurrencyInputProps {
   id?: string;
@@ -17,16 +17,16 @@ export const ProductFormCurrencyInput: React.FC<ProductFormCurrencyInputProps> =
   required = false,
 }) => (
   <div className="relative">
-    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#74777f] tabular-nums pointer-events-none">
+    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground tabular-nums pointer-events-none">
       $
     </span>
-    <input
+    <Input
       id={id}
       type="number"
       step="0.01"
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
-      className={`${formInputClass} pl-7 tabular-nums`}
+      className="pl-7 tabular-nums"
       placeholder={placeholder}
       required={required}
     />

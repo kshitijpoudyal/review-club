@@ -8,6 +8,8 @@ import { usePendingGmailTransactionImports } from '../../hooks/usePendingGmailTr
 import { ToggleSwitch } from '../common/ToggleSwitch';
 import { typography } from '../../utils/typography';
 import { colors, getBadgeClasses } from '../../utils/colors';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
 
 const TRIGGER_GMAIL_CHECK_URL = 'https://us-central1-productreview-52e51.cloudfunctions.net/triggerGmailCheck';
 
@@ -111,7 +113,7 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
     <section className={`${colors.card.background} rounded-2xl ${colors.card.border} ${colors.card.shadow} overflow-hidden`}>
       <div className="p-4 sm:p-6 md:p-8 space-y-6">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[#ba1a1a]/8 text-[#ba1a1a] border border-[#ba1a1a]/20 flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-destructive/8 text-destructive border border-destructive/20 flex items-center justify-center shrink-0">
             <EnvelopeIcon className="w-6 h-6" />
           </div>
           <div className="space-y-2 flex-1 min-w-0">
@@ -131,22 +133,22 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
             </p>
 
             {gmailParam === 'error' && (
-              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-sm">
+              <div className="bg-destructive-container/60 border border-destructive/25 text-destructive p-3 rounded-xl text-sm">
                 Couldn&apos;t connect Gmail. Please try again.
               </div>
             )}
 
             {gmailParam === 'connected' && (
-              <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
+              <div className="bg-brand/8 border border-brand/25 text-brand p-3 rounded-xl text-sm">
                 Gmail connected.
               </div>
             )}
 
             {pendingPaypalCount > 0 && (
-              <div className="bg-[#2563eb]/5 border border-[#2563eb]/20 text-[#1b1c19] p-3 rounded-xl text-sm">
+              <div className="bg-status-blue/5 border border-status-blue/20 text-foreground p-3 rounded-xl text-sm">
                 <strong>{pendingPaypalCount}</strong> PayPal import{pendingPaypalCount === 1 ? '' : 's'} waiting in your
                 review queue — open{' '}
-                <Link to="/transactions" className="text-[#1d4ed8] font-medium underline">
+                <Link to="/transactions" className="text-status-blue-fg font-medium underline">
                   Transactions
                 </Link>{' '}
                 (above the table, not inside it).
@@ -154,13 +156,13 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
             )}
 
             {checkResult && checkResult.startFromNow && (
-              <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
+              <div className="bg-brand/8 border border-brand/25 text-brand p-3 rounded-xl text-sm">
                 You&apos;re all set — we&apos;ll only pick up new order and payment emails from now on. Older mail
                 won&apos;t be imported.
               </div>
             )}
             {checkResult && !checkResult.startFromNow && (
-              <div className="bg-green-50 border border-green-200 text-green-800 p-3 rounded-xl text-sm">
+              <div className="bg-brand/8 border border-brand/25 text-brand p-3 rounded-xl text-sm">
                 Checked your account — {checkResult.notified} review alert{checkResult.notified === 1 ? '' : 's'},{' '}
                 {checkResult.ordersDetected} new order{checkResult.ordersDetected === 1 ? '' : 's'},{' '}
                 {checkResult.transactionsDetected} newly staged PayPal email
@@ -177,13 +179,13 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
               </div>
             )}
             {checkError && (
-              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-sm">{checkError}</div>
+              <div className="bg-destructive-container/60 border border-destructive/25 text-destructive p-3 rounded-xl text-sm">{checkError}</div>
             )}
 
             {anyConnected && onboardingMode && (
               <div className={`rounded-xl border p-4 space-y-4 ${colors.card.border}`}>
                 <div>
-                  <h3 className="text-sm font-semibold text-[#1b1c19]">Sync your inbox</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Sync your inbox</h3>
                   <p className={`${typography.caption} mt-1`}>
                     Your Gmail is connected. Choose whether to import orders from older emails or only watch for new
                     mail going forward.
@@ -191,27 +193,28 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
                 </div>
                 <div className="flex flex-col gap-3">
                   <div className="space-y-1.5">
-                    <button
+                    <Button
                       type="button"
                       onClick={() => handleCheckNow(true)}
                       disabled={isChecking}
-                      className={`${colors.button.primary} w-full px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className="w-full px-6 rounded-xl"
                     >
                       {isChecking ? 'Syncing...' : 'Import past order emails'}
-                    </button>
+                    </Button>
                     <p className={typography.caption}>
                       Scans your Gmail history for supported Amazon, Wayfair, and PayPal order messages.
                     </p>
                   </div>
                   <div className="space-y-1.5">
-                    <button
+                    <Button
+                      variant="secondary"
                       type="button"
                       onClick={handleStartFromNow}
                       disabled={isChecking}
-                      className={`${colors.button.secondary} w-full px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className="w-full px-6 rounded-xl"
                     >
                       {isChecking ? 'Setting up...' : 'Only new emails from now on'}
-                    </button>
+                    </Button>
                     <p className={typography.caption}>
                       Skips older mail and starts watching for new orders from this point forward.
                     </p>
@@ -222,22 +225,24 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
 
             <div className="flex flex-col sm:flex-row flex-wrap items-start gap-3 pt-1">
               {anyConnected && showTestingActions && (
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => handleCheckNow()}
                   disabled={isChecking}
-                  className={`${colors.button.secondary} w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className="w-full sm:w-auto px-6 rounded-xl"
                 >
                   {isChecking ? 'Checking...' : 'Check now'}
-                </button>
+                </Button>
               )}
               {anyConnected && showTestingActions && (
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => handleCheckNow(true)}
                   disabled={isChecking}
-                  className={`${colors.button.secondary} w-full sm:w-auto px-6 py-2.5 rounded-xl font-medium text-sm text-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className="w-full sm:w-auto px-6 rounded-xl"
                 >
                   {isChecking ? 'Checking...' : 'Re-scan Gmail history'}
-                </button>
+                </Button>
               )}
               {anyConnected && showTestingActions && (
                 <p className={`${typography.caption} -mt-2`}>
@@ -263,7 +268,7 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
             <button
               type="button"
               onClick={() => setAccountsExpanded((v) => !v)}
-              className="flex items-center gap-2 text-sm font-medium text-[#1b1c19]"
+              className="flex items-center gap-2 text-sm font-medium text-foreground"
               aria-expanded={accountsExpanded}
             >
               <ChevronDownIcon
@@ -300,7 +305,7 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
                       onClick={() => handleDisconnect(account.id)}
                       disabled={disconnectingId === account.id}
                       title="Disconnect this Gmail account"
-                      className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                      className="p-1.5 rounded-lg text-destructive hover:bg-destructive-container/60 transition-colors disabled:opacity-50"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
@@ -308,7 +313,7 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
                 </div>
 
                 {!account.connected && (
-                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-2.5 rounded-lg text-sm mt-3">
+                  <div className="bg-status-amber/10 border border-status-amber/30 text-status-amber-fg p-2.5 rounded-lg text-sm mt-3">
                     You&apos;ll need to reconnect roughly every 7 days — Google requires that until this app goes
                     through full verification.
                   </div>
@@ -321,12 +326,10 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
                       className={`flex items-center gap-1.5 text-sm ${opt.available ? '' : 'opacity-50 cursor-not-allowed'}`}
                       title={opt.available ? undefined : 'Coming soon — order/review parsing for this retailer isn\'t built yet'}
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         disabled={!opt.available}
                         checked={account.retailers.includes(opt.value)}
-                        onChange={(e) => toggleRetailer(account.id, opt.value, e.target.checked)}
-                        className="rounded"
+                        onCheckedChange={(value) => toggleRetailer(account.id, opt.value, value === true)}
                       />
                       {opt.label}
                       {!opt.available && <span className={typography.caption}>· Coming soon</span>}

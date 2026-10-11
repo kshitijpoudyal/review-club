@@ -31,6 +31,10 @@ import {
 import Toolbar from '../components/common/Toolbar';
 import { getStatsColor } from '../utils/colors';
 import { formatCurrency } from '../utils/currency';
+import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
+import { Plus } from 'lucide-react';
+import { springBouncy } from '@/lib/motion';
 
 /**
  * ProductPage Component
@@ -295,7 +299,7 @@ const ProductPage: React.FC = () => {
 
   return (
     <PullToRefresh onRefresh={refetch} disabled={displayLoading}>
-    <DashboardContainer className="pb-24 md:pb-0">
+    <DashboardContainer className="pb-20 md:pb-0">
       {/* Compact financial summary */}
       <DashboardStats stats={statsData} loading={displayLoading} />
 
@@ -350,16 +354,20 @@ const ProductPage: React.FC = () => {
       />
 
       {/* Mobile FAB — floating Add Product button */}
-      {!displayLoading && (
-        <button
+      {/* Portalled so the page-transition transform doesn't re-anchor this fixed button */}
+      {!displayLoading && createPortal(
+        <motion.button
           onClick={handleShowAddForm}
-          className="fixed bottom-6 right-6 z-40 md:hidden flex items-center justify-center w-14 h-14 bg-gradient-to-br from-[#022448] to-[#1e3a5f] text-white rounded-full shadow-[0_8px_24px_rgba(2,36,72,0.25)] hover:shadow-[0_12px_32px_rgba(2,36,72,0.35)] active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#022448] focus:ring-offset-2"
+          initial={{ scale: 0, rotate: -90 }}
+          animate={{ scale: 1, rotate: 0 }}
+          whileTap={{ scale: 0.9 }}
+          transition={springBouncy}
+          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-5 z-40 md:hidden flex items-center justify-center w-14 h-14 bg-gradient-to-br from-primary to-primary-container text-primary-foreground rounded-full shadow-[0_8px_24px_rgb(var(--shadow-color)/0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           aria-label="Add product"
         >
-          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+          <Plus className="w-7 h-7" />
+        </motion.button>,
+        document.body
       )}
     </DashboardContainer>
     </PullToRefresh>

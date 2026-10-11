@@ -33,9 +33,9 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
         }}
       >
         {isVisible && (
-          <div className="flex items-center justify-center w-9 h-9 bg-white rounded-full shadow-md">
+          <div className="flex items-center justify-center w-9 h-9 bg-card rounded-full shadow-md">
             <svg
-              className={`w-5 h-5 text-[#022448] ${isRefreshing ? 'animate-spin' : ''}`}
+              className={`w-5 h-5 text-primary ${isRefreshing ? 'animate-spin' : ''}`}
               style={!isRefreshing ? { transform: `rotate(${progress * 270}deg)`, transition: 'transform 0.05s linear' } : undefined}
               fill="none"
               stroke="currentColor"

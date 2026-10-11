@@ -36,20 +36,20 @@ export const ReconciliationCard: React.FC<ReconciliationCardProps> = ({ metrics 
         <Row
           label="Transactions net received"
           value={formatCurrency(metrics.transactionNetReceived)}
-          className="text-[#006a68]"
+          className="text-brand"
         />
         <Row
           label="Product received"
           value={formatCurrency(metrics.productTotalReceived)}
-          className="text-[#006a68]"
+          className="text-brand"
         />
-        <div className="border-t border-[#e4e2dd] my-2" />
+        <div className="border-t border-surface-variant my-2" />
         <Row
           label="Gap"
           value={formatCurrency(metrics.reconciliationGap)}
           className={gapColor}
         />
-        <div className="pl-3 space-y-0.5 border-l-2 border-[#e4e2dd] ml-1 mt-2">
+        <div className="pl-3 space-y-0.5 border-l-2 border-surface-variant ml-1 mt-2">
           <Row
             label="Unlinked transactions"
             value={formatCurrency(metrics.reconciliation.unlinkedTransactionNet)}
@@ -64,16 +64,16 @@ export const ReconciliationCard: React.FC<ReconciliationCardProps> = ({ metrics 
           />
         </div>
       </div>
-      <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-[#e4e2dd]">
+      <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-surface-variant">
         <Link
           to="/transactions?link=unlinked"
-          className={`${typography.captionStrong} px-3 py-1.5 rounded-full bg-[#0070BA]/10 text-[#0070BA] hover:bg-[#0070BA]/15 transition-colors`}
+          className={`${typography.captionStrong} px-3 py-1.5 rounded-full bg-status-paypal/10 text-status-paypal-fg hover:bg-status-paypal/15 transition-colors`}
         >
           View unlinked transactions
         </Link>
         <Link
           to="/products?status=void"
-          className={`${typography.captionStrong} px-3 py-1.5 rounded-full bg-[#9e9e9e]/15 text-[#74777f] hover:bg-[#9e9e9e]/25 transition-colors`}
+          className={`${typography.captionStrong} px-3 py-1.5 rounded-full bg-status-gray/15 text-muted-foreground hover:bg-status-gray/25 transition-colors`}
         >
           View void products
         </Link>

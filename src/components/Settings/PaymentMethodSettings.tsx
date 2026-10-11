@@ -5,16 +5,17 @@ import { typography } from '../../utils/typography';
 import { colors, getBadgeClasses } from '../../utils/colors';
 import { Modal } from '../common';
 import { PaymentMethod } from '../../types/PaymentMethod';
-
-const inputClass = `px-3.5 py-2.5 rounded-xl text-sm ${colors.form.input.base}`;
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 
 // Cycled per row so payment method initials read as distinct at a glance — purely
 // presentational, reusing the app's existing status-tint palette.
 const AVATAR_TINTS = [
-  'bg-[#006a68]/12 text-[#006a68]',
-  'bg-[#6366f1]/12 text-[#4338ca]',
-  'bg-[#2563eb]/12 text-[#1d4ed8]',
-  'bg-amber-500/12 text-amber-800',
+  'bg-brand/12 text-brand',
+  'bg-status-indigo/12 text-status-indigo-fg',
+  'bg-status-blue/12 text-status-blue-fg',
+  'bg-status-amber/12 text-status-amber-fg',
 ];
 
 const initialsFor = (name: string) =>
@@ -130,17 +131,17 @@ export const PaymentMethodSettings: React.FC = () => {
 
   return (
     <section className={`${colors.card.background} rounded-2xl ${colors.card.border} ${colors.card.shadow} overflow-hidden`}>
-      <div className="p-4 sm:p-6 md:p-8 border-b border-[rgba(196,198,207,0.15)]">
+      <div className="p-4 sm:p-6 md:p-8 border-b border-input/15">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex items-start gap-4 min-w-0">
-            <div className="w-12 h-12 rounded-xl bg-[#022448]/8 text-[#022448] border border-[#022448]/15 flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-primary/8 text-primary border border-primary/15 flex items-center justify-center shrink-0">
               <CreditCardIcon className="w-6 h-6" />
             </div>
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className={typography.sectionTitle}>Payment methods</h2>
                 {!loading && (
-                  <span className={getBadgeClasses('order-placed')}>
+                  <span className={getBadgeClasses('order-placed', false)}>
                     {activePaymentMethods.length} {activePaymentMethods.length === 1 ? 'method' : 'methods'}
                   </span>
                 )}
@@ -151,22 +152,22 @@ export const PaymentMethodSettings: React.FC = () => {
               </p>
             </div>
           </div>
-          <button
+          <Button
             onClick={openAddModal}
-            className={`${colors.button.primary} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors flex items-center justify-center gap-1.5 shrink-0`}
+            className="rounded-xl gap-1.5 shrink-0"
           >
             <PlusIcon className="w-4 h-4" />
             Add method
-          </button>
+          </Button>
         </div>
 
         {error && (
-          <div className="mt-3 bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-sm">{error}</div>
+          <div className="mt-3 bg-destructive-container/60 border border-destructive/25 text-destructive p-3 rounded-xl text-sm">{error}</div>
         )}
       </div>
 
       {editError && (
-        <div className="mx-4 sm:mx-6 md:mx-8 mt-4 bg-red-50 border border-red-200 text-red-800 p-3 rounded-xl text-sm">{editError}</div>
+        <div className="mx-4 sm:mx-6 md:mx-8 mt-4 bg-destructive-container/60 border border-destructive/25 text-destructive p-3 rounded-xl text-sm">{editError}</div>
       )}
 
       {loading ? (
@@ -175,41 +176,43 @@ export const PaymentMethodSettings: React.FC = () => {
         <p className={`${typography.caption} p-6`}>No payment methods yet. Add one to get started.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <tbody className="divide-y divide-[rgba(196,198,207,0.15)]">
+          <Table className="w-full text-left border-collapse text-sm">
+            <TableBody className="divide-y divide-input/15">
               {sortedMethods.map((method, index) => {
                 const createdLabel = formatCreatedAt(method.createdAt);
                 const isEditing = editingId === method.id;
 
                 return (
-                  <tr key={method.id} className="hover:bg-[#eae8e2]/40 transition-colors">
-                    <td className="py-4 px-4 sm:px-6">
+                  <TableRow key={method.id} className="hover:bg-secondary/40">
+                    <TableCell className="py-4 px-4 sm:px-6">
                       {isEditing ? (
                         <div className="flex items-center gap-2">
-                          <input
+                          <Input
                             type="text"
                             value={editingName}
                             onChange={e => setEditingName(e.target.value)}
-                            className={`min-w-0 flex-1 ${inputClass}`}
+                            className="min-w-0 flex-1"
                             autoFocus
                             disabled={savingId === method.id}
                           />
-                          <button
+                          <Button
+                            variant="secondary"
                             onClick={() => saveEditing(method.id)}
                             disabled={savingId === method.id}
                             aria-label="Save"
-                            className={`${colors.button.secondary} p-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed shrink-0`}
+                            className="p-2 rounded-full shrink-0"
                           >
                             <CheckIcon className="w-4 h-4" />
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="secondary"
                             onClick={cancelEditing}
                             disabled={savingId === method.id}
                             aria-label="Cancel"
-                            className={`${colors.button.secondary} p-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed shrink-0`}
+                            className="p-2 rounded-full shrink-0"
                           >
                             <XMarkIcon className="w-4 h-4" />
-                          </button>
+                          </Button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-3">
@@ -217,7 +220,7 @@ export const PaymentMethodSettings: React.FC = () => {
                             {initialsFor(method.name)}
                           </div>
                           <div className="min-w-0">
-                            <span className="font-semibold text-[#1b1c19] block truncate">
+                            <span className="font-semibold text-foreground block truncate">
                               {method.name}
                             </span>
                             {createdLabel && (
@@ -226,16 +229,17 @@ export const PaymentMethodSettings: React.FC = () => {
                           </div>
                         </div>
                       )}
-                    </td>
-                    <td className="py-4 px-4 sm:px-6 text-right">
+                    </TableCell>
+                    <TableCell className="py-4 px-4 sm:px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
+                        <Button
+                          variant="secondary"
                           onClick={() => startEditing(method.id, method.name)}
                           aria-label={`Edit ${method.name}`}
-                          className={`${colors.button.secondary} p-2 rounded-full`}
+                          className="p-2 rounded-full"
                         >
                           <PencilIcon className="w-4 h-4" />
-                        </button>
+                        </Button>
                         <button
                           onClick={() => setRemoveTarget(method)}
                           aria-label={`Archive ${method.name}`}
@@ -245,12 +249,12 @@ export const PaymentMethodSettings: React.FC = () => {
                           <ArchiveBoxIcon className="w-4 h-4" />
                         </button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -262,7 +266,7 @@ export const PaymentMethodSettings: React.FC = () => {
         size="sm"
         body={
           <div className="p-4 sm:p-6 space-y-2">
-            <input
+            <Input
               type="text"
               value={newMethodName}
               onChange={e => {
@@ -273,31 +277,32 @@ export const PaymentMethodSettings: React.FC = () => {
                 if (e.key === 'Enter') handleAdd();
               }}
               placeholder="Enter payment method name..."
-              className={`w-full ${inputClass}`}
+              className="w-full"
               autoFocus
               disabled={adding}
             />
-            {addError && <p className="text-red-700 text-sm">{addError}</p>}
+            {addError && <p className="text-destructive text-sm">{addError}</p>}
           </div>
         }
         footer={
           <div className="flex items-center justify-end gap-3">
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={closeAddModal}
               disabled={adding}
-              className={`${colors.button.secondary} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="rounded-xl"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => handleAdd()}
               disabled={adding}
-              className={`${colors.button.primary} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="rounded-xl"
             >
               {adding ? 'Adding...' : 'Add payment method'}
-            </button>
+            </Button>
           </div>
         }
       />
@@ -318,22 +323,24 @@ export const PaymentMethodSettings: React.FC = () => {
         }
         footer={
           <div className="flex items-center justify-end gap-3">
-            <button
+            <Button
+              variant="secondary"
               type="button"
               onClick={() => setRemoveTarget(null)}
               disabled={removing}
-              className={`${colors.button.secondary} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="rounded-xl"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="destructive"
               type="button"
               onClick={confirmRemove}
               disabled={removing}
-              className={`${colors.button.dangerSolid} px-4 py-2.5 rounded-xl font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+              className="rounded-xl"
             >
               {removing ? 'Archiving...' : 'Archive method'}
-            </button>
+            </Button>
           </div>
         }
       />
