@@ -1,143 +1,117 @@
 # Review Club
 
-A modern React.js dashboard application built with TypeScript, Vite, Tailwind CSS, and Firebase to track Amazon product orders, reviews, and financial performance with cloud storage.
-
-> **Disclaimer**: This website was fully created with the help of GitHub Copilot AI assistant.
+A progressive web app for tracking product-review orders end to end: what you ordered, where each review stands, what you paid, and what has been refunded. Data is stored per user in Firebase.
 
 ## Features
 
-- 🔐 **User Authentication**: Secure login with email/password and Google authentication
-- ✅ **Cloud Storage**: All data stored in Firebase Firestore with user-specific collections
-- ✅ **Real-time Sync**: Changes synchronized across all devices
-- ✅ **Automatic Backups**: Every save creates a backup in Firestore
-- ✅ **Product Management**: Add, edit, void products with status tracking
-- ✅ **Advanced Filtering**: Filter by status, search, and financial deltas
-- ✅ **Financial Tracking**: Track paid amounts, received amounts, and profit/loss
-- � **PayPal Integration**: Import and manage PayPal transactions with CSV upload
-- 📊 **Transaction Analytics**: Track PayPal income, fees, and transaction history
-- 🔄 **Duplicate Prevention**: Automatic detection and prevention of duplicate transactions
-- �📱 **Responsive Design**: Mobile-first design that works on all devices
-- ⚡ **Fast Performance**: Built with Vite for lightning-fast development and builds
-- 🎨 **Modern UI**: Beautiful gradient design with glass-morphism effects
+- **Product tracking**: add, edit and void products; each one moves through a review workflow with a clear next action.
+- **Transactions**: record or import refund transactions (PayPal CSV or manual entry) and link them to products, with duplicate detection.
+- **Needs attention**: quick filters for products waiting on a review, a screenshot or a refund, and for unlinked transactions.
+- **Imports**: CSV import for products, a browser bookmarklet that pre-fills a product from a retailer order page, and optional Gmail scanning for order and payment emails.
+- **AI review drafts**: generate a draft review for a product (Gemini, via a serverless function).
+- **Reminders**: push notifications when a product sits in one status too long or a return window is about to close.
+- **Vendors and payment methods**: manage the lists used in the product and transaction forms.
+- **Installable**: works as a PWA with a phone-friendly layout, light and dark themes.
+- **Authentication**: email/password and Google sign-in; every user's data is isolated.
 
-## Technology Stack
+### Status workflow
 
-- **Frontend**: React 18 with TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS with design tokens as CSS variables (`src/index.css`)
-- **UI Components**: shadcn/ui (Radix primitives) in `src/components/ui`, plus sonner (toasts) and vaul (mobile sheets)
-- **Database**: Firebase Firestore
-- **State Management**: React Hooks (useState, useEffect, useMemo)
+Products move through these statuses based on their dates and amounts:
 
-## Quick Start
+1. **Order Placed**: ordered, not yet delivered
+2. **Add Review**: delivered, review not written
+3. **Review Pending**: review submitted, not yet live
+4. **Send Screenshot**: review live, screenshot not sent
+5. **Refund Pending**: screenshot sent, waiting for the refund
+6. **Complete**: refund received
+7. **Void**: written off and excluded from the active workflow
 
-### 1. Install Dependencies
+## Tech stack
+
+- **Frontend**: React 18, TypeScript, Vite, React Router
+- **Styling**: Tailwind CSS with design tokens as CSS variables (`src/index.css`), light and dark themes
+- **UI components**: shadcn/ui (Radix primitives) in `src/components/ui`, plus sonner (toasts), vaul (mobile sheets), Motion (animation) and Recharts (charts)
+- **Backend**: Firebase Authentication and Firestore; Firebase Cloud Functions for Gmail and push notifications
+- **Serverless API**: a Vercel function in `api/` for AI review generation
+- **PWA**: `vite-plugin-pwa` with a custom service worker (`src/sw.ts`)
+- **Tests**: Vitest
+
+## Getting started
+
+Requires Node.js 22 (the version the Cloud Functions target) and npm.
+
 ```bash
 npm install
-```
-
-### 2. Firebase Configuration
-Update `src/firebase/config.ts` with your Firebase project credentials:
-- Get your web app config from Firebase Console > Project Settings > General > Web apps
-- Replace the placeholder values with your actual Firebase config
-
-### 3. Start the Application
-```bash
 npm run dev
 ```
 
-Access the dashboard at: **http://localhost:3000** (or the next available port)
+The app runs at http://localhost:3000.
 
-## Firebase Project Details
-- **Project ID**: `productreview-52e51`
-- **Database**: Firestore
-- **Authentication**: Email/Password and Google Sign-In
-- **Collections**: 
-  - `users/{userId}/products` - User-specific product records
-  - `users/{userId}/dashboard` - User-specific summary statistics
-  - `users/{userId}` - User profile information
+### Configuration
 
-## Authentication
+- **Firebase web config** lives in `src/firebase/config.ts`. To point the app at your own project, replace the values with the ones from Firebase Console > Project Settings > General > Web apps.
+- **Frontend environment variables** (optional, in `.env.local`):
 
-### First Time Setup
-1. **Create Account**: Choose "Create Account" and enter your email and password, or use Google Sign-In
-2. **User Data**: Your profile and product data are automatically created and stored securely
-3. **Data Isolation**: Each user has their own separate data collection - no data is shared between users
+  | Variable | Purpose |
+  |---|---|
+  | `VITE_VAPID_PUBLIC_KEY` | Public key for web push subscriptions |
+  | `VITE_APP_ORIGIN` | Build-time fallback for the app URL the bookmarklet sends imports to; in the browser the current origin is always used |
 
-### Sign In Methods
-- **Email/Password**: Standard authentication with secure password requirements
-- **Google Sign-In**: Quick access using your Google account
+- **Vercel function environment variables**:
 
-## Usage
+  | Variable | Purpose |
+  |---|---|
+  | `GEMINI_API_KEY` | API key for AI review generation |
+  | `GEMINI_MODEL` | Optional model override |
 
-### Product Management
-1. **Add Products**: Click "Add Product" to create new entries
-2. **Edit Products**: Click "Edit" on any product row to modify details
-3. **Void Products**: Use the void checkbox in edit mode to mark items as void
-4. **Save Changes**: Click "Save to Firebase" to persist changes to the cloud
+- **Cloud Functions secrets** (set with `firebase functions:secrets:set`): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `GMAIL_OAUTH_CLIENT_ID`, `GMAIL_OAUTH_CLIENT_SECRET`, `GMAIL_OAUTH_REDIRECT_URI`, `APP_BASE_URL`.
 
-### PayPal Transaction Management
-1. **Access Dashboard**: Navigate to the PayPal tab in the main navigation
-2. **Import Transactions**: Upload PayPal CSV files using drag & drop
-3. **View Analytics**: Monitor income, fees, and net earnings in real-time
-4. **Filter & Search**: Find specific transactions using advanced filters
-5. **Duplicate Prevention**: System automatically prevents duplicate imports
+## Scripts
 
-### Data Operations
-- **Export**: Download current data as JSON
-- **Refresh**: Pull latest data from Firebase
-- **Reset**: Discard local changes and reload from Firebase
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the Vite dev server |
+| `npm run build` | Type-check and build to `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm test` | Run the unit tests once |
+| `npm run test:watch` | Run the unit tests in watch mode |
 
-### Status Workflow
-Products automatically move through statuses based on their properties:
-1. **New** - Order placed but not delivered
-2. **Review Not Added** - Delivered but review not added
-3. **Review Pending** - Review added but not live
-4. **Pending Refund** - Review screenshot sent, awaiting payment
-5. **Complete** - All steps finished
-6. **Void** - Marked as void (excluded from active workflow)
+Cloud Functions have their own scripts in `functions/package.json` (`build`, `serve`, `deploy`, `logs`).
 
-## Project Structure
+## Project structure
 
 ```
+api/                 Vercel serverless function (AI review generation)
+functions/           Firebase Cloud Functions (Gmail scanning, push reminders)
+public/              Icons and the product CSV import template
+scripts/             Version bump script run by the pre-push hook
 src/
-├── components/          # React components
-│   ├── StatCard.tsx     # Statistics display cards
-│   ├── ProductTable.tsx # Product data table
-│   ├── FilterControls.tsx # Search and filter controls
-│   ├── ProductToolbar.tsx # Action buttons and tools
-│   ├── AddProductForm.tsx # New product form
-│   └── EditableProductRow.tsx # Inline editing
-├── hooks/              # Custom hooks for Firebase operations
-│   ├── useFirebaseData.ts # Firebase data operations
-│   └── useProductCrudFirebase.ts # CRUD operations
-├── firebase/           # Firebase configuration
-│   └── config.ts       # Firebase app configuration
-└── types/              # TypeScript definitions
-    └── Product.ts      # Product-related types
-    └── PayPalTransaction.ts # PayPal transaction types
+├── components/      Feature components, grouped by area
+│   ├── ui/          shadcn/ui primitives
+│   └── common/      Shared building blocks (Modal, TableView, Toolbar, ...)
+├── contexts/        React context providers (auth, vendors, transactions, ...)
+├── firebase/        Firebase config and services
+├── hooks/           Data and UI hooks
+├── lib/             Small shared helpers (class merging, motion presets)
+├── pages/           Route-level pages
+├── router/          Route definitions and guards
+├── types/           TypeScript types
+├── utils/           Pure logic, parsers and style helpers (with tests)
+└── sw.ts            Service worker
+firestore.rules      Firestore security rules
 ```
 
-## Documentation
+## Deployment
 
-- **PayPal Dashboard**: See [README-PAYPAL-DASHBOARD.md](README-PAYPAL-DASHBOARD.md) for detailed PayPal transaction management documentation
-- **Firebase Setup**: See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for Firebase configuration
-- **Product URL Feature**: See [PRODUCT-URL-FEATURE.md](PRODUCT-URL-FEATURE.md) for product URL functionality
+- **Web app and `api/`**: deployed on Vercel (`vercel.json`).
+- **Firestore rules, indexes and Cloud Functions**: deployed with the Firebase CLI (`firebase deploy`).
+- **Versioning**: a pre-push hook bumps `src/utils/version.ts` on every push to `main`, aborts that push, and asks you to push again so the bump commit is included.
 
-## Firebase Console Access
-- **Main Console**: https://console.firebase.google.com/project/productreview-52e51
-- **Firestore Database**: https://console.firebase.google.com/project/productreview-52e51/firestore
+## Data model
 
-## Build for Production
-
-1. Create a production build:
-   ```bash
-   npm run build
-   ```
-
-2. The built files will be in the `dist` directory, ready for deployment.
+Firestore data is scoped per user under `users/{userId}`, with subcollections including `products`, `paypal_transactions`, `vendors`, `paymentMethods`, `notifications`, `pushSubscriptions`, `gmailAccounts`, `settings` and the pending Gmail import queues. Access is restricted to the signed-in owner by `firestore.rules`.
 
 ## Security
-- Service account credentials are in `.gitignore`
-- Only authenticated requests can access the database
-- Automatic backups provide data recovery options
+
+- Service account credentials (`firebase-service-account.json`) and `.env*` files are git-ignored; never commit them.
+- Firestore rules allow each user to read and write only their own data.

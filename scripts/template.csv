@@ -1,6 +1,0 @@
-Item,orderPlaced,orderDelivered,reviewAdded,reviewLive,reviewSSSent,paid,received,delta
-Sample Product 1,Y,Y,Y,Y,Y,29.99,25.99,-4.00
-Sample Product 2,Y,Y,Y,N,N,45.50,45.50,0.00
-Sample Product 3,Y,Y,N,N,N,19.99,,
-Sample Product 4,Y,N,N,N,N,75.00,,
-Sample Product 5,N,N,N,N,N,12.99,,
