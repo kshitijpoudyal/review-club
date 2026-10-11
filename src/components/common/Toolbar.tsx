@@ -4,9 +4,19 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   AdjustmentsHorizontalIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
-import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import React, { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import { typography } from '../../utils/typography';
 
 export interface FilterOption {
@@ -47,33 +57,17 @@ interface ToolbarProps {
 const CONTROL_HEIGHT = 'h-11';
 const CONTROL_RADIUS = 'rounded-xl';
 
-const searchInputClasses =
-  `block w-full ${CONTROL_HEIGHT} pl-10 pr-10 ${typography.body} ${CONTROL_RADIUS} ` +
-  'bg-white border border-[rgba(196,198,207,0.55)] placeholder-[#74777f] text-[#1b1c19] ' +
-  'focus:outline-none focus:border-[#022448] focus:ring-2 focus:ring-[#022448]/20 transition-colors';
+const filterTriggerClasses =
+  `inline-flex items-center justify-center gap-x-1.5 ${CONTROL_HEIGHT} px-3.5 ${typography.body} ` +
+  `${CONTROL_RADIUS} border transition-colors min-w-[8.5rem] ` +
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20';
 
 const filterInactiveClasses =
-  `inline-flex items-center justify-center gap-x-1.5 ${CONTROL_HEIGHT} px-3.5 ${typography.body} ` +
-  `${CONTROL_RADIUS} bg-white border border-[rgba(196,198,207,0.45)] text-[#43474e] ` +
-  'hover:border-[rgba(196,198,207,0.7)] hover:bg-[#fbf9f3] ' +
-  'focus:outline-none focus:border-[#022448] focus:ring-2 focus:ring-[#022448]/20 transition-colors min-w-[8.5rem]';
+  'bg-card border-input/45 text-on-surface-variant hover:border-input/70 hover:bg-background ' +
+  'data-[state=open]:border-primary';
 
 const filterActiveClasses =
-  `inline-flex items-center justify-center gap-x-1.5 ${CONTROL_HEIGHT} px-3.5 ${typography.body} font-medium ` +
-  `${CONTROL_RADIUS} bg-[#022448]/8 border border-[#022448]/25 text-[#022448] ` +
-  'hover:bg-[#022448]/12 hover:border-[#022448]/35 ' +
-  'focus:outline-none focus:ring-2 focus:ring-[#022448]/20 transition-colors min-w-[8.5rem]';
-
-const primaryButtonClasses =
-  `inline-flex items-center justify-center gap-2 ${CONTROL_HEIGHT} px-4 ${typography.button} ${CONTROL_RADIUS} ` +
-  'bg-[#022448] text-white hover:bg-[#1a3558] ' +
-  'focus:outline-none focus:ring-2 focus:ring-[#022448] focus:ring-offset-2 ' +
-  'disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0';
-
-const secondaryButtonClasses =
-  `inline-flex items-center justify-center gap-2 ${CONTROL_HEIGHT} px-3 ${typography.button} ${CONTROL_RADIUS} ` +
-  'bg-white border border-[rgba(196,198,207,0.45)] text-[#43474e] ' +
-  'hover:bg-[#fbf9f3] focus:outline-none focus:ring-2 focus:ring-[#022448]/20 transition-colors flex-shrink-0';
+  'font-medium bg-primary/8 border-primary/25 text-primary hover:bg-primary/12 hover:border-primary/35';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -117,9 +111,9 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
       className="relative w-full min-w-0 flex-1"
     >
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <MagnifyingGlassIcon className="h-[18px] w-[18px] text-[#74777f]" aria-hidden="true" />
+        <MagnifyingGlassIcon className="h-[18px] w-[18px] text-muted-foreground" aria-hidden="true" />
       </div>
-      <input
+      <Input
         ref={searchInputRef}
         type="text"
         role="searchbox"
@@ -138,7 +132,7 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
             }
           }
         }}
-        className={searchInputClasses}
+        className="px-10"
       />
       {filter.value ? (
         <button
@@ -148,13 +142,13 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
             searchInputRef.current?.focus();
           }}
           aria-label="Clear search"
-          className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#74777f] hover:text-[#43474e] transition-colors"
+          className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-on-surface-variant transition-colors"
         >
           <XMarkIcon className="h-4 w-4" aria-hidden="true" />
         </button>
       ) : (
         <kbd
-          className="hidden lg:flex absolute inset-y-0 right-3 items-center pointer-events-none text-caption text-[#74777f]/50 font-normal"
+          className="hidden lg:flex absolute inset-y-0 right-3 items-center pointer-events-none text-caption text-muted-foreground/50 font-normal"
           aria-hidden="true"
         >
           /
@@ -168,40 +162,36 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
     const isActive = filter.value !== '';
     return (
       <div key={filter.key} className="flex-shrink-0">
-        <Menu as="div" className="relative">
-          <MenuButton
-            className={isActive ? filterActiveClasses : filterInactiveClasses}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className={cn(filterTriggerClasses, isActive ? filterActiveClasses : filterInactiveClasses)}
             aria-label={filter.label || selectedOption?.label || 'Filter'}
           >
             <span className="truncate max-w-[10rem]">
               {selectedOption?.label || filter.label || 'Select...'}
             </span>
             <ChevronDownIcon
-              className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-[#022448]/70' : 'text-[#74777f]'}`}
+              className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-primary/70' : 'text-muted-foreground'}`}
               aria-hidden="true"
             />
-          </MenuButton>
+          </DropdownMenuTrigger>
 
-          <MenuItems className="absolute left-0 sm:right-0 z-20 mt-1.5 w-52 origin-top-left sm:origin-top-right rounded-xl bg-[#fbf9f3] shadow-[0_8px_24px_rgba(2,36,72,0.08)] ring-1 ring-[rgba(196,198,207,0.25)] focus:outline-none transform transition-all duration-150 data-[closed]:scale-95 data-[closed]:opacity-0 max-h-60 overflow-y-auto filter-scrollbar">
-            <div className="py-1">
-              {filter.options?.map((option) => (
-                <MenuItem key={option.value}>
-                  <button
-                    type="button"
-                    onClick={() => filter.onChange(option.value)}
-                    className={`block w-full px-3.5 py-2.5 text-left ${typography.body} transition-colors ${
-                      option.value === filter.value
-                        ? 'bg-[#022448]/8 text-[#022448] font-medium'
-                        : 'text-[#1b1c19] hover:bg-[#eae8e2]'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                </MenuItem>
-              ))}
-            </div>
-          </MenuItems>
-        </Menu>
+          <DropdownMenuContent align="start" className="w-52 max-h-60 filter-scrollbar">
+            {filter.options?.map((option) => {
+              const isSelected = option.value === filter.value;
+              return (
+                <DropdownMenuItem
+                  key={option.value}
+                  onSelect={() => filter.onChange(option.value)}
+                  className={cn('justify-between', isSelected && 'bg-primary/8 text-primary font-medium')}
+                >
+                  {option.label}
+                  {isSelected && <CheckIcon className="h-4 w-4" aria-hidden="true" />}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     );
   };
@@ -213,17 +203,17 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
     return (
     <div className={`flex items-center gap-2 ${forDesktop ? 'hidden lg:flex' : 'lg:hidden'}`}>
       {visibleActions.map((action, index) => (
-          <button
+          <Button
             key={index}
             type="button"
+            size="control"
+            variant={action.variant === 'secondary' || action.variant === 'danger' ? 'outline' : 'default'}
             onClick={action.onClick}
-            className={
-              action.variant === 'secondary'
-                ? secondaryButtonClasses
-                : action.variant === 'danger'
-                  ? `${secondaryButtonClasses} text-[#ba1a1a] border-[#ba1a1a]/25 hover:bg-[#ffdad6]/40`
-                  : primaryButtonClasses
-            }
+            className={cn(
+              'flex-shrink-0',
+              action.variant !== undefined && action.variant !== 'primary' && 'px-3',
+              action.variant === 'danger' && 'text-destructive border-destructive/25 hover:bg-destructive-container/40 hover:text-destructive'
+            )}
             disabled={action.disabled || loading}
           >
             {action.icon ? (
@@ -232,7 +222,7 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
               <PlusIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
             )}
             <span>{action.label}</span>
-          </button>
+          </Button>
         ))}
     </div>
     );
@@ -240,33 +230,35 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
 
   const renderClearFilters = () =>
     showClearButton && hasActiveFilters && onClearFilters ? (
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="control"
         onClick={onClearFilters}
         title="Clear all filters"
         aria-label="Clear all filters"
-        className={secondaryButtonClasses}
+        className="flex-shrink-0 px-3"
       >
         <XMarkIcon className="h-4 w-4" aria-hidden="true" />
         <span className="hidden xl:inline">Clear</span>
-      </button>
+      </Button>
     ) : null;
 
   const ToolbarShimmer = () => (
-    <div ref={ref} className="sticky top-0 z-30 bg-[#fbf9f3] pb-2 pt-1">
-      <div className="px-4 sm:px-6 lg:px-8 py-2">
+    <div ref={ref} className="sticky top-14 z-30 bg-background pb-2 pt-1">
+      <div className="page-gutter py-2">
         <div className="block lg:hidden space-y-3">
-          <div className={`${CONTROL_HEIGHT} bg-[#eae8e2] ${CONTROL_RADIUS} animate-pulse`} />
+          <Skeleton className={`${CONTROL_HEIGHT} bg-secondary ${CONTROL_RADIUS}`} />
           <div className="flex flex-wrap gap-2">
-            <div className={`${CONTROL_HEIGHT} w-32 bg-[#eae8e2] ${CONTROL_RADIUS} animate-pulse`} />
-            <div className={`${CONTROL_HEIGHT} w-28 bg-[#eae8e2] ${CONTROL_RADIUS} animate-pulse`} />
+            <Skeleton className={`${CONTROL_HEIGHT} w-32 bg-secondary ${CONTROL_RADIUS}`} />
+            <Skeleton className={`${CONTROL_HEIGHT} w-28 bg-secondary ${CONTROL_RADIUS}`} />
           </div>
         </div>
         <div className="hidden lg:flex lg:items-center lg:gap-3 w-full">
-          <div className={`${CONTROL_HEIGHT} flex-1 min-w-0 bg-[#eae8e2] ${CONTROL_RADIUS} animate-pulse`} />
-          <div className={`${CONTROL_HEIGHT} w-32 bg-[#eae8e2] ${CONTROL_RADIUS} animate-pulse`} />
-          <div className={`${CONTROL_HEIGHT} w-28 bg-[#eae8e2] ${CONTROL_RADIUS} animate-pulse`} />
-          <div className={`${CONTROL_HEIGHT} w-36 bg-[#eae8e2] ${CONTROL_RADIUS} animate-pulse ml-auto`} />
+          <Skeleton className={`${CONTROL_HEIGHT} flex-1 min-w-0 bg-secondary ${CONTROL_RADIUS}`} />
+          <Skeleton className={`${CONTROL_HEIGHT} w-32 bg-secondary ${CONTROL_RADIUS}`} />
+          <Skeleton className={`${CONTROL_HEIGHT} w-28 bg-secondary ${CONTROL_RADIUS}`} />
+          <Skeleton className={`${CONTROL_HEIGHT} w-36 bg-secondary ${CONTROL_RADIUS} ml-auto`} />
         </div>
       </div>
     </div>
@@ -277,8 +269,8 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
   }
 
   return (
-    <div ref={ref} className="sticky top-0 z-30 bg-[#fbf9f3] pb-2 pt-1">
-      <div className="px-4 sm:px-6 lg:px-8 py-2">
+    <div ref={ref} className="sticky top-14 z-30 bg-background pb-2 pt-1">
+      <div className="page-gutter py-2">
         {/* Mobile */}
         <div className="lg:hidden space-y-3">
           <div className="flex items-center gap-2">
@@ -291,8 +283,8 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
                 onClick={() => setShowMobileFilters((v) => !v)}
                 className={`flex items-center justify-center ${CONTROL_HEIGHT} w-11 ${CONTROL_RADIUS} border transition-colors flex-shrink-0 ${
                   showMobileFilters || hasActiveFilters
-                    ? 'bg-[#022448]/8 text-[#022448] border-[#022448]/25'
-                    : 'bg-white text-[#43474e] border-[rgba(196,198,207,0.45)]'
+                    ? 'bg-primary/8 text-primary border-primary/25'
+                    : 'bg-card text-on-surface-variant border-input/45'
                 }`}
                 aria-label="Toggle filters"
                 aria-expanded={showMobileFilters}

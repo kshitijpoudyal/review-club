@@ -38,7 +38,7 @@ export const ReviewMediaTypeSelector: React.FC<ReviewMediaTypeSelectorProps> = (
       <legend className={`${typography.label} mb-2 ${hideLabel ? 'sr-only' : ''}`}>
         Review requirement
       </legend>
-      <div className="flex w-full gap-1 p-1 rounded-xl bg-[#eae8e2]/80 border border-[rgba(196,198,207,0.45)]">
+      <div className="flex w-full gap-1 p-1 rounded-xl bg-secondary/80 border border-input/45">
         {REVIEW_MEDIA_OPTIONS.map(({ value: optionValue, label, Icon }) => {
           const inputId = `${groupId}-${optionValue}`;
           const isSelected = current === optionValue;
@@ -59,10 +59,10 @@ export const ReviewMediaTypeSelector: React.FC<ReviewMediaTypeSelectorProps> = (
                 className="peer sr-only"
               />
               <span
-                className={`flex h-11 items-center justify-center gap-1.5 rounded-lg ${typography.button} transition-colors peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-[#022448]/25 peer-focus-visible:ring-offset-1 ${
+                className={`flex h-11 items-center justify-center gap-1.5 rounded-lg ${typography.button} transition-colors peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-primary/25 peer-focus-visible:ring-offset-1 ${
                   isSelected
-                    ? 'bg-[#006a68] text-white font-semibold'
-                    : 'bg-transparent text-[#43474e] hover:bg-white/70'
+                    ? 'bg-brand text-brand-foreground font-semibold'
+                    : 'bg-transparent text-on-surface-variant hover:bg-white/70'
                 }`}
               >
                 {isSelected && (

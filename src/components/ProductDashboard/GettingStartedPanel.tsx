@@ -64,8 +64,8 @@ export const GettingStartedPanel: React.FC<GettingStartedPanelProps> = ({
   if (dismissed) return null;
 
   return (
-    <div className={`rounded-xl border ${colors.border.default} bg-white shadow-sm overflow-hidden mb-4`}>
-      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[rgba(196,198,207,0.3)] bg-[#f5f4f0]/60">
+    <div className={`rounded-xl border ${colors.border.default} bg-card shadow-sm overflow-hidden mb-4`}>
+      <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-input/30 bg-muted/60">
         <div>
           <h2 className={`${typography.bodyStrong} ${colors.text.primary}`}>Getting started</h2>
           <p className={`text-xs ${colors.text.muted} mt-0.5`}>
@@ -75,7 +75,7 @@ export const GettingStartedPanel: React.FC<GettingStartedPanelProps> = ({
         <button
           type="button"
           onClick={handleDismiss}
-          className={`p-1 rounded-md ${colors.text.muted} hover:${colors.text.secondary} hover:bg-[#e4e2dd] transition-colors`}
+          className={`p-1 rounded-md ${colors.text.muted} hover:${colors.text.secondary} hover:bg-surface-variant transition-colors`}
           aria-label="Dismiss getting started"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +88,7 @@ export const GettingStartedPanel: React.FC<GettingStartedPanelProps> = ({
         {/* Step 1 — Bookmark */}
         <section>
           <div className="flex items-center gap-2 mb-2">
-            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#022448] text-white text-xs font-semibold flex items-center justify-center">1</span>
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">1</span>
             <h3 className={`${typography.bodyStrong} ${colors.text.primary}`}>Set up browser bookmark</h3>
           </div>
           <div className={`ml-8 text-xs ${colors.text.muted} space-y-2`}>
@@ -163,7 +163,7 @@ export const GettingStartedPanel: React.FC<GettingStartedPanelProps> = ({
         {/* Step 2 — CSV import */}
         <section>
           <div className="flex items-center gap-2 mb-2">
-            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#022448] text-white text-xs font-semibold flex items-center justify-center">2</span>
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">2</span>
             <h3 className={`${typography.bodyStrong} ${colors.text.primary}`}>Import your existing product list</h3>
           </div>
           <div className="ml-8">
@@ -178,7 +178,7 @@ export const GettingStartedPanel: React.FC<GettingStartedPanelProps> = ({
         {/* Step 3 — Transactions */}
         <section>
           <div className="flex items-center gap-2 mb-2">
-            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#022448] text-white text-xs font-semibold flex items-center justify-center">3</span>
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center">3</span>
             <h3 className={`${typography.bodyStrong} ${colors.text.primary}`}>Record your refunds</h3>
           </div>
           <div className={`ml-8 text-xs ${colors.text.muted} space-y-2`}>
@@ -187,7 +187,7 @@ export const GettingStartedPanel: React.FC<GettingStartedPanelProps> = ({
             </p>
             <Link
               to="/transactions"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0070BA] text-white text-xs font-medium hover:bg-[#005ea6] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-status-paypal text-white text-xs font-medium hover:bg-status-paypal/90 transition-colors"
             >
               Go to Transactions
             </Link>

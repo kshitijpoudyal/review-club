@@ -9,6 +9,8 @@ import {
 import { auth } from '../../firebase/config';
 import { useAuth } from '../../hooks/useAuth';
 import { typography } from '../../utils/typography';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -175,7 +177,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         {/* decorative blobs */}
         <div className="pointer-events-none absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -right-16 w-[28rem] h-[28rem] rounded-full bg-white/5 blur-3xl" />
-        <div className="pointer-events-none absolute top-1/2 left-1/3 w-56 h-56 rounded-full bg-[#006a68]/15 blur-2xl" />
+        <div className="pointer-events-none absolute top-1/2 left-1/3 w-56 h-56 rounded-full bg-brand/15 blur-2xl" />
 
         <div className="relative z-10 max-w-md">
           {/* Brand mark */}
@@ -299,7 +301,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       </div>
 
       {/* ─── RIGHT PANEL ─────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-6 py-10 sm:px-10 bg-[#fbf9f3]">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-6 py-10 sm:px-10 bg-background">
 
         {/* Mobile gradient banner */}
         <div className="lg:hidden w-full max-w-sm mb-8">
@@ -318,10 +320,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <div className="w-full max-w-sm">
           {/* Desktop heading */}
           <div className="hidden lg:block mb-8">
-            <h1 className={`${typography.pageTitle} text-[#022448]`}>
+            <h1 className={`${typography.pageTitle} text-primary`}>
               {showForgotPassword ? 'Reset password' : isSignUp ? 'Create account' : 'Welcome back'}
             </h1>
-            <p className="text-[#74777f] text-sm mt-1.5">
+            <p className="text-muted-foreground text-sm mt-1.5">
               {showForgotPassword
                 ? 'We will email you a link to choose a new password'
                 : isSignUp
@@ -332,7 +334,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
           {/* Mobile heading */}
           <div className="lg:hidden mb-6 text-center">
-            <h2 className={`${typography.modalTitle} text-[#022448]`}>
+            <h2 className={`${typography.modalTitle} text-primary`}>
               {showForgotPassword ? 'Reset password' : isSignUp ? 'Create account' : 'Sign in'}
             </h2>
           </div>
@@ -343,11 +345,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 <label className={`${typography.label} mb-2`}>
                   Email Address
                 </label>
-                <input
+                <Input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 rounded-2xl bg-[#e4e2dd] border-0 text-[#1b1c19] placeholder-[#74777f] focus:outline-none focus:ring-2 focus:ring-[#022448] text-base transition-all"
+                  className="h-12 rounded-2xl border-0 bg-surface-variant px-4 md:text-base focus-visible:ring-primary"
                   placeholder="you@example.com"
                   required
                   autoFocus
@@ -355,30 +357,31 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </div>
 
               {error && (
-                <div className="bg-[#ffdad6] text-[#ba1a1a] px-4 py-3 rounded-2xl text-sm">
+                <div className="bg-destructive-container text-destructive px-4 py-3 rounded-2xl text-sm">
                   {error}
                 </div>
               )}
 
               {successMessage && (
-                <div className="bg-[#006a68]/10 text-[#006a68] px-4 py-3 rounded-2xl text-sm">
+                <div className="bg-brand/10 text-brand px-4 py-3 rounded-2xl text-sm">
                   {successMessage}
                 </div>
               )}
 
-              <button
+              <Button
+                size="lg"
                 type="submit"
                 disabled={loading}
-                className="w-full px-4 py-3.5 bg-gradient-to-br from-[#022448] to-[#1e3a5f] text-white rounded-full hover:from-[#1e3a5f] hover:to-[#022448] focus:outline-none focus:ring-2 focus:ring-[#022448] font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_4px_16px_rgba(2,36,72,0.2)]"
+                className="w-full py-3.5 text-base font-semibold"
               >
                 {loading ? 'Sending...' : 'Send reset link'}
-              </button>
+              </Button>
 
-              <p className="text-center text-sm text-[#74777f]">
+              <p className="text-center text-sm text-muted-foreground">
                 <button
                   type="button"
                   onClick={resetAuthView}
-                  className="text-[#006a68] hover:text-[#022448] font-semibold transition-colors"
+                  className="text-brand hover:text-primary font-semibold transition-colors"
                 >
                   Back to sign in
                 </button>
@@ -392,11 +395,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   <label className={`${typography.label} mb-2`}>
                     Email Address
                   </label>
-                  <input
+                  <Input
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl bg-[#e4e2dd] border-0 text-[#1b1c19] placeholder-[#74777f] focus:outline-none focus:ring-2 focus:ring-[#022448] text-base transition-all"
+                    className="h-12 rounded-2xl border-0 bg-surface-variant px-4 md:text-base focus-visible:ring-primary"
                     placeholder="you@example.com"
                     required
                   />
@@ -415,17 +418,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                           setError('');
                           setSuccessMessage('');
                         }}
-                        className="text-xs text-[#006a68] hover:text-[#022448] font-semibold transition-colors"
+                        className="text-xs text-brand hover:text-primary font-semibold transition-colors"
                       >
                         Forgot password?
                       </button>
                     )}
                   </div>
-                  <input
+                  <Input
                     type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl bg-[#e4e2dd] border-0 text-[#1b1c19] placeholder-[#74777f] focus:outline-none focus:ring-2 focus:ring-[#022448] text-base transition-all"
+                    className="h-12 rounded-2xl border-0 bg-surface-variant px-4 md:text-base focus-visible:ring-primary"
                     placeholder="••••••••"
                     required
                     minLength={6}
@@ -433,32 +436,33 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 </div>
 
                 {error && (
-                  <div className="bg-[#ffdad6] text-[#ba1a1a] px-4 py-3 rounded-2xl text-sm">
+                  <div className="bg-destructive-container text-destructive px-4 py-3 rounded-2xl text-sm">
                     {error}
                   </div>
                 )}
 
-                <button
+                <Button
+                  size="lg"
                   type="submit"
                   disabled={loading}
-                  className="w-full px-4 py-3.5 bg-gradient-to-br from-[#022448] to-[#1e3a5f] text-white rounded-full hover:from-[#1e3a5f] hover:to-[#022448] focus:outline-none focus:ring-2 focus:ring-[#022448] font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_4px_16px_rgba(2,36,72,0.2)]"
+                  className="w-full py-3.5 text-base font-semibold"
                 >
                   {loading ? 'Processing...' : isSignUp ? 'Create Account' : 'Sign In'}
-                </button>
+                </Button>
               </form>
 
               {/* Divider */}
               <div className="my-5 flex items-center gap-4">
-                <div className="flex-1 h-px bg-[rgba(196,198,207,0.4)]" />
-                <span className={`${typography.caption} text-[#74777f]`}>or</span>
-                <div className="flex-1 h-px bg-[rgba(196,198,207,0.4)]" />
+                <div className="flex-1 h-px bg-input/40" />
+                <span className={`${typography.caption} text-muted-foreground`}>or</span>
+                <div className="flex-1 h-px bg-input/40" />
               </div>
 
               {/* Google */}
               <button
                 onClick={handleGoogleAuth}
                 disabled={loading}
-                className="w-full px-4 py-3 bg-white text-[#1b1c19] rounded-full hover:bg-[#f5f3ee] focus:outline-none focus:ring-2 focus:ring-[#022448] font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3 shadow-[0_2px_8px_rgba(2,36,72,0.08)] border border-[rgba(196,198,207,0.4)]"
+                className="w-full px-4 py-3 bg-card text-foreground rounded-full hover:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3 shadow-[0_2px_8px_rgba(2,36,72,0.08)] border border-input/40"
               >
                 <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -470,12 +474,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </button>
 
               {/* Toggle sign-up / sign-in */}
-              <p className="mt-5 text-center text-sm text-[#74777f]">
+              <p className="mt-5 text-center text-sm text-muted-foreground">
                 {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
                 <button
                   type="button"
                   onClick={() => { setIsSignUp(!isSignUp); setError(''); setSuccessMessage(''); }}
-                  className="text-[#006a68] hover:text-[#022448] font-semibold transition-colors"
+                  className="text-brand hover:text-primary font-semibold transition-colors"
                 >
                   {isSignUp ? 'Sign in' : 'Create one'}
                 </button>
@@ -484,12 +488,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           )}
 
           {/* Footer */}
-          <div className="mt-10 pt-6 border-t border-[rgba(196,198,207,0.3)] text-center">
+          <div className="mt-10 pt-6 border-t border-input/30 text-center">
             <a
               href="https://www.kshitijstudio.com"
               target="_blank"
               rel="noopener noreferrer"
-              className={`inline-flex items-center gap-1.5 ${typography.caption} text-[#74777f] hover:text-[#022448] transition-colors`}
+              className={`inline-flex items-center gap-1.5 ${typography.caption} text-muted-foreground hover:text-primary transition-colors`}
             >
               <span>Powered by</span>
               <span className="font-semibold">KshitijStudio</span>

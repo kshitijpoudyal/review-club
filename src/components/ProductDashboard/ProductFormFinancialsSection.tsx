@@ -14,10 +14,10 @@ interface ProductFormFinancialsSectionProps {
 }
 
 function deltaDisplayClass(delta: number | null): string {
-  if (delta === null) return `${typography.numericStrong} text-[#74777f] tabular-nums`;
-  if (delta < 0) return `${typography.numericStrong} text-[#ba1a1a] tabular-nums`;
-  if (delta > 0) return `${typography.numericStrong} text-[#006a68] tabular-nums`;
-  return `${typography.numericStrong} text-[#43474e] tabular-nums`;
+  if (delta === null) return `${typography.numericStrong} text-muted-foreground tabular-nums`;
+  if (delta < 0) return `${typography.numericStrong} text-destructive tabular-nums`;
+  if (delta > 0) return `${typography.numericStrong} text-brand tabular-nums`;
+  return `${typography.numericStrong} text-on-surface-variant tabular-nums`;
 }
 
 export const ProductFormFinancialsSection: React.FC<ProductFormFinancialsSectionProps> = ({
@@ -50,7 +50,7 @@ export const ProductFormFinancialsSection: React.FC<ProductFormFinancialsSection
       <div className="min-w-0">
         <p className={formLabelClass}>Delta</p>
         <div
-          className={`${FORM_CONTROL_HEIGHT} flex items-center px-2 sm:px-3 rounded-xl bg-[#eae8e2]/50 border border-[rgba(196,198,207,0.35)] ${deltaDisplayClass(product.delta)}`}
+          className={`${FORM_CONTROL_HEIGHT} flex items-center px-2 sm:px-3 rounded-xl bg-secondary/50 border border-input/35 ${deltaDisplayClass(product.delta)}`}
           aria-readonly="true"
         >
           {product.delta !== null ? formatCurrency(product.delta) : '—'}
@@ -62,7 +62,7 @@ export const ProductFormFinancialsSection: React.FC<ProductFormFinancialsSection
       <button
         type="button"
         onClick={onResetDelta}
-        className={`${typography.caption} text-[#74777f] hover:text-[#1b1c19] underline transition-colors`}
+        className={`${typography.caption} text-muted-foreground hover:text-foreground underline transition-colors`}
       >
         Reset delta to null
       </button>

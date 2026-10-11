@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Product } from '../../types/Product';
 import EditProductModal from './EditProductModal';
 import { getProductStatus } from '../../utils/productStatus';
-import { getBadgeClasses } from '../../utils/colors';
+import { getBadgeClasses, getDeltaPillClasses } from '../../utils/colors';
 import { useProductTransactionLinks, ProductTransactionLink } from '../../hooks/useProductTransactionLinks';
 import { TableView, TableColumn, TableRow, MobileCardContent } from '../common/TableView';
 import { colors, getFinancialColor } from '../../utils/colors';
@@ -14,6 +14,17 @@ import { ProductThumbnail, ReviewMediaBadge } from '../common';
 import { useToast } from '../common/Toast';
 import { generateReview, GeneratedReview } from '../../utils/generateReview';
 import GeneratedReviewModal from '../common/GeneratedReviewModal';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { MoreVertical } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { celebrate } from '@/lib/celebrate';
+import { springBouncy } from '@/lib/motion';
 
 interface ProductTableProps {
   products: Product[];
@@ -39,7 +50,6 @@ const ProductTable: React.FC<ProductTableProps> = ({
   userId,
   hasAnyProducts = true,
 }) => {
-  const [showDropdown, setShowDropdown] = useState<string | number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [generatingReviewId, setGeneratingReviewId] = useState<string | number | null>(null);
@@ -86,7 +96,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
   const renderTransactionBadge = (link: ProductTransactionLink, index: number) => (
     <span
       key={link.transactionId || `transaction-${index}`}
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0070BA]/10 text-[#0070BA] ${typography.captionStrong} tabular-nums flex-shrink-0`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-status-paypal/10 text-status-paypal-fg ${typography.captionStrong} tabular-nums flex-shrink-0`}
     >
       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l-1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -115,7 +125,6 @@ const ProductTable: React.FC<ProductTableProps> = ({
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setIsModalOpen(true);
-    setShowDropdown(null);
   };
 
   const handleSaveProduct = (updatedProduct: Product) => {
@@ -131,20 +140,6 @@ const ProductTable: React.FC<ProductTableProps> = ({
     setIsModalOpen(false);
     setEditingProduct(null);
   };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!(event.target as Element).closest('.dropdown-container')) {
-        setShowDropdown(null);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
 
   const getDeltaClass = (delta: number | null) => {
     if (delta === null) return colors.text.muted;
@@ -251,13 +246,15 @@ const ProductTable: React.FC<ProductTableProps> = ({
     const productIndex = products.findIndex(p => p.id === product.id);
     if (productIndex !== -1 && onUpdateProduct) {
       onUpdateProduct(productIndex, updatedProduct);
+      const wasComplete = getProductStatus(product).type === 'complete';
+      if (!wasComplete && getProductStatus(updatedProduct).type === 'complete') {
+        celebrate();
+      }
     }
-    setShowDropdown(null);
   };
 
   const handleGenerateReview = async (product: Product, rowId: string | number) => {
     if (generatingReviewId !== null) return; // re-entrancy guard
-    setShowDropdown(null);
     setGeneratingReviewId(rowId);
     const loadingToastId = showToast('Generating review…', 'loading');
     try {
@@ -274,40 +271,35 @@ const ProductTable: React.FC<ProductTableProps> = ({
   };
 
   // Shared dropdown menu component for mobile
-  const renderMobileDropdown = (product: Product, index: number) => {
-    if (showDropdown !== index) return null;
-
+  const renderMobileMenuItems = (product: Product, index: number) => {
     const nextAction = getNextStatusAction(product);
     const mobileStatus = statuses[index];
 
     return (
-      <div className="absolute right-0 top-full mt-2 bg-[#fbf9f3] border border-[rgba(196,198,207,0.15)] rounded-2xl shadow-[0_12px_32px_rgba(2,36,72,0.10)] z-50 min-w-[180px] py-2">
+      <DropdownMenuContent align="end" className="min-w-[180px]">
         {mobileStatus.type === 'add-review' && (
-          <button
-            onClick={() => handleGenerateReview(product, product.id || index)}
-            className="block w-full text-left px-4 py-2.5 text-sm text-[#022448] hover:bg-[#006a68]/10 transition-colors font-medium"
+          <DropdownMenuItem
+            onSelect={() => handleGenerateReview(product, product.id || index)}
+            className="text-primary font-medium focus:bg-brand/10 focus:text-primary"
           >
             Generate Review
-          </button>
+          </DropdownMenuItem>
         )}
 
         {/* Dynamic status update button (Un-Void for void products, next step otherwise) */}
         {nextAction && (
-          <button
-            onClick={() => handleStatusUpdate(product, nextAction.updateFn)}
-            className="block w-full text-left px-4 py-2.5 text-sm text-[#022448] hover:bg-[#006a68]/10 transition-colors font-medium"
+          <DropdownMenuItem
+            onSelect={() => handleStatusUpdate(product, nextAction.updateFn)}
+            className="text-primary font-medium focus:bg-brand/10 focus:text-primary"
           >
             {nextAction.label}
-          </button>
+          </DropdownMenuItem>
         )}
-        
-        <button
-          onClick={() => handleEditProduct(product)}
-          className="block w-full text-left px-4 py-2.5 text-sm text-[#1b1c19] hover:bg-[#eae8e2] transition-colors"
-        >
+
+        <DropdownMenuItem onSelect={() => handleEditProduct(product)}>
           Edit
-        </button>
-      </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
     );
   };
 
@@ -342,20 +334,23 @@ const ProductTable: React.FC<ProductTableProps> = ({
     {
       key: 'paid',
       label: 'Paid',
-      align: 'center',
-      sortable: true
+      align: 'right',
+      sortable: true,
+      className: 'px-4 lg:px-6'
     },
     {
       key: 'received',
       label: 'Received',
-      align: 'center',
-      sortable: true
+      align: 'right',
+      sortable: true,
+      className: 'px-4 lg:px-6'
     },
     {
       key: 'delta',
       label: 'Delta',
-      align: 'center',
-      sortable: true
+      align: 'right',
+      sortable: true,
+      className: 'px-4 lg:px-6'
     },
     ...(readOnly ? [] : [{ 
       key: 'actions', 
@@ -415,9 +410,18 @@ const ProductTable: React.FC<ProductTableProps> = ({
         ),
         status: (
           <div className='flex flex-col items-center gap-1'>
-            <span className={getBadgeClasses(status.type)}>
-              {status.label}
-            </span>
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={status.type}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={springBouncy}
+                className={getBadgeClasses(status.type)}
+              >
+                {status.label}
+              </motion.span>
+            </AnimatePresence>
             <ReviewMediaBadge
               reviewMediaType={product.reviewMediaType}
               show={status.type === 'add-review'}
@@ -440,7 +444,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
         ),
         delta: (
           <div className='flex flex-col'>
-            <span className={`${typography.numericStrong} ${getDeltaClass(product.delta)}`}>
+            <span className={`${typography.numericStrong} ${getDeltaPillClasses(product.delta)} self-end`}>
               {formatCurrency(product.delta)}
             </span>
           </div>
@@ -491,9 +495,18 @@ const ProductTable: React.FC<ProductTableProps> = ({
         {/* Status, link pills, date, and actions */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 flex-wrap min-w-0 flex-1">
-            <span className={getBadgeClasses(status.type)}>
-              {status.label}
-            </span>
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={status.type}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={springBouncy}
+                className={getBadgeClasses(status.type)}
+              >
+                {status.label}
+              </motion.span>
+            </AnimatePresence>
             <ReviewMediaBadge
               reviewMediaType={product.reviewMediaType}
               show={status.type === 'add-review'}
@@ -503,18 +516,14 @@ const ProductTable: React.FC<ProductTableProps> = ({
           <div className="flex items-center gap-1.5 shrink-0">
             <span className={`${typography.caption} ${colors.text.muted}`}>{formatDate(product.orderDate) || '—'}</span>
             {!readOnly && (
-              <div className="relative dropdown-container">
-                <button
-                  onClick={() => setShowDropdown(showDropdown === index ? null : index)}
-                  className={`flex items-center justify-center w-8 h-8 ${colors.button.secondary} rounded-full transition focus:outline-none focus:ring-2 focus:ring-[#022448]`}
-                  title="More actions"
-                >
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M10 3a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 10a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM10 17a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
-                  </svg>
-                </button>
-                {renderMobileDropdown(product, index)}
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="icon" title="More actions" aria-label="More actions">
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                {renderMobileMenuItems(product, index)}
+              </DropdownMenu>
             )}
           </div>
         </div>
@@ -598,9 +607,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
             : 'No products yet. Use Getting Started above to import your list or add your first product.'
         }
         onClearFilters={onClearFilters}
-        activeDropdown={showDropdown}
         loading={loading}
-        onDropdownToggle={(rowId) => setShowDropdown(prev => prev === rowId ? null : rowId)}
         trailingSpacerRow
       />
 

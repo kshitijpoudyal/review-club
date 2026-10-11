@@ -4,6 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { Product, StatusFilter } from '../../types/Product';
 import { getProductStatusType } from '../../utils/productStatus';
 import { formatCurrency } from '../../utils/currency';
+import { AnimatePresence, motion } from 'motion/react';
+import { statusSolid } from '../../utils/colors';
+
+// Dot colour per chip, matching the status badge hues
+const STRIP_DOT: Record<string, string> = statusSolid;
 
 const ATTENTION_EXPANDED_KEY = 'art_attention_expanded';
 
@@ -143,29 +148,29 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
   };
 
   return (
-    <div className="px-4 sm:px-6 md:px-6 lg:px-8 mb-2">
-      <div className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(2,36,72,0.07)] overflow-hidden border border-[#2563eb]/10">
+    <div className="page-gutter mb-2">
+      <div className="bg-card rounded-2xl shadow-soft overflow-hidden border border-border/60">
         <button
           type="button"
           onClick={toggleExpanded}
           aria-expanded={expanded}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[#fbf9f3]/80 transition-colors"
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors"
         >
           <div className="min-w-0 flex items-center gap-2.5">
-            <span className="flex-shrink-0 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-[#2563eb]/10 text-[#1d4ed8] text-caption font-semibold tabular-nums">
+            <span className="flex-shrink-0 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-status-blue/10 text-status-blue-fg text-caption font-semibold tabular-nums">
               {totalCount}
             </span>
             <div className="min-w-0">
-              <p className={`${typography.captionStrong} text-[#1b1c19]`}>
+              <p className={`${typography.captionStrong} text-foreground`}>
                 Needs attention
               </p>
               {!expanded && (
-                <p className="text-sm text-[#43474e] mt-0.5 truncate">{collapsedSummary}</p>
+                <p className="text-sm text-on-surface-variant mt-0.5 truncate">{collapsedSummary}</p>
               )}
             </div>
           </div>
           <svg
-            className={`w-5 h-5 text-[#74777f] flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            className={`w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -175,47 +180,51 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
           </svg>
         </button>
 
-        {expanded && (
-          <div className="border-t border-[rgba(196,198,207,0.2)] divide-y divide-[rgba(196,198,207,0.15)]">
-            {items.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={item.onClick}
-                className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left transition-colors ${
-                  item.active
-                    ? 'bg-[#006a68]/8 hover:bg-[#006a68]/12'
-                    : 'hover:bg-[#fbf9f3]'
-                }`}
-              >
-                <div className="min-w-0 flex items-center gap-2.5">
-                  <span className={`flex-shrink-0 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full tabular-nums text-caption font-semibold ${
-                    item.key === 'transactions'
-                      ? 'bg-amber-500/12 text-amber-800'
-                      : 'bg-[#2563eb]/10 text-[#1d4ed8]'
-                  }`}>
-                    {item.count}
-                  </span>
-                  <div className="min-w-0">
-                    <p className={`text-sm font-medium ${item.active ? 'text-[#006a68]' : 'text-[#1b1c19]'}`}>
-                      {item.label}
-                    </p>
-                    <p className={`${typography.caption} mt-0.5 truncate`}>{item.detail}</p>
-                  </div>
-                </div>
-                <svg
-                  className={`w-4 h-4 flex-shrink-0 ${item.active ? 'text-[#006a68]' : 'text-[#74777f]'}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            ))}
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="flex flex-wrap gap-2 border-t border-border/60 px-4 py-3">
+                {items.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={item.onClick}
+                    title={item.detail}
+                    aria-pressed={item.active}
+                    className={`group inline-flex items-center gap-2 rounded-full border py-1.5 pl-3 pr-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98] ${
+                      item.active
+                        ? 'border-brand/40 bg-brand/10 text-brand'
+                        : 'border-border bg-card text-foreground hover:border-input hover:bg-muted/60'
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        item.key === 'transactions' ? 'bg-status-amber' : STRIP_DOT[item.key] ?? 'bg-status-blue'
+                      }`}
+                      aria-hidden="true"
+                    />
+                    {item.label}
+                    <span className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-caption font-semibold tabular-nums ${
+                      item.active
+                        ? 'bg-brand/15 text-brand'
+                        : item.key === 'transactions'
+                          ? 'bg-status-amber/12 text-status-amber-fg'
+                          : 'bg-muted text-on-surface-variant'
+                    }`}>
+                      {item.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

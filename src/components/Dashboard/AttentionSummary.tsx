@@ -22,8 +22,8 @@ function AttentionItem({ label, detail, to, highlight }: AttentionItemProps) {
       to={to}
       className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-colors ${
         highlight
-          ? 'border-amber-500/30 bg-amber-500/8 hover:bg-amber-500/12'
-          : 'border-[#e4e2dd] hover:border-[#006a68]/30 hover:bg-[#006a68]/5'
+          ? 'border-status-amber/30 bg-status-amber/8 hover:bg-status-amber/12'
+          : 'border-surface-variant hover:border-brand/30 hover:bg-brand/5'
       }`}
     >
       <span className={typography.bodyStrong}>{label}</span>

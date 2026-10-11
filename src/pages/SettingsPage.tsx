@@ -11,6 +11,7 @@ import { OrderReminders } from '../components/Settings/OrderReminders';
 import { BookmarkletSetupPanel } from '../components/ProductDashboard/BookmarkletSetupPanel';
 import { ToggleSwitch } from '../components/common/ToggleSwitch';
 import { GMAIL_STEP_INDEX } from '../components/Onboarding/onboardingSteps';
+import { ThemeSwitcher } from '@/components/common/ThemeSwitcher';
 
 const SettingsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -41,6 +42,18 @@ const SettingsPage: React.FC = () => {
           Manage notification triggers, connected integrations, and your vendor roster.
         </p>
       </div>
+
+      <section className={`${colors.card.background} rounded-2xl ${colors.card.border} ${colors.card.shadow} overflow-hidden`}>
+        <div className="p-4 sm:p-6 md:p-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className={typography.sectionTitle}>Appearance</h2>
+            <p className={`${typography.caption} mt-1`}>
+              Choose light or dark, or follow your device setting.
+            </p>
+          </div>
+          <ThemeSwitcher className="w-full sm:w-72" />
+        </div>
+      </section>
 
       <VendorSettings />
 

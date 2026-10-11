@@ -143,7 +143,7 @@ export const DashboardPage: React.FC = () => {
                   data={metrics.productRefundTrend}
                   title="Product refunds"
                   subtitle="Monthly received on linked products"
-                  color="#022448"
+                  color="hsl(var(--chart-2))"
                 />
                 <PaidVsReceivedChart
                   data={metrics.paidVsReceivedTrend}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardTimeRange } from '../../utils/dashboardMetrics';
 import { typography } from '../../utils/typography';
 
@@ -15,20 +16,17 @@ interface TimeRangeToggleProps {
 }
 
 export const TimeRangeToggle: React.FC<TimeRangeToggleProps> = ({ value, onChange }) => (
-  <div className="inline-flex rounded-full bg-white shadow-[0_2px_8px_rgba(2,36,72,0.06)] p-0.5">
-    {OPTIONS.map((opt) => (
-      <button
-        key={opt.value}
-        type="button"
-        onClick={() => onChange(opt.value)}
-        className={`${typography.captionStrong} px-3 py-1.5 rounded-full transition-all ${
-          value === opt.value
-            ? 'bg-[#006a68] text-white'
-            : 'text-[#74777f] hover:text-[#1b1c19]'
-        }`}
-      >
-        {opt.label}
-      </button>
-    ))}
-  </div>
+  <Tabs value={value} onValueChange={(v) => onChange(v as DashboardTimeRange)}>
+    <TabsList className="h-auto rounded-full bg-card p-0.5 shadow-[0_2px_8px_rgba(2,36,72,0.06)]">
+      {OPTIONS.map((opt) => (
+        <TabsTrigger
+          key={opt.value}
+          value={opt.value}
+          className={`${typography.captionStrong} rounded-full px-3 py-1.5 hover:text-foreground data-[state=active]:bg-brand data-[state=active]:text-white data-[state=active]:shadow-none`}
+        >
+          {opt.label}
+        </TabsTrigger>
+      ))}
+    </TabsList>
+  </Tabs>
 );

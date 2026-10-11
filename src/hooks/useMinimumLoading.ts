@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react';
  * Custom hook to enforce a minimum loading time
  * 
  * @param isLoading - The actual loading state from your data source
- * @param minimumTime - Minimum time in milliseconds to show loading (default: 3000ms)
+ * @param minimumTime - Minimum time in milliseconds to show loading (default: 300ms)
  * @returns boolean - Whether to show loading state (enforces minimum time)
  */
-export const useMinimumLoading = (isLoading: boolean, minimumTime: number = 1500): boolean => {
+export const useMinimumLoading = (isLoading: boolean, minimumTime: number = 300): boolean => {
   const [isMinimumTimePassed, setIsMinimumTimePassed] = useState(false);
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
 

@@ -1,8 +1,21 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Dialog, DialogPanel } from '@headlessui/react'
-import { Bars3Icon, XMarkIcon, UserCircleIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
+import { motion } from 'motion/react'
+import { UserCircleIcon, ArrowDownTrayIcon, Cog6ToothIcon, ArrowRightStartOnRectangleIcon, BellIcon } from '@heroicons/react/24/outline'
+import { Package } from 'lucide-react'
 import { User } from 'firebase/auth';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { PageContainer } from '@/components/common/PageContainer'
+import { ThemeSwitcher } from '@/components/common/ThemeSwitcher'
+import { springSoft } from '@/lib/motion'
+import { cn } from '@/lib/utils'
 import { typography } from '../../utils/typography';
 import { colors } from '../../utils/colors';
 import { APP_VERSION } from '../../utils/version';
@@ -13,35 +26,33 @@ interface AppHeaderProps {
     onLogout: () => void;
 }
 
+type InstallPromptEvent = Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> };
+
+const NAVIGATION = [
+    { name: 'Products', href: '/products' },
+    { name: 'Transactions', href: '/transactions' },
+]
+
 export default function AppHeader({ user, onLogout }: AppHeaderProps) {
     const location = useLocation();
-    const navigation = [
-        { name: 'Products', href: '/products' },
-        { name: 'Transactions', href: '/transactions' },
-    ]
-
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [userMenuOpen, setUserMenuOpen] = useState(false);
-    const userMenuRef = useRef<HTMLDivElement>(null);
-    const [installPrompt, setInstallPrompt] = useState<Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> } | null>(null);
-
-    useEffect(() => {
-        function handleClickOutside(e: MouseEvent) {
-            if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-                setUserMenuOpen(false);
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+    const [scrolled, setScrolled] = useState(false);
 
     useEffect(() => {
         const handler = (e: Event) => {
             e.preventDefault();
-            setInstallPrompt(e as Event & { prompt: () => void; userChoice: Promise<{ outcome: string }> });
+            setInstallPrompt(e as InstallPromptEvent);
         };
         window.addEventListener('beforeinstallprompt', handler);
         return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    // Lift the bar off the page once content scrolls beneath it
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 4);
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
     const handleInstall = async () => {
@@ -59,179 +70,113 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
     const displayName = user.displayName || user.email || 'User';
 
     return (
-        <header className={`${colors.header.background}`}>
-            <nav aria-label="Global" className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6 lg:px-8">
-                {/* Brand + Nav */}
-                <div className="flex items-center gap-x-6">
-                    <span className={`${typography.bodyStrong} text-white tracking-tight select-none`}>
-                        📦 Review Club
-                    </span>
-                    <div className="hidden md:flex md:gap-x-1">
-                        {navigation.map((item) => {
-                            const isActive = location.pathname === item.href ||
-                                location.pathname.startsWith(item.href);
-                            return (
-                                <Link
-                                    key={item.name}
-                                    to={item.href}
-                                    className={`${typography.bodyStrong} px-3 py-1.5 rounded-full transition-all ${
-                                        isActive
-                                            ? 'text-white bg-white/20'
-                                            : 'text-white/70 hover:text-white hover:bg-white/10'
-                                    }`}
-                                >
-                                    {item.name}
-                                </Link>
-                            );
-                        })}
-                    </div>
-                </div>
-                <div className="flex md:hidden items-center gap-2">
-                    <NotificationBell />
-                    <button
-                        type="button"
-                        onClick={() => setMobileMenuOpen(true)}
-                        className={`-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 ${colors.header.mobile.menuButton}`}
-                    >
-                        <span className="sr-only">Open main menu</span>
-                        <Bars3Icon aria-hidden="true" className="size-6" />
-                    </button>
-                </div>
-                <div className="hidden md:flex items-center gap-3">
-                  <a
-                    href="https://www.kshitijstudio.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`${typography.caption} text-white hover:text-white/80 transition-colors`}
-                  >
-                    Powered by KshitijStudio
-                  </a>
-                  <NotificationBell />
-                  {/* User icon with dropdown */}
-                  <div className="relative" ref={userMenuRef}>
-                    <button
-                      onClick={() => setUserMenuOpen(v => !v)}
-                      className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/10 transition-all text-white/70 hover:text-white"
-                      aria-label="User menu"
-                    >
-                      <UserCircleIcon className="w-7 h-7" />
-                    </button>
-                    {userMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-52 rounded-xl bg-white shadow-lg ring-1 ring-black/5 z-50 overflow-hidden">
-                        <div className="px-4 py-3 border-b border-gray-100">
-                          <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                          <p className="text-xs text-gray-300 mt-0.5">v{APP_VERSION}</p>
-                        </div>
-                        {installPrompt && (
-                          <button
-                            onClick={() => { setUserMenuOpen(false); handleInstall(); }}
-                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 border-b border-gray-100"
-                          >
-                            <ArrowDownTrayIcon className="w-4 h-4 text-[#006a68]" />
-                            Install App
-                          </button>
-                        )}
+        <header
+            className={cn(
+                'sticky top-0 z-40 transition-shadow duration-300',
+                colors.header.background,
+                scrolled && 'shadow-[0_6px_24px_rgb(var(--shadow-color)/0.28)]'
+            )}
+        >
+            <PageContainer>
+                <nav aria-label="Global" className="flex h-14 items-center justify-between">
+                    {/* Brand + Nav */}
+                    <div className="flex items-center gap-x-6">
                         <Link
-                          to="/settings"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                            to="/products"
+                            className={`${typography.bodyStrong} text-white tracking-tight select-none inline-flex items-center gap-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
                         >
-                          Settings
+                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15">
+                                <Package className="h-4 w-4" aria-hidden="true" />
+                            </span>
+                            <span className="font-display text-[1.0625rem] font-semibold">Review Club</span>
                         </Link>
-                        <button
-                          onClick={() => { setUserMenuOpen(false); onLogout(); }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
-                          Log out →
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-            </nav>
-            <Dialog open={mobileMenuOpen} onClose={setMobileMenuOpen} className="md:hidden">
-                <div className="fixed inset-0 z-50" />
-                <DialogPanel className={`fixed inset-y-0 right-0 z-50 w-full overflow-y-auto ${colors.header.background} p-4 sm:max-w-sm sm:ring-1 ${colors.header.mobile.ring}`}>
-                    <div className="flex items-center justify-between">
-                        <p className={`text-sm/6 font-semibold ${colors.header.navigation.link} py-2`}>Welcome {displayName}!</p>
-                        <button
-                            type="button"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={`-m-2.5 rounded-md p-2.5 ${colors.header.mobile.closeButton}`}
-                        >
-                            <span className="sr-only">Close menu</span>
-                            <XMarkIcon aria-hidden="true" className="size-6" />
-                        </button>
-                    </div>
-                    <div className="mt-6 flow-root">
-                        <div className={`-my-6 divide-y ${colors.header.mobile.divider}`}>
-                            <div className="space-y-2 py-6">
-                                {navigation.map((item) => {
-                                    const isActive = location.pathname === item.href ||
-                                location.pathname.startsWith(item.href);
-                                    return (
-                                        <Link
-                                            key={item.name}
-                                            to={item.href}
-                                            onClick={() => setMobileMenuOpen(false)}
-                                            className={`-mx-3 block rounded-xl px-3 py-2 text-base/7 font-semibold ${
-                                                isActive
-                                                    ? 'text-white bg-white/20'
-                                                    : `${colors.header.mobile.menuLink}`
-                                            }`}
-                                        >
-                                            {item.name}
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                            <div className="py-6 space-y-1">
-                                <Link
-                                    to="/notifications"
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className={`-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold ${colors.header.mobile.menuLink}`}
-                                >
-                                    Notifications
-                                </Link>
-                                {installPrompt && (
-                                    <button
-                                        onClick={() => { setMobileMenuOpen(false); handleInstall(); }}
-                                        className={`-mx-3 w-full text-left rounded-lg px-3 py-2.5 text-base/7 font-semibold flex items-center gap-2 ${colors.header.mobile.menuLink}`}
+                        <div className="hidden md:flex md:gap-x-1">
+                            {NAVIGATION.map((item) => {
+                                const isActive = location.pathname.startsWith(item.href);
+                                return (
+                                    <Link
+                                        key={item.name}
+                                        to={item.href}
+                                        className={cn(
+                                            typography.bodyStrong,
+                                            'relative px-3 py-1.5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
+                                            isActive ? 'text-white' : 'text-white/70 hover:text-white'
+                                        )}
                                     >
-                                        <ArrowDownTrayIcon className="w-5 h-5" />
-                                        Install App
-                                    </button>
-                                )}
-                                <Link
-                                    to="/settings"
-                                    onClick={() => setMobileMenuOpen(false)}
-                                    className={`-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold ${colors.header.mobile.menuLink}`}
-                                >
-                                    Settings
-                                </Link>
-                                <a
-                                    href="#"
-                                    onClick={onLogout}
-                                    className={`-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold ${colors.header.mobile.menuLink}`}
-                                >
-                                    Log out
-                                </a>
-                            </div>
-                        </div>
-                        <div className="pt-4 text-center space-y-1">
-                            <a
-                                href="https://www.kshitijstudio.com"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`${typography.caption} text-white hover:text-white/80 transition-colors`}
-                            >
-                                Powered by KshitijStudio
-                            </a>
-                            <p className={`${typography.caption} text-white/50`}>v{APP_VERSION}</p>
+                                        {isActive && (
+                                            <motion.span
+                                                layoutId="nav-indicator"
+                                                transition={springSoft}
+                                                className="absolute inset-0 rounded-full bg-white/20"
+                                            />
+                                        )}
+                                        <span className="relative">{item.name}</span>
+                                    </Link>
+                                );
+                            })}
                         </div>
                     </div>
-                </DialogPanel>
-            </Dialog>
+
+                    <div className="flex items-center gap-2 md:gap-3">
+                        <a
+                            href="https://www.kshitijstudio.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`${typography.caption} hidden md:inline text-white/70 hover:text-white transition-colors`}
+                        >
+                            Powered by KshitijStudio
+                        </a>
+                        <NotificationBell />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger
+                                className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/10 transition-all text-white/70 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 data-[state=open]:bg-white/10 data-[state=open]:text-white"
+                                aria-label="User menu"
+                            >
+                                <UserCircleIcon className="w-7 h-7" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-60">
+                                <DropdownMenuLabel className="font-normal">
+                                    <p className={`${typography.bodyStrong} truncate`}>{displayName}</p>
+                                    <p className={`${typography.caption} truncate`}>{user.email}</p>
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {/* Theme: a segmented control, so choosing doesn't close the menu */}
+                                <div className="px-2 py-1.5">
+                                    <ThemeSwitcher />
+                                </div>
+                                <DropdownMenuSeparator />
+                                {installPrompt && (
+                                    <DropdownMenuItem onSelect={handleInstall}>
+                                        <ArrowDownTrayIcon className="text-brand" />
+                                        Install App
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem asChild className="md:hidden">
+                                    <Link to="/notifications">
+                                        <BellIcon />
+                                        Notifications
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link to="/settings">
+                                        <Cog6ToothIcon />
+                                        Settings
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={onLogout}>
+                                    <ArrowRightStartOnRectangleIcon />
+                                    Log out
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <p className={`${typography.caption} px-3 py-1.5 text-muted-foreground/70`}>
+                                    v{APP_VERSION}
+                                    <span className="md:hidden"> · Powered by KshitijStudio</span>
+                                </p>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </nav>
+            </PageContainer>
         </header>
     )
 }

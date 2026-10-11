@@ -7,6 +7,7 @@ import {
   buildWalmartBookmarkletHref,
 } from '../../utils/bookmarklet';
 import { getAppOrigin } from '../../utils/importHandoff';
+import { Textarea } from '@/components/ui/textarea';
 
 interface BookmarkletSetupPanelProps {
   defaultExpanded?: boolean;
@@ -51,7 +52,7 @@ export const BookmarkletSetupPanel: React.FC<BookmarkletSetupPanelProps> = ({ de
       </button>
 
       {expanded && (
-        <div className={`mt-3 text-xs ${colors.text.muted} space-y-3 pl-4 border-l-2 border-[rgba(196,198,207,0.3)]`}>
+        <div className={`mt-3 text-xs ${colors.text.muted} space-y-3 pl-4 border-l-2 border-input/30`}>
           <p className="leading-relaxed">
             Shortcuts extract order data (including tax), copy JSON to your clipboard, and{' '}
             <strong>open this app with the Add Product form pre-filled</strong>.
@@ -63,8 +64,8 @@ export const BookmarkletSetupPanel: React.FC<BookmarkletSetupPanelProps> = ({ de
               <li>Show bookmarks bar (Ctrl/⌘+Shift+B)</li>
               <li>Drag a button below to your bookmarks bar</li>
               <li>On the matching order page, click it → app opens with Add Product form</li>
-              <li className="text-[#74777f]">Wayfair: open <strong>View/Edit Details</strong> for the item first (multi-order lists)</li>
-              <li className="text-[#74777f]">Walmart: open <strong>Purchase history → Order details</strong></li>
+              <li className="text-muted-foreground">Wayfair: open <strong>View/Edit Details</strong> for the item first (multi-order lists)</li>
+              <li className="text-muted-foreground">Walmart: open <strong>Purchase history → Order details</strong></li>
             </ol>
             <div className="flex flex-wrap gap-2 mt-2">
               <a
@@ -111,8 +112,8 @@ export const BookmarkletSetupPanel: React.FC<BookmarkletSetupPanelProps> = ({ de
                 <strong>iPhone Safari:</strong> tap the share/bookmarks icon → run your saved shortcut
               </li>
               <li>The app opens with Add Product form pre-filled — review and save</li>
-              <li className="text-[#74777f]">Re-copy bookmark URLs below if you still see an old on-page popup</li>
-              <li className="text-[#74777f]">If redirect fails, use Import from Clipboard in the app (JSON is copied automatically)</li>
+              <li className="text-muted-foreground">Re-copy bookmark URLs below if you still see an old on-page popup</li>
+              <li className="text-muted-foreground">If redirect fails, use Import from Clipboard in the app (JSON is copied automatically)</li>
             </ol>
 
             {[
@@ -122,20 +123,20 @@ export const BookmarkletSetupPanel: React.FC<BookmarkletSetupPanelProps> = ({ de
             ].map(({ label, href, copied, setCopied, border }) => (
               <div key={label} className="relative mb-3 last:mb-0">
                 <p className={`mb-1 text-xs ${colors.text.secondary}`}>{label}</p>
-                <textarea
+                <Textarea
                   readOnly
                   value={href}
                   rows={3}
                   onFocus={e => e.target.select()}
-                  className={`w-full px-2 py-2 pr-16 ${typography.caption} tabular-nums rounded-lg border ${border} bg-white ${colors.text.muted} resize-none`}
+                  className={`min-h-0 rounded-lg px-2 py-2 pr-16 text-caption md:text-caption tabular-nums ${border} ${colors.text.muted}`}
                 />
                 <button
                   type="button"
                   onClick={() => copyText(href, setCopied)}
                   className={`absolute top-7 right-2 px-2 py-1 rounded ${typography.captionStrong} transition-colors ${
                     copied
-                      ? 'bg-[#006a68]/10 text-[#006a68]'
-                      : `${colors.background.secondary} ${colors.text.secondary} hover:bg-[#e4e2dd]`
+                      ? 'bg-brand/10 text-brand'
+                      : `${colors.background.secondary} ${colors.text.secondary} hover:bg-surface-variant`
                   }`}
                 >
                   {copied ? '✓ Copied' : 'Copy'}

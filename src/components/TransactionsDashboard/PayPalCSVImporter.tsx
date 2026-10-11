@@ -133,20 +133,20 @@ export const PayPalCSVImporter: React.FC<PayPalCSVImporterProps> = ({
   const getStatusColor = () => {
     switch (importStatus.status) {
       case 'processing':
-        return 'border-blue-300 bg-blue-50';
+        return 'border-status-blue/40 bg-status-blue/8';
       case 'success':
-        return 'border-green-300 bg-green-50';
+        return 'border-brand/30 bg-brand/8';
       case 'error':
-        return 'border-red-300 bg-red-50';
+        return 'border-destructive/30 bg-destructive-container/60';
       default:
-        return dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-white';
+        return dragOver ? 'border-brand bg-brand/5' : 'border-input bg-card';
     }
   };
 
   return (
     <div className="space-y-4">
       {showExportHint && (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-on-surface-variant">
           Download from PayPal: <strong>Activity → Statements → Activity download → CSV</strong>
         </p>
       )}
@@ -155,7 +155,7 @@ export const PayPalCSVImporter: React.FC<PayPalCSVImporterProps> = ({
         className={`
           relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all
           ${getStatusColor()}
-          ${isLoading ? 'pointer-events-none opacity-50' : 'hover:border-blue-400 hover:bg-blue-50'}
+          ${isLoading ? 'pointer-events-none opacity-50' : 'hover:border-status-blue/50 hover:bg-status-blue/8'}
         `}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -175,10 +175,10 @@ export const PayPalCSVImporter: React.FC<PayPalCSVImporterProps> = ({
           {getStatusIcon()}
           
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            <h3 className="text-lg font-semibold text-foreground mb-1">
               Import PayPal Transactions
             </h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-on-surface-variant">
               {importStatus.status === 'idle' 
                 ? 'Drop your PayPal CSV file here or click to browse'
                 : importStatus.message
@@ -188,7 +188,7 @@ export const PayPalCSVImporter: React.FC<PayPalCSVImporterProps> = ({
 
           {importStatus.status === 'success' && importStatus.details && (
             <div className="text-sm space-y-1">
-              <div className="flex items-center justify-center space-x-4 text-green-700">
+              <div className="flex items-center justify-center space-x-4 text-brand">
                 <span>✅ Added: {importStatus.details.added}</span>
                 <span>⏭️ Skipped: {importStatus.details.skipped}</span>
                 {importStatus.details.withdrawalSkipped && importStatus.details.withdrawalSkipped > 0 && (

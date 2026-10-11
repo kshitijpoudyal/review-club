@@ -87,13 +87,13 @@ export const ProductCSVImporter: React.FC<ProductCSVImporterProps> = ({
   const getStatusColor = () => {
     switch (importStatus.status) {
       case 'processing':
-        return 'border-blue-300 bg-blue-50';
+        return 'border-status-blue/40 bg-status-blue/8';
       case 'success':
-        return 'border-green-300 bg-green-50';
+        return 'border-brand/30 bg-brand/8';
       case 'error':
-        return 'border-red-300 bg-red-50';
+        return 'border-destructive/30 bg-destructive-container/60';
       default:
-        return dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 bg-white';
+        return dragOver ? 'border-brand bg-brand/5' : 'border-input bg-card';
     }
   };
 
@@ -105,7 +105,7 @@ export const ProductCSVImporter: React.FC<ProductCSVImporterProps> = ({
         <a
           href={TEMPLATE_URL}
           download="product-import-template.csv"
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${colors.border.default} ${colors.text.secondary} text-xs font-medium hover:bg-[#f5f4f0] transition-colors`}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border ${colors.border.default} ${colors.text.secondary} text-xs font-medium hover:bg-muted transition-colors`}
         >
           Download template
         </a>
@@ -118,7 +118,7 @@ export const ProductCSVImporter: React.FC<ProductCSVImporterProps> = ({
         className={`
           relative border-2 border-dashed rounded-lg ${padding} text-center cursor-pointer transition-all
           ${getStatusColor()}
-          ${isLoading ? 'pointer-events-none opacity-50' : 'hover:border-blue-400 hover:bg-blue-50'}
+          ${isLoading ? 'pointer-events-none opacity-50' : 'hover:border-status-blue/50 hover:bg-status-blue/8'}
         `}
         onDrop={handleDrop}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -142,10 +142,10 @@ export const ProductCSVImporter: React.FC<ProductCSVImporterProps> = ({
             {importStatus.status === 'processing' ? '⏳' : importStatus.status === 'success' ? '✅' : importStatus.status === 'error' ? '❌' : '📁'}
           </span>
           <div>
-            <p className={`${compact ? 'text-sm' : 'text-base'} font-semibold text-gray-900 mb-0.5`}>
+            <p className={`${compact ? 'text-sm' : 'text-base'} font-semibold text-foreground mb-0.5`}>
               Import product list
             </p>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-on-surface-variant">
               {importStatus.status === 'idle'
                 ? 'Drop your CSV here or click to browse'
                 : importStatus.message}
@@ -153,7 +153,7 @@ export const ProductCSVImporter: React.FC<ProductCSVImporterProps> = ({
           </div>
 
           {importStatus.status === 'success' && importStatus.details && (
-            <div className="text-xs text-green-700 flex gap-3">
+            <div className="text-xs text-brand flex gap-3">
               <span>Added: {importStatus.details.added}</span>
               {importStatus.details.skipped > 0 && (
                 <span>Skipped: {importStatus.details.skipped}</span>

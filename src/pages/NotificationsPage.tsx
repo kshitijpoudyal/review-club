@@ -31,22 +31,22 @@ const NotificationsPage: React.FC = () => {
           <button
             type="button"
             onClick={() => markAllRead()}
-            className={`${typography.caption} text-[#006a68] hover:underline shrink-0 pt-1`}
+            className={`${typography.caption} text-brand hover:underline shrink-0 pt-1`}
           >
             Mark all read
           </button>
         )}
       </div>
 
-      <div className="rounded-2xl border border-[#e4e2dd] bg-white overflow-hidden shadow-sm">
+      <div className="rounded-2xl border border-surface-variant bg-card overflow-hidden shadow-sm">
         {loading && (
-          <p className={`${typography.caption} px-4 py-10 text-center text-gray-500`}>Loading…</p>
+          <p className={`${typography.caption} px-4 py-10 text-center text-muted-foreground`}>Loading…</p>
         )}
         {error && (
-          <p className={`${typography.caption} px-4 py-10 text-center text-red-600`}>{error}</p>
+          <p className={`${typography.caption} px-4 py-10 text-center text-destructive`}>{error}</p>
         )}
         {!loading && !error && notifications.length === 0 && (
-          <p className={`${typography.caption} px-4 py-10 text-center text-gray-500`}>
+          <p className={`${typography.caption} px-4 py-10 text-center text-muted-foreground`}>
             No notifications yet. When the app sends you a push alert, it will show up here too.
           </p>
         )}

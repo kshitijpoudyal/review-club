@@ -11,6 +11,19 @@
     <meta name="apple-mobile-web-app-title" content="Review Club" />
     <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <title>Review Club</title>
+    <script>
+      // Apply the saved or system theme before first paint (see src/hooks/useTheme.ts)
+      (function () {
+        try {
+          var stored = localStorage.getItem('review-club-theme');
+          var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (dark) {
+            document.documentElement.classList.add('dark');
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#131d2a');
+          }
+        } catch (e) {}
+      })();
+    </script>
     
   </head>
   <body>
