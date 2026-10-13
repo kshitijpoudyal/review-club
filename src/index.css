@@ -46,6 +46,8 @@
   --status-indigo-fg: 245 58% 51%;
   --status-amber: 38 92% 50%;
   --status-amber-fg: 23 83% 31%;
+  --status-pink: 330 81% 60%;
+  --status-pink-fg: 335 78% 42%;
   --status-slate: 215 16% 47%;
   --status-slate-fg: 215 19% 35%;
   --status-gray: 0 0% 62%;
@@ -100,6 +102,7 @@
   --status-blue-fg: 217 92% 76%;
   --status-indigo-fg: 235 90% 80%;
   --status-amber-fg: 46 97% 65%;
+  --status-pink-fg: 327 87% 82%;
   --status-slate-fg: 215 20% 72%;
   --status-paypal-fg: 204 90% 66%;
 

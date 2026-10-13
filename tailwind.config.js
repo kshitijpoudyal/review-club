@@ -70,6 +70,8 @@ export default {
           'indigo-fg': 'hsl(var(--status-indigo-fg) / <alpha-value>)',
           amber: 'hsl(var(--status-amber) / <alpha-value>)',
           'amber-fg': 'hsl(var(--status-amber-fg) / <alpha-value>)',
+          pink: 'hsl(var(--status-pink) / <alpha-value>)',
+          'pink-fg': 'hsl(var(--status-pink-fg) / <alpha-value>)',
           slate: 'hsl(var(--status-slate) / <alpha-value>)',
           'slate-fg': 'hsl(var(--status-slate-fg) / <alpha-value>)',
           gray: 'hsl(var(--status-gray) / <alpha-value>)',
