@@ -20,10 +20,10 @@ export function getStoreFromProduct(product: Pick<Product, 'url' | 'retailer'>):
 }
 
 const STORE_BORDER_CLASSES: Record<StoreKey, string> = {
-  amazon: 'border-[#FF9900]',
-  walmart: 'border-[#0071DC]',
-  wayfair: 'border-[#7B189F]',
-  other: 'border-brand',
+  amazon: 'border-l-[#FF9900]',
+  walmart: 'border-l-[#0071DC]',
+  wayfair: 'border-l-[#7B189F]',
+  other: 'border-l-brand',
 };
 
 const STORE_ROW_CLASSES: Record<StoreKey, string> = {
