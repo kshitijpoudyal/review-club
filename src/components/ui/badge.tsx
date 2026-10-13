@@ -19,7 +19,7 @@ const badgeVariants = cva(
         status: "",
         // As status, with a leading colour dot
         statusDot:
-          "gap-1.5 before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:opacity-70 before:content-['']",
+          "gap-1.5 before:h-1.5 before:w-1.5 before:rounded-full before:bg-current before:content-['']",
       },
     },
     defaultVariants: {

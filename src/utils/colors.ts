@@ -19,17 +19,22 @@ export type StatusType =
     | 'unknown';
 
 export const colors = {
-    // Status badge colors — subtle tints mapped to lifecycle meaning
+    // Status badge colors — one hue per status. `solid` is the same hue at full
+    // strength (charts, chip dots) and `dot` applies it to the badge's leading dot.
     status: {
         linked: {
             bg: 'bg-status-paypal/10',
             border: 'border-status-paypal/25',
-            text: 'text-status-paypal-fg'
+            text: 'text-status-paypal-fg',
+            solid: 'bg-status-paypal',
+            dot: 'before:bg-status-paypal'
         },
         unlinked: {
             bg: 'bg-status-amber/12',
             border: 'border-status-amber/30',
-            text: 'text-status-amber-fg'
+            text: 'text-status-amber-fg',
+            solid: 'bg-status-amber',
+            dot: 'before:bg-status-amber'
         },
         error: {
             bg: 'bg-destructive-container',
@@ -40,42 +45,58 @@ export const colors = {
         void: {
             bg: 'bg-status-gray/15',
             border: 'border-status-gray/25',
-            text: 'text-muted-foreground'
+            text: 'text-muted-foreground',
+            solid: 'bg-status-gray',
+            dot: 'before:bg-status-gray'
         },
         complete: {
             bg: 'bg-brand/12',
             border: 'border-brand/25',
-            text: 'text-brand'
+            text: 'text-brand',
+            solid: 'bg-brand',
+            dot: 'before:bg-brand'
         },
         'refund-pending': {
             bg: 'bg-status-amber/12',
             text: 'text-status-amber-fg',
-            border: 'border-status-amber/30'
+            border: 'border-status-amber/30',
+            solid: 'bg-status-amber',
+            dot: 'before:bg-status-amber'
         },
         'send-screenshot': {
-            bg: 'bg-brand/12',
-            text: 'text-brand',
-            border: 'border-brand/25'
+            bg: 'bg-status-pink/10',
+            text: 'text-status-pink-fg',
+            border: 'border-status-pink/25',
+            solid: 'bg-status-pink',
+            dot: 'before:bg-status-pink'
         },
         'review-pending': {
             bg: 'bg-status-indigo/10',
             text: 'text-status-indigo-fg',
-            border: 'border-status-indigo/25'
+            border: 'border-status-indigo/25',
+            solid: 'bg-status-indigo',
+            dot: 'before:bg-status-indigo'
         },
         'add-review': {
             bg: 'bg-status-blue/10',
             text: 'text-status-blue-fg',
-            border: 'border-status-blue/25'
+            border: 'border-status-blue/25',
+            solid: 'bg-status-blue',
+            dot: 'before:bg-status-blue'
         },
         'order-placed': {
             bg: 'bg-status-slate/10',
             text: 'text-status-slate-fg',
-            border: 'border-status-slate/25'
+            border: 'border-status-slate/25',
+            solid: 'bg-status-slate',
+            dot: 'before:bg-status-slate'
         },
         unknown: {
-            bg: 'bg-status-gray/15',
-            text: 'text-muted-foreground',
-            border: 'border-status-gray/25'
+            bg: 'bg-destructive-container',
+            text: 'text-destructive',
+            border: 'border-destructive/20',
+            solid: 'bg-destructive',
+            dot: 'before:bg-destructive'
         }
     },
 
@@ -256,13 +277,14 @@ export const getDeltaPillClasses = (delta: number | null): string => {
 
 // Solid fills for charts and bars, one per workflow stage
 export const statusSolid: Record<string, string> = {
-    'order-placed': 'bg-status-slate',
-    'add-review': 'bg-status-blue',
-    'review-pending': 'bg-status-indigo',
-    'send-screenshot': 'bg-brand/60',
-    'refund-pending': 'bg-status-amber',
-    complete: 'bg-brand',
-    void: 'bg-status-gray',
+    'order-placed': colors.status['order-placed'].solid,
+    'add-review': colors.status['add-review'].solid,
+    'review-pending': colors.status['review-pending'].solid,
+    'send-screenshot': colors.status['send-screenshot'].solid,
+    'refund-pending': colors.status['refund-pending'].solid,
+    complete: colors.status.complete.solid,
+    void: colors.status.void.solid,
+    unknown: colors.status.unknown.solid,
 };
 
 export const getRowBackgroundColor = (isLinked: boolean) => {
@@ -271,7 +293,7 @@ export const getRowBackgroundColor = (isLinked: boolean) => {
 
 export const getBadgeClasses = (type: StatusType, dot = true) => {
     const s = colors.status[type];
-    return cn(badgeVariants({ variant: dot ? 'statusDot' : 'status' }), s.bg, s.text, s.border);
+    return cn(badgeVariants({ variant: dot ? 'statusDot' : 'status' }), s.bg, s.text, s.border, dot && s.dot);
 };
 
 export const getReviewMediaBadgeClasses = (type: 'photo' | 'video') => {

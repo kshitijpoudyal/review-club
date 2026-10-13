@@ -5,10 +5,15 @@ import { Product, StatusFilter } from '../../types/Product';
 import { getProductStatusType } from '../../utils/productStatus';
 import { formatCurrency } from '../../utils/currency';
 import { AnimatePresence, motion } from 'motion/react';
-import { statusSolid } from '../../utils/colors';
+import { colors, statusSolid } from '../../utils/colors';
 
 // Dot colour per chip, matching the status badge hues
 const STRIP_DOT: Record<string, string> = statusSolid;
+
+// A selected chip takes on its own status's badge tint
+const STRIP_ACTIVE = Object.fromEntries(
+  Object.entries(colors.status).map(([key, s]) => [key, `${s.border} ${s.bg} ${s.text}`])
+) as Record<string, string>;
 
 const ATTENTION_EXPANDED_KEY = 'art_attention_expanded';
 
@@ -199,7 +204,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
                     aria-pressed={item.active}
                     className={`group inline-flex items-center gap-2 rounded-full border py-1.5 pl-3 pr-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98] ${
                       item.active
-                        ? 'border-brand/40 bg-brand/10 text-brand'
+                        ? STRIP_ACTIVE[item.key] ?? 'border-brand/40 bg-brand/10 text-brand'
                         : 'border-border bg-card text-foreground hover:border-input hover:bg-muted/60'
                     }`}
                   >
@@ -212,7 +217,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
                     {item.label}
                     <span className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-caption font-semibold tabular-nums ${
                       item.active
-                        ? 'bg-brand/15 text-brand'
+                        ? 'bg-card/70'
                         : item.key === 'transactions'
                           ? 'bg-status-amber/12 text-status-amber-fg'
                           : 'bg-muted text-on-surface-variant'
