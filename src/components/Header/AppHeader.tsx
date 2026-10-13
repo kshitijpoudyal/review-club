@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { UserCircleIcon, ArrowDownTrayIcon, Cog6ToothIcon, ArrowRightStartOnRectangleIcon, BellIcon } from '@heroicons/react/24/outline'
+import { UserCircleIcon, ArrowDownTrayIcon, Cog6ToothIcon, ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline'
 import { Package } from 'lucide-react'
 import { User } from 'firebase/auth';
 import {
@@ -13,7 +13,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { PageContainer } from '@/components/common/PageContainer'
-import { ThemeSwitcher } from '@/components/common/ThemeSwitcher'
 import { springSoft } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { typography } from '../../utils/typography';
@@ -140,23 +139,12 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                                     <p className={`${typography.caption} truncate`}>{user.email}</p>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                {/* Theme: a segmented control, so choosing doesn't close the menu */}
-                                <div className="px-2 py-1.5">
-                                    <ThemeSwitcher />
-                                </div>
-                                <DropdownMenuSeparator />
                                 {installPrompt && (
                                     <DropdownMenuItem onSelect={handleInstall}>
                                         <ArrowDownTrayIcon className="text-brand" />
                                         Install App
                                     </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem asChild className="md:hidden">
-                                    <Link to="/notifications">
-                                        <BellIcon />
-                                        Notifications
-                                    </Link>
-                                </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
                                     <Link to="/settings">
                                         <Cog6ToothIcon />
