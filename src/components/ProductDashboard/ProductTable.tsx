@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../../types/Product';
 import EditProductModal from './EditProductModal';
+import ProductDetailModal from './ProductDetailModal';
 import { getProductStatus } from '../../utils/productStatus';
 import { getBadgeClasses, getDeltaPillClasses } from '../../utils/colors';
 import { useProductTransactionLinks, ProductTransactionLink } from '../../hooks/useProductTransactionLinks';
@@ -52,6 +53,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [viewingProductId, setViewingProductId] = useState<string | null>(null);
   const [generatingReviewId, setGeneratingReviewId] = useState<string | number | null>(null);
   const [generatedReview, setGeneratedReview] = useState<GeneratedReview | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -125,6 +127,13 @@ const ProductTable: React.FC<ProductTableProps> = ({
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setIsModalOpen(true);
+  };
+
+  // Look up by id so the details view reflects live updates to the product.
+  const viewingProduct = viewingProductId ? products.find(p => p.id === viewingProductId) ?? null : null;
+
+  const handleViewProduct = (product: Product) => {
+    if (product.id) setViewingProductId(product.id);
   };
 
   const handleSaveProduct = (updatedProduct: Product) => {
@@ -293,6 +302,12 @@ const ProductTable: React.FC<ProductTableProps> = ({
             className="text-primary font-medium focus:bg-brand/10 focus:text-primary"
           >
             {nextAction.label}
+          </DropdownMenuItem>
+        )}
+
+        {product.id && (
+          <DropdownMenuItem onSelect={() => handleViewProduct(product)}>
+            View Details
           </DropdownMenuItem>
         )}
 
@@ -471,6 +486,16 @@ const ProductTable: React.FC<ProductTableProps> = ({
             onClick: () => handleStatusUpdate(product, nextAction.updateFn)
           }] : [];
         })(),
+        ...(product.id ? [{
+          label: 'View Details',
+          icon: (
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          ),
+          onClick: () => handleViewProduct(product)
+        }] : []),
         {
           label: 'Edit Product',
           icon: (
@@ -610,6 +635,19 @@ const ProductTable: React.FC<ProductTableProps> = ({
         loading={loading}
         trailingSpacerRow
       />
+
+      {viewingProduct && (
+        <ProductDetailModal
+          isOpen
+          product={viewingProduct}
+          transactionLinks={viewingProduct.id ? getLinkedTransactionLinks(viewingProduct.id) : []}
+          onClose={() => setViewingProductId(null)}
+          onEdit={() => {
+            setViewingProductId(null);
+            handleEditProduct(viewingProduct);
+          }}
+        />
+      )}
 
       {/* Edit Product Modal */}
       {isModalOpen && editingProduct && (
