@@ -24,6 +24,7 @@ const formatLastChecked = (iso: string) =>
 
 const RETAILER_OPTIONS: { value: GmailWatchSource; label: string; available: boolean }[] = [
   { value: 'amazon', label: 'Amazon', available: true },
+  { value: 'walmart', label: 'Walmart', available: true },
   { value: 'wayfair', label: 'Wayfair', available: true },
   { value: 'paypal', label: 'PayPal', available: true },
 ];
@@ -202,7 +203,7 @@ export const GmailIntegration: React.FC<GmailIntegrationProps> = ({
                       {isChecking ? 'Syncing...' : 'Import past order emails'}
                     </Button>
                     <p className={typography.caption}>
-                      Scans your Gmail history for supported Amazon, Wayfair, and PayPal order messages.
+                      Scans your Gmail history for supported Amazon, Walmart, Wayfair, and PayPal order messages.
                     </p>
                   </div>
                   <div className="space-y-1.5">

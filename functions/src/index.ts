@@ -68,13 +68,17 @@ const RETAILER_EMAIL_PATTERNS: Partial<Record<Retailer, string>> = {
 // Order-confirmation emails, per retailer — confirmed against real samples:
 // Amazon sender auto-confirm@amazon.com, subject `Ordered: "..."`; Wayfair
 // sender account-updates@wayfair.com, subject "Order received! Does
-// everything look right?".
+// everything look right?"; Walmart sender help@walmart.com, subject "Thanks
+// for your delivery order, {name}" (matched on "Thanks for your" so
+// pickup/other order variants are caught too — the parser still requires an
+// order number or a line item before anything is surfaced).
 const ORDER_CONFIRMATION_PATTERNS: Partial<Record<Retailer, string>> = {
     // No trailing colon in the subject term — Gmail's search parser treats
     // ":" as a field separator, so "subject:(Ordered:)" silently matched
     // nothing rather than erroring.
     amazon: "from:(auto-confirm@amazon.com) subject:(Ordered)",
     wayfair: 'from:(account-updates@wayfair.com) subject:("Order received")',
+    walmart: 'from:(help@walmart.com) subject:("Thanks for your")',
 };
 
 // PayPal transaction-notification emails — confirmed against real samples
@@ -533,7 +537,7 @@ export const gmailOAuthCallback = onRequest(
                     // emails just finds nothing) and saves a trip to Settings
                     // to turn on Wayfair detection on a freshly connected
                     // account. The user narrows this down per account.
-                    retailers: existingData?.retailers ?? ["amazon", "wayfair", "paypal"],
+                    retailers: existingData?.retailers ?? ["amazon", "walmart", "wayfair", "paypal"],
                 },
                 { merge: true }
             );
@@ -1113,6 +1117,83 @@ function parseWayfairOrderEmail(html: string | undefined, receivedAt: Date): Gma
     };
 }
 
+function decodeBasicHtmlEntities(text: string): string {
+    return text
+        .replace(/&quot;/g, "\"")
+        .replace(/&#0?39;|&#x27;|&apos;/gi, "'")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&");
+}
+
+// Walmart's order line items are only identifiable by their thumbnail —
+// confirmed against a real "Thanks for your delivery order" sample: each
+// ordered item is an <img> on i5.walmartimages.com whose alt text reads
+// "quantity {n} item(s) {full product title}". The "Recently viewed items"
+// upsell block further down also uses walmartimages.com, but its images are
+// aria-hidden with no alt, so the alt-text shape is what keeps them out.
+function extractWalmartOrderItems(html: string): GmailOrderProduct[] {
+    const items: GmailOrderProduct[] = [];
+    const imgPattern = /<img\s+[^>]*>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = imgPattern.exec(html)) !== null) {
+        const tag = match[0];
+        const alt = decodeBasicHtmlEntities(tag.match(/alt="([^"]*)"/i)?.[1] ?? "").replace(/\s+/g, " ").trim();
+        const altMatch = alt.match(/^quantity\s+(\d+)\s+items?\s+(.+)$/i);
+        if (!altMatch) continue;
+        const src = tag.match(/src="([^"]+)"/i)?.[1] ?? "";
+        items.push({
+            productName: altMatch[2],
+            // Every link in the email goes through Walmart's encrypted
+            // w-mt.co click tracker, so there's no recoverable product URL.
+            productUrl: "",
+            imageUrl: src.replace(/&amp;/g, "&"),
+            quantity: parseInt(altMatch[1], 10),
+            // Walmart's confirmation shows only an all-in order total, no
+            // per-item price.
+            price: null,
+        });
+    }
+    return items;
+}
+
+// Parses a Walmart order-confirmation email (help@walmart.com, subject
+// "Thanks for your delivery order, {name}"). The template has no structured
+// data, so this reads the visible labels: "Order number: #2000153-05515546",
+// "Arrives Fri, Oct 16", and the single all-in total next to "Includes all
+// fees, taxes and discounts" — there's no separate tax line to extract.
+function parseWalmartOrderEmail(text: string, html: string | undefined, receivedAt: Date): GmailOrderPayload | null {
+    const corpus = normalizeEmailText(html ? stripHtmlTags(html) : text).replace(/ /g, " ");
+
+    const orderNumber = corpus.match(/Order number:\s*#?\s*(\d[\d-]{6,}\d)/i)?.[1] ?? "";
+    const items = html ? extractWalmartOrderItems(html) : [];
+    if (!orderNumber && items.length === 0) return null;
+
+    const totalMatch =
+        corpus.match(/Includes all fees, taxes and discounts\s*\$([\d,]+\.\d{2})/i) ??
+        corpus.match(/Order total[\s\S]{0,300}?\$([\d,]+\.\d{2})/i);
+    const orderTotal = totalMatch ? parseFloat(totalMatch[1].replace(/,/g, "")) : null;
+
+    const deliveryMatch = corpus.match(/Arrives\s+([A-Za-z]{3,9},\s*[A-Za-z]{3,9}\s+\d{1,2})/i);
+
+    const first = items[0];
+    const isMultiItem = items.length > 1;
+
+    return {
+        retailer: "walmart",
+        orderDate: receivedAt.toISOString(),
+        orderNumber,
+        orderTotal,
+        tax: null,
+        deliveryEstimate: deliveryMatch?.[1] ?? null,
+        productName: first?.productName ?? "",
+        productUrl: "",
+        imageUrl: first?.imageUrl ?? "",
+        ...(isMultiItem ? { products: items } : {}),
+    };
+}
+
 // PayPal's transactional template repeats a "<b>Label</b>" paragraph
 // immediately followed by a "<span>Value</span>" paragraph for each field
 // (Amount, Transaction date, Transaction ID) — this pulls the first such
@@ -1242,13 +1323,11 @@ function parsePaypalTransactionEmail(
     };
 }
 
-// Dispatches order-email parsing by retailer. Walmart has no real parser
-// yet — this is the seam where it gets added later (needs its own
-// sample-email-verified implementation, same as the two below) without
-// touching the surrounding check loop.
+// Dispatches order-email parsing by retailer.
 function parseOrderEmail(retailer: Retailer, text: string, html: string | undefined, receivedAt: Date): GmailOrderPayload | null {
     if (retailer === "amazon") return parseAmazonOrderEmail(text, html, receivedAt);
     if (retailer === "wayfair") return parseWayfairOrderEmail(html, receivedAt);
+    if (retailer === "walmart") return parseWalmartOrderEmail(text, html, receivedAt);
     return null;
 }
 
@@ -1405,7 +1484,7 @@ async function runGmailReviewCheck(
                 let newOrdersFound = 0;
                 for (const retailer of retailers) {
                     const pattern = ORDER_CONFIRMATION_PATTERNS[retailer];
-                    if (!pattern) continue; // no pattern for this retailer yet (e.g. walmart/wayfair)
+                    if (!pattern) continue; // no pattern for this retailer yet
 
                     const query = orderAfterEpoch > 0 ? `${pattern} after:${orderAfterEpoch}` : pattern;
                     const messageIds = await listGmailMessageIds(accessToken, query);
