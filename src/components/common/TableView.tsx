@@ -40,6 +40,8 @@ export interface TableRow {
   borderColor?: string;
   className?: string;
   actions?: TableAction[];
+  /** Called when the row itself is clicked (not a link, button or menu inside it). */
+  onClick?: () => void;
 }
 
 export interface MobileCardContent {
@@ -49,6 +51,8 @@ export interface MobileCardContent {
   borderColor?: string;
   className?: string;
   noDividers?: boolean;
+  /** Called when the card itself is tapped (not a link, button or menu inside it). */
+  onClick?: () => void;
 }
 
 interface TableViewProps {
@@ -71,6 +75,25 @@ interface TableViewProps {
 }
 
 const MotionTableRow = motion.create(UITableRow);
+
+const INTERACTIVE_SELECTOR = 'a, button, input, select, textarea, label, [role="menu"], [role="menuitem"]';
+
+/**
+ * Wraps a row/card click handler so it only fires for clicks on the row itself:
+ * clicks on nested links, buttons or menus keep their own behavior, React events
+ * bubbling up from portaled content (dropdown menus) are ignored, and so is
+ * dragging to select text.
+ */
+const rowClickHandler = (onClick?: () => void) =>
+  onClick
+    ? (e: React.MouseEvent<HTMLElement>) => {
+        const target = e.target as Element;
+        if (!e.currentTarget.contains(target)) return;
+        if (target.closest(INTERACTIVE_SELECTOR)) return;
+        if (window.getSelection()?.toString()) return;
+        onClick();
+      }
+    : undefined;
 
 // Desktop Table Shimmer Loading Components
 const TableRowSkeleton: React.FC<{ columns: TableColumn[] }> = ({ columns }) => (
@@ -243,6 +266,7 @@ export const TableView: React.FC<TableViewProps> = ({
               borderColor={card.borderColor}
               className={card.className}
               noDividers={card.noDividers}
+              onClick={rowClickHandler(card.onClick)}
             />
           </motion.div>
         ))}
@@ -294,7 +318,8 @@ export const TableView: React.FC<TableViewProps> = ({
                 {sortedRows.map((row, rowIndex) => (
                   <MotionTableRow
                     key={row.id}
-                    className={cn('group', row.className)}
+                    className={cn('group', row.onClick && 'cursor-pointer', row.className)}
+                    onClick={rowClickHandler(row.onClick)}
                     {...entrance(rowIndex)}
                   >
                     {columns.map((column, colIndex) => (

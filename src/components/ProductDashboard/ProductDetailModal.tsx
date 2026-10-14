@@ -86,7 +86,18 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         <ProductThumbnail imageUrl={product.imageUrl} productName={product.item} size="lg" />
         <div className="min-w-0 flex-1">
           <h2 className={`${typography.modalTitle} line-clamp-3 leading-snug`}>
-            {product.item || 'Untitled Product'}
+            {product.url ? (
+              <a
+                href={product.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-primary hover:underline transition-colors"
+              >
+                {product.item || 'Untitled Product'}
+              </a>
+            ) : (
+              product.item || 'Untitled Product'
+            )}
           </h2>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <span className={getBadgeClasses(status.type)}>{status.label}</span>

@@ -9,6 +9,7 @@ interface MobileItemCardProps {
   borderColor?: string;
   className?: string;
   noDividers?: boolean;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
 }
 
 export const MobileItemCard: React.FC<MobileItemCardProps> = ({
@@ -18,13 +19,15 @@ export const MobileItemCard: React.FC<MobileItemCardProps> = ({
   borderColor = 'border-l-primary',
   className = '',
   noDividers = false,
+  onClick,
 }) => {
   const divider = noDividers ? '' : 'border-t border-border/60';
   const backgroundClass = className.includes('bg-') ? '' : 'bg-card';
 
   return (
-    <div className={`
+    <div onClick={onClick} className={`
       ${backgroundClass}
+      ${onClick ? 'cursor-pointer' : ''}
       shadow-soft
       rounded-2xl
       border border-border/60 border-l-4 ${borderColor}

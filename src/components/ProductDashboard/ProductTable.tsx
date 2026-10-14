@@ -385,6 +385,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
       id: product.id || index,
       borderColor: storeBorderColor,
       className: getRowClassName(product),
+      onClick: product.id ? () => handleViewProduct(product) : undefined,
       sortValues: {
         item: product.item || '',
         vendor: getVendorName(product.vendorId) || '',
@@ -617,6 +618,7 @@ const ProductTable: React.FC<ProductTableProps> = ({
       borderColor: storeBorderColor,
       className: getRowClassName(product),
       noDividers: true,
+      onClick: product.id ? () => handleViewProduct(product) : undefined,
     };
   });
 
