@@ -54,17 +54,23 @@ interface ToolbarProps {
   loading?: boolean;
 }
 
+// Sits flush under the header (3.25rem + its 1px hairline). The fade below is
+// a scroll-edge effect: rows dissolve into the bar instead of hitting a line.
+const STICKY_BAR =
+  'sticky top-[calc(3.25rem+1px+env(safe-area-inset-top))] z-30 bg-background pb-1 pt-1 ' +
+  "after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-3 after:bg-gradient-to-b after:from-background after:to-transparent after:content-['']";
+
 const CONTROL_HEIGHT = 'h-11';
 const CONTROL_RADIUS = 'rounded-xl';
 
 const filterTriggerClasses =
   `inline-flex items-center justify-center gap-x-1.5 ${CONTROL_HEIGHT} px-3.5 ${typography.body} ` +
-  `${CONTROL_RADIUS} border transition-colors min-w-[8.5rem] ` +
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20';
+  `${CONTROL_RADIUS} border transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.97] active:duration-75 min-w-[8.5rem] ` +
+  'focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20';
 
 const filterInactiveClasses =
-  'bg-card border-input/45 text-on-surface-variant hover:border-input/70 hover:bg-background ' +
-  'data-[state=open]:border-primary';
+  'bg-card border-input/50 text-foreground hover:bg-secondary/60 ' +
+  'data-[state=open]:border-ring';
 
 const filterActiveClasses =
   'font-medium bg-primary/8 border-primary/25 text-primary hover:bg-primary/12 hover:border-primary/35';
@@ -142,9 +148,11 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
             searchInputRef.current?.focus();
           }}
           aria-label="Clear search"
-          className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-on-surface-variant transition-colors"
+          className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-on-surface-variant active:opacity-60 transition-opacity"
         >
-          <XMarkIcon className="h-4 w-4" aria-hidden="true" />
+          <span className="flex h-[1.125rem] w-[1.125rem] items-center justify-center rounded-full bg-muted-foreground/40 text-card">
+            <XMarkIcon className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
+          </span>
         </button>
       ) : (
         <kbd
@@ -157,14 +165,14 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
     </div>
   );
 
-  const renderSelect = (filter: FilterControlConfig) => {
+  const renderSelect = (filter: FilterControlConfig, inGrid = false) => {
     const selectedOption = filter.options?.find((option) => option.value === filter.value);
     const isActive = filter.value !== '';
     return (
-      <div key={filter.key} className="flex-shrink-0">
+      <div key={filter.key} className={inGrid ? 'min-w-0' : 'flex-shrink-0'}>
         <DropdownMenu>
           <DropdownMenuTrigger
-            className={cn(filterTriggerClasses, isActive ? filterActiveClasses : filterInactiveClasses)}
+            className={cn(filterTriggerClasses, isActive ? filterActiveClasses : filterInactiveClasses, inGrid && 'w-full min-w-0 justify-between')}
             aria-label={filter.label || selectedOption?.label || 'Filter'}
           >
             <span className="truncate max-w-[10rem]">
@@ -201,7 +209,7 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
     if (visibleActions.length === 0) return null;
 
     return (
-    <div className={`flex items-center gap-2 ${forDesktop ? 'hidden lg:flex' : 'lg:hidden'}`}>
+    <div className={forDesktop ? 'hidden lg:flex items-center gap-2' : 'col-span-2 flex items-center gap-2 lg:hidden [&>button]:flex-1'}>
       {visibleActions.map((action, index) => (
           <Button
             key={index}
@@ -240,12 +248,12 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
         className="flex-shrink-0 px-3"
       >
         <XMarkIcon className="h-4 w-4" aria-hidden="true" />
-        <span className="hidden xl:inline">Clear</span>
+        <span className="lg:hidden xl:inline">Clear</span>
       </Button>
     ) : null;
 
   const ToolbarShimmer = () => (
-    <div ref={ref} className="sticky top-14 z-30 bg-background pb-2 pt-1">
+    <div ref={ref} className={STICKY_BAR}>
       <div className="page-gutter py-2">
         <div className="block lg:hidden space-y-3">
           <Skeleton className={`${CONTROL_HEIGHT} bg-secondary ${CONTROL_RADIUS}`} />
@@ -269,7 +277,7 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
   }
 
   return (
-    <div ref={ref} className="sticky top-14 z-30 bg-background pb-2 pt-1">
+    <div ref={ref} className={STICKY_BAR}>
       <div className="page-gutter py-2">
         {/* Mobile */}
         <div className="lg:hidden space-y-3">
@@ -281,10 +289,10 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
               <button
                 type="button"
                 onClick={() => setShowMobileFilters((v) => !v)}
-                className={`flex items-center justify-center ${CONTROL_HEIGHT} w-11 ${CONTROL_RADIUS} border transition-colors flex-shrink-0 ${
+                className={`pressable flex items-center justify-center ${CONTROL_HEIGHT} w-11 ${CONTROL_RADIUS} border flex-shrink-0 ${
                   showMobileFilters || hasActiveFilters
                     ? 'bg-primary/8 text-primary border-primary/25'
-                    : 'bg-card text-on-surface-variant border-input/45'
+                    : 'bg-card text-on-surface-variant border-input/50'
                 }`}
                 aria-label="Toggle filters"
                 aria-expanded={showMobileFilters}
@@ -294,9 +302,10 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
             )}
           </div>
 
+          {/* Two filters per row; the clear button and actions span the width */}
           {(showMobileFilters || selectFilters.length <= 2) && selectFilters.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {selectFilters.map(renderSelect)}
+            <div className="grid grid-cols-2 gap-2">
+              {selectFilters.map((filter) => renderSelect(filter, true))}
               {renderClearFilters()}
               {renderActions()}
             </div>
@@ -315,7 +324,7 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
           {searchFilter && renderSearch(searchFilter)}
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {selectFilters.map(renderSelect)}
+            {selectFilters.map((filter) => renderSelect(filter))}
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0 ml-auto">

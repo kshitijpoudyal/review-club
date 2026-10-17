@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { UserCircleIcon, ArrowDownTrayIcon, Cog6ToothIcon, ArrowRightStartOnRectangleIcon } from '@heroicons/react/24/outline'
-import { Package } from 'lucide-react'
 import { User } from 'firebase/auth';
 import {
     DropdownMenu,
@@ -13,10 +12,10 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { PageContainer } from '@/components/common/PageContainer'
-import { springSoft } from '@/lib/motion'
+import { BrandMark } from '@/components/common/BrandMark'
+import { springSnappy } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { typography } from '../../utils/typography';
-import { colors } from '../../utils/colors';
 import { APP_VERSION } from '../../utils/version';
 import { NotificationBell } from '../Notifications/NotificationBell';
 
@@ -71,25 +70,25 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
     return (
         <header
             className={cn(
-                'sticky top-0 z-40 transition-shadow duration-300',
-                colors.header.background,
-                scrolled && 'shadow-[0_6px_24px_rgb(var(--shadow-color)/0.28)]'
+                // Translucent bar: the page scrolls underneath it. The hairline
+                // only appears once content actually sits beneath the bar.
+                'material-chrome sticky top-0 z-40 border-b pt-[env(safe-area-inset-top)] transition-colors duration-200',
+                scrolled ? 'border-border/80' : 'border-transparent'
             )}
         >
             <PageContainer>
-                <nav aria-label="Global" className="flex h-14 items-center justify-between">
+                <nav aria-label="Global" className="flex h-[3.25rem] items-center justify-between">
                     {/* Brand + Nav */}
                     <div className="flex items-center gap-x-6">
                         <Link
                             to="/products"
-                            className={`${typography.bodyStrong} text-white tracking-tight select-none inline-flex items-center gap-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
+                            className="pressable select-none inline-flex items-center gap-2 rounded-lg text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15">
-                                <Package className="h-4 w-4" aria-hidden="true" />
-                            </span>
-                            <span className="font-display text-[1.0625rem] font-semibold">Review Club</span>
+                            <BrandMark />
+                            <span className="font-display text-[1.0625rem] font-semibold tracking-[-0.015em]">Review Club</span>
                         </Link>
-                        <div className="hidden md:flex md:gap-x-1">
+                        {/* Segmented control: a track with a sliding thumb under the active page */}
+                        <div className="hidden md:flex md:gap-x-0.5 rounded-full bg-secondary/80 p-0.5">
                             {NAVIGATION.map((item) => {
                                 const isActive = location.pathname.startsWith(item.href);
                                 return (
@@ -97,16 +96,15 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                                         key={item.name}
                                         to={item.href}
                                         className={cn(
-                                            typography.bodyStrong,
-                                            'relative px-3 py-1.5 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
-                                            isActive ? 'text-white' : 'text-white/70 hover:text-white'
+                                            'relative px-3.5 py-1 rounded-full text-label font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                            isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                                         )}
                                     >
                                         {isActive && (
                                             <motion.span
                                                 layoutId="nav-indicator"
-                                                transition={springSoft}
-                                                className="absolute inset-0 rounded-full bg-white/20"
+                                                transition={springSnappy}
+                                                className="absolute inset-0 rounded-full bg-card shadow-[0_1px_3px_rgb(var(--shadow-color)/0.12),0_0_0_0.5px_rgb(var(--shadow-color)/0.06)]"
                                             />
                                         )}
                                         <span className="relative">{item.name}</span>
@@ -121,14 +119,14 @@ export default function AppHeader({ user, onLogout }: AppHeaderProps) {
                             href="https://www.kshitijstudio.com"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className={`${typography.caption} hidden md:inline text-white/70 hover:text-white transition-colors`}
+                            className={`${typography.caption} hidden lg:inline hover:text-foreground transition-colors`}
                         >
                             Powered by KshitijStudio
                         </a>
                         <NotificationBell />
                         <DropdownMenu>
                             <DropdownMenuTrigger
-                                className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/10 transition-all text-white/70 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 data-[state=open]:bg-white/10 data-[state=open]:text-white"
+                                className="pressable flex items-center justify-center w-9 h-9 rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground active:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-secondary data-[state=open]:text-foreground"
                                 aria-label="User menu"
                             >
                                 <UserCircleIcon className="w-7 h-7" />

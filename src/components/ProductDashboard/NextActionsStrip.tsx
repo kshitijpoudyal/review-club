@@ -6,6 +6,7 @@ import { getProductStatusType } from '../../utils/productStatus';
 import { formatCurrency } from '../../utils/currency';
 import { AnimatePresence, motion } from 'motion/react';
 import { colors, statusSolid } from '../../utils/colors';
+import { springSoft } from '@/lib/motion';
 
 // Dot colour per chip, matching the status badge hues
 const STRIP_DOT: Record<string, string> = statusSolid;
@@ -153,13 +154,13 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
   };
 
   return (
-    <div className="page-gutter mb-2">
+    <div className="page-gutter">
       <div className="bg-card rounded-2xl shadow-soft overflow-hidden border border-border/60">
         <button
           type="button"
           onClick={toggleExpanded}
           aria-expanded={expanded}
-          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors duration-75 hover:bg-foreground/[0.025] active:bg-foreground/[0.05]"
         >
           <div className="min-w-0 flex items-center gap-2.5">
             <span className="flex-shrink-0 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-status-blue/10 text-status-blue-fg text-caption font-semibold tabular-nums">
@@ -170,12 +171,12 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
                 Needs attention
               </p>
               {!expanded && (
-                <p className="text-sm text-on-surface-variant mt-0.5 truncate">{collapsedSummary}</p>
+                <p className="text-label text-on-surface-variant mt-0.5 truncate">{collapsedSummary}</p>
               )}
             </div>
           </div>
           <svg
-            className={`w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            className={`w-5 h-5 text-muted-foreground flex-shrink-0 transition-transform duration-300 [transition-timing-function:cubic-bezier(0.2,0.8,0.2,1)] ${expanded ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -191,7 +192,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              transition={springSoft}
               className="overflow-hidden"
             >
               <div className="flex flex-wrap gap-2 border-t border-border/60 px-4 py-3">
@@ -202,10 +203,10 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
                     onClick={item.onClick}
                     title={item.detail}
                     aria-pressed={item.active}
-                    className={`group inline-flex items-center gap-2 rounded-full border py-1.5 pl-3 pr-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98] ${
+                    className={`group inline-flex items-center gap-2 rounded-full border py-1.5 pl-3 pr-1.5 text-label font-medium transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.96] active:duration-75 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                       item.active
                         ? STRIP_ACTIVE[item.key] ?? 'border-brand/40 bg-brand/10 text-brand'
-                        : 'border-border bg-card text-foreground hover:border-input hover:bg-muted/60'
+                        : 'border-border bg-card text-foreground hover:bg-secondary/60 active:bg-secondary'
                     }`}
                   >
                     <span

@@ -85,7 +85,7 @@ export const PendingGmailTransactionImports: React.FC<PendingGmailTransactionImp
 
   return (
     <div className="page-gutter mb-2">
-      <div className="bg-card rounded-2xl shadow-[0_2px_12px_rgba(2,36,72,0.07)] overflow-hidden border border-status-blue/10">
+      <div className="bg-card rounded-2xl shadow-soft overflow-hidden border border-status-blue/10">
         <button
           type="button"
           onClick={toggleExpanded}

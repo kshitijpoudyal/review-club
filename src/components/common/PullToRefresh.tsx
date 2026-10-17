@@ -14,12 +14,11 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
   disabled = false,
   threshold = 80,
 }) => {
-  const { pullDistance, isRefreshing } = usePullToRefresh({ onRefresh, disabled, threshold });
+  const { pullDistance, pullOffset, isRefreshing } = usePullToRefresh({ onRefresh, disabled, threshold });
 
   const maxHeight = 56;
-  const indicatorHeight = isRefreshing
-    ? maxHeight
-    : Math.min(pullDistance * 0.5, maxHeight);
+  // Follows the (rubber-banded) finger; never a hard stop
+  const indicatorHeight = isRefreshing ? maxHeight : pullOffset * 0.75;
   const progress = Math.min(pullDistance / threshold, 1);
   const isVisible = indicatorHeight > 0;
 
@@ -29,14 +28,18 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({
         className="flex items-center justify-center overflow-hidden"
         style={{
           height: indicatorHeight,
-          transition: pullDistance === 0 && !isRefreshing ? 'height 0.2s ease-out' : 'none',
+          // Tracks the finger 1:1 while pulling; settles back smoothly on release
+          transition: pullDistance === 0 ? 'height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none',
         }}
       >
         {isVisible && (
-          <div className="flex items-center justify-center w-9 h-9 bg-card rounded-full shadow-md">
+          <div
+            className="flex items-center justify-center w-9 h-9 bg-card rounded-full shadow-soft-lg"
+            style={{ opacity: isRefreshing ? 1 : 0.4 + progress * 0.6 }}
+          >
             <svg
               className={`w-5 h-5 text-primary ${isRefreshing ? 'animate-spin' : ''}`}
-              style={!isRefreshing ? { transform: `rotate(${progress * 270}deg)`, transition: 'transform 0.05s linear' } : undefined}
+              style={!isRefreshing ? { transform: `rotate(${progress * 270}deg)` } : undefined}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

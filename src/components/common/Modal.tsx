@@ -87,10 +87,10 @@ const Modal: React.FC<ModalProps> = ({
                         </Title>
                         {showCloseButton && (
                             <Close
-                                className={`${colors.button.close} rounded-full transition-colors p-2 sm:p-1 -mr-2 sm:-mr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+                                className="pressable flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground -mr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 aria-label="Close modal"
                             >
-                                <X className="w-6 h-6" />
+                                <X className="w-5 h-5" />
                             </Close>
                         )}
                     </div>
@@ -142,11 +142,12 @@ const Modal: React.FC<ModalProps> = ({
                         onInteractOutside={keepOpenForToasts}
                         className={cn(
                             'relative flex max-h-[90svh] w-full flex-col overflow-hidden rounded-2xl',
-                            'bg-background/95 backdrop-blur-[12px] shadow-navy-lg focus:outline-none',
-                            'data-[state=open]:duration-300 data-[state=closed]:duration-150 data-[state=open]:ease-[cubic-bezier(0.34,1.4,0.64,1)] data-[state=open]:animate-in data-[state=closed]:animate-out',
+                            'bg-background shadow-navy-lg focus:outline-none',
+                            // Settles without overshoot and leaves the way it came (down)
+                            'data-[state=open]:duration-300 data-[state=closed]:duration-200 data-[state=open]:[animation-timing-function:cubic-bezier(0.2,0.8,0.2,1)] data-[state=closed]:[animation-timing-function:cubic-bezier(0.4,0,1,1)] data-[state=open]:animate-in data-[state=closed]:animate-out',
                             'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
                             'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95',
-                            'data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-2',
+                            'data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-4',
                             sizeClasses[size],
                             className
                         )}

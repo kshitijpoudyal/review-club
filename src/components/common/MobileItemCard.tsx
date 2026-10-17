@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { colors } from '../../utils/colors';
+import { usePressFeedback } from '../../hooks/usePressFeedback';
 
 interface MobileItemCardProps {
   headerContent: React.ReactNode;
@@ -23,17 +24,17 @@ export const MobileItemCard: React.FC<MobileItemCardProps> = ({
 }) => {
   const divider = noDividers ? '' : 'border-t border-border/60';
   const backgroundClass = className.includes('bg-') ? '' : 'bg-card';
+  const { pressed, handlers } = usePressFeedback(!!onClick);
 
   return (
-    <div onClick={onClick} className={`
+    <div onClick={onClick} {...handlers} className={`
       ${backgroundClass}
       ${onClick ? 'cursor-pointer' : ''}
+      transition-[transform,filter] ease-out ${pressed ? 'scale-[0.985] brightness-[0.97] duration-75 motion-reduce:scale-100' : 'duration-200'}
       shadow-soft
       rounded-2xl
       border border-border/60 border-l-4 ${borderColor}
       mx-0 mb-3
-      transition-all duration-200
-      active:scale-[0.99]
       ${className}
     `}>
       {/* Header Section */}

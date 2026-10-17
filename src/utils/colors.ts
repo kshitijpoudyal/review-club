@@ -1,5 +1,5 @@
-// Global color system — Synthetic Naturalist theme (inspired by HustleBooks)
-// Core palette: Navy #022448 · Teal #006a68 · Amber (warning) · Red #ba1a1a · Parchment surfaces
+// Global color system. Values live as tokens in src/index.css.
+// Grouped gray canvas with white/elevated cards · navy tint · teal for money in · red for money out
 
 import { badgeVariants } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -144,18 +144,18 @@ export const colors = {
     // Card
     card: {
         background: 'bg-card',
-        border: 'border border-input/15',
-        shadow: 'shadow-[0_12px_32px_rgba(2,36,72,0.06)]',
+        border: 'border border-border/70',
+        shadow: 'shadow-soft',
         value: 'text-foreground',
         label: 'text-on-surface-variant'
     },
 
-    // Buttons — rounded-full; primary uses navy gradient
+    // Buttons — rounded-full, solid fills
     button: {
-        primary: 'bg-gradient-to-br from-primary to-primary-container hover:from-primary-container hover:to-primary text-primary-foreground focus-visible:outline-primary',
-        primaryIcon: 'bg-gradient-to-br from-primary to-primary-container text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed',
+        primary: 'bg-primary hover:bg-primary/90 text-primary-foreground focus-visible:outline-primary',
+        primaryIcon: 'bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed',
         danger: 'text-destructive hover:bg-destructive-container',
-        indigo: 'bg-gradient-to-br from-primary to-primary-container hover:opacity-90 text-primary-foreground focus-visible:outline-primary',
+        indigo: 'bg-primary hover:bg-primary/90 text-primary-foreground focus-visible:outline-primary',
         secondary: 'bg-secondary text-primary hover:bg-surface-variant',
         dangerSolid: 'bg-destructive hover:bg-destructive/80 text-destructive-foreground focus-visible:outline-destructive',
         close: 'text-muted-foreground hover:text-foreground'
@@ -164,7 +164,7 @@ export const colors = {
     // Form controls
     form: {
         input: {
-            base: 'border-0 bg-surface-variant focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-0',
+            base: 'border border-input/50 bg-card focus:outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/20 focus:ring-offset-0',
             error: 'border-destructive bg-destructive-container/40 focus-visible:border-destructive focus-visible:ring-destructive/20',
             disabled: 'bg-secondary border-0 opacity-60',
             text: 'text-foreground',
@@ -194,17 +194,17 @@ export const colors = {
 
     // Menu/Dropdown
     menu: {
-        background: 'bg-background',
-        border: 'border border-input/15',
-        shadow: 'shadow-[0_12px_32px_rgba(2,36,72,0.08)]',
+        background: 'material-popover',
+        border: 'border border-border/50',
+        shadow: 'shadow-navy-md',
         outline: 'outline outline-1 -outline-offset-1 outline-input/20'
     },
 
     // Modal
     modal: {
-        overlay: 'bg-primary/30 backdrop-blur-sm',
-        overlaySolid: 'bg-primary/40',
-        shadow: 'shadow-[0_24px_64px_rgba(2,36,72,0.12)]',
+        overlay: 'bg-black/30 dark:bg-black/55',
+        overlaySolid: 'bg-black/40 dark:bg-black/60',
+        shadow: 'shadow-navy-lg',
         item: {
             base: 'px-3 py-2 cursor-pointer',
             hover: 'hover:bg-secondary',
@@ -219,7 +219,7 @@ export const colors = {
         void: {
             badge: 'bg-secondary text-on-surface-variant',
             button: 'bg-amber-500 text-white hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500',
-            unvoidButton: 'bg-gradient-to-br from-primary to-primary-container text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary'
+            unvoidButton: 'bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary'
         },
         danger: 'text-destructive hover:bg-destructive-container',
         menuButton: 'bg-background text-foreground border border-input/20 hover:bg-secondary focus:border-primary',
@@ -229,15 +229,15 @@ export const colors = {
     // Toolbar filter controls
     filters: {
         container: 'bg-secondary',
-        addProductButton: 'bg-gradient-to-br from-primary to-primary-container text-primary-foreground hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed',
-        searchInput: 'bg-surface-variant border-0 focus:outline-none focus:ring-2 focus:ring-primary',
-        select: 'bg-surface-variant border-0 focus:outline-none focus:ring-2 focus:ring-primary',
+        addProductButton: 'bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed',
+        searchInput: 'bg-card border border-input/50 focus:outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/20',
+        select: 'bg-card border border-input/50 focus:outline-none focus:border-ring focus:ring-[3px] focus:ring-ring/20',
         clearButton: 'text-muted-foreground hover:text-foreground bg-secondary hover:bg-surface-variant'
     },
 
-    // Header — deep navy
+    // Header — translucent material (see .material-chrome in index.css)
     header: {
-        background: 'bg-header',
+        background: 'material-chrome',
         backgroundDark: '',
         navigation: {
             link: 'text-white/90 hover:text-white',
@@ -302,7 +302,7 @@ export const getReviewMediaBadgeClasses = (type: 'photo' | 'video') => {
 };
 
 export const getActionButtonClasses = () => {
-    return `flex items-center justify-center w-8 h-8 bg-gradient-to-br from-primary to-primary-container text-primary-foreground rounded-full shadow-[0_4px_12px_rgba(2,36,72,0.15)] transition focus:outline-none focus:ring-2 focus:ring-primary`;
+    return `pressable flex items-center justify-center w-8 h-8 bg-primary text-primary-foreground rounded-full shadow-soft focus:outline-none focus:ring-2 focus:ring-ring`;
 };
 
 export const getStatsColor = (type: string, value?: number): string => {

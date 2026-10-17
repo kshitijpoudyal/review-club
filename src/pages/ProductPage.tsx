@@ -34,7 +34,7 @@ import { formatCurrency } from '../utils/currency';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { Plus } from 'lucide-react';
-import { springBouncy } from '@/lib/motion';
+import { springSoft } from '@/lib/motion';
 
 /**
  * ProductPage Component
@@ -358,11 +358,11 @@ const ProductPage: React.FC = () => {
       {!displayLoading && createPortal(
         <motion.button
           onClick={handleShowAddForm}
-          initial={{ scale: 0, rotate: -90 }}
-          animate={{ scale: 1, rotate: 0 }}
-          whileTap={{ scale: 0.9 }}
-          transition={springBouncy}
-          className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-5 z-40 md:hidden flex items-center justify-center w-14 h-14 bg-gradient-to-br from-primary to-primary-container text-primary-foreground rounded-full shadow-[0_8px_24px_rgb(var(--shadow-color)/0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          whileTap={{ scale: 0.92 }}
+          transition={springSoft}
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-40 md:hidden flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-[0_4px_12px_rgb(var(--shadow-color)/0.18),0_12px_32px_rgb(var(--shadow-color)/0.22)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Add product"
         >
           <Plus className="w-7 h-7" />

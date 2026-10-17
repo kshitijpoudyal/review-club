@@ -1,8 +1,8 @@
 import React from 'react';
-import { Package } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageContainer } from './PageContainer';
+import { BrandMark } from './BrandMark';
 
 /**
  * First paint while auth and onboarding state resolve: the app frame with
@@ -10,12 +10,10 @@ import { PageContainer } from './PageContainer';
  */
 export const AppShellSkeleton: React.FC = () => (
   <div className="min-h-screen bg-background" aria-busy="true" aria-label="Loading">
-    <div className="bg-header">
-      <PageContainer className="flex h-14 items-center gap-2 text-white">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15">
-          <Package className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <span className="font-display text-[1.0625rem] font-semibold">Review Club</span>
+    <div className="material-chrome pt-[env(safe-area-inset-top)]">
+      <PageContainer className="flex h-[3.25rem] items-center gap-2 text-foreground">
+        <BrandMark />
+        <span className="font-display text-[1.0625rem] font-semibold tracking-[-0.015em]">Review Club</span>
       </PageContainer>
     </div>
     <PageContainer className="space-y-6 py-4">

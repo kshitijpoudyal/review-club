@@ -60,7 +60,7 @@ const isNegative = (value: string | number) => String(value).trim().startsWith('
 
 const StatCardSkeleton = () => (
   <Card className="flex items-center gap-3 p-3">
-    <Skeleton className="h-9 w-9 rounded-xl" />
+    <Skeleton className="hidden sm:block h-9 w-9 rounded-[0.625rem]" />
     <div className="flex-1 space-y-2">
       <Skeleton className="h-3 w-2/3" />
       <Skeleton className="h-5 w-3/4" />
@@ -74,11 +74,12 @@ const StatCard = ({ value, label, className, icon }: StatItem) => {
   const Icon = icon ?? (delta ? (negative ? TrendingDown : TrendingUp) : ICON_BY_LABEL[label] ?? CircleDollarSign);
 
   return (
-    <motion.div variants={fadeUp} whileHover={{ y: -2 }}>
-      <Card className="flex h-full items-center gap-3 p-3 transition-shadow duration-200 hover:shadow-soft-lg">
+    <motion.div variants={fadeUp}>
+      <Card className="flex h-full items-center gap-3 px-3.5 py-3">
         <span
           className={cn(
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+            // Decorative; on phones the number needs the width more
+            'hidden sm:flex h-9 w-9 shrink-0 items-center justify-center rounded-[0.625rem]',
             delta
               ? negative
                 ? 'bg-destructive-container/60 text-destructive'
@@ -105,7 +106,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="page-gutter py-2">
+      <div className="page-gutter">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <StatCardSkeleton key={i} />
@@ -116,7 +117,7 @@ export const DashboardStats: React.FC<DashboardStatsProps> = ({
   }
 
   return (
-    <div className="page-gutter py-2">
+    <div className="page-gutter">
       <motion.div
         variants={staggerChildren}
         initial="hidden"

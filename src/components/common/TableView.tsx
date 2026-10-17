@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { STAGGER_LIMIT } from '@/lib/motion';
+import { STAGGER_LIMIT, springSoft } from '@/lib/motion';
 import { MobileItemCard, MobileCardSkeleton } from './MobileItemCard';
 import { colors } from '../../utils/colors';
 import { typography } from '../../utils/typography';
@@ -146,7 +146,7 @@ const TableLoadingView: React.FC<{ columns: TableColumn[]; loadingRows?: number 
         <div className="max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-hidden pb-1">
           <Table className="w-full table-fixed">
             {/* Table Header */}
-            <TableHeader className={`bg-muted/95 backdrop-blur border-b border-border sticky top-0 z-10`}>
+            <TableHeader className={`material-popover border-b border-border/80 sticky top-0 z-10`}>
               <UITableRow>
                 {columns.map((column) => (
                   <TableHead
@@ -166,7 +166,7 @@ const TableLoadingView: React.FC<{ columns: TableColumn[]; loadingRows?: number 
             </TableHeader>
 
             {/* Table Body */}
-            <TableBody className="divide-y divide-input/10">
+            <TableBody className="divide-y divide-border/70">
               {Array.from({ length: loadingRows }).map((_, index) => (
                 <TableRowSkeleton key={`row-skeleton-${index}`} columns={columns} />
               ))}
@@ -201,9 +201,9 @@ export const TableView: React.FC<TableViewProps> = ({
     const animated = !hasEntered.current && index < STAGGER_LIMIT;
     return {
       // `animate` stays constant so a re-render mid-entrance can't strand a row hidden
-      initial: animated ? { opacity: 0, y: 10 } : (false as const),
+      initial: animated ? { opacity: 0, y: 8 } : (false as const),
       animate: { opacity: 1, y: 0 },
-      transition: { duration: 0.32, delay: animated ? 0.04 * index : 0, ease: [0.22, 1, 0.36, 1] as const },
+      transition: { ...springSoft, delay: animated ? 0.03 * index : 0 },
     };
   };
 
@@ -281,7 +281,7 @@ export const TableView: React.FC<TableViewProps> = ({
           <div className="max-h-[calc(100vh-200px)] overflow-y-auto scrollbar-hidden pb-1">
             <Table className="w-full table-fixed">
               {/* Table Header */}
-              <TableHeader className={`bg-muted/95 backdrop-blur border-b border-border sticky top-0 z-10`}>
+              <TableHeader className={`material-popover border-b border-border/80 sticky top-0 z-10`}>
                 <UITableRow>
                   {columns.map((column) => (
                     <TableHead
@@ -314,11 +314,11 @@ export const TableView: React.FC<TableViewProps> = ({
               </TableHeader>
 
               {/* Table Body */}
-              <TableBody className="divide-y divide-input/10">
+              <TableBody className="divide-y divide-border/70">
                 {sortedRows.map((row, rowIndex) => (
                   <MotionTableRow
                     key={row.id}
-                    className={cn('group', row.onClick && 'cursor-pointer', row.className)}
+                    className={cn('group', row.onClick && 'cursor-pointer active:bg-foreground/[0.05]', row.className)}
                     onClick={rowClickHandler(row.onClick)}
                     {...entrance(rowIndex)}
                   >

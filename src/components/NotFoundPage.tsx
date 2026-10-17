@@ -12,7 +12,7 @@ const NotFoundPage: React.FC = () => {
           <Compass className="h-10 w-10" strokeWidth={1.5} />
         </span>
         <p className={`${typography.overline} mb-2`}>Error 404</p>
-        <h1 className="font-display text-4xl font-semibold text-foreground mb-3">Page not found</h1>
+        <h1 className="font-display text-4xl font-bold tracking-[-0.025em] text-foreground mb-3">Page not found</h1>
         <p className="text-on-surface-variant mb-8">
           The page might have been moved or deleted, or the address may be mistyped.
         </p>

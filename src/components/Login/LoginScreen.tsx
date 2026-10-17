@@ -11,6 +11,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { typography } from '../../utils/typography';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { AnimatePresence, motion } from 'motion/react';
+import { Check } from 'lucide-react';
+import { BrandMark } from '@/components/common/BrandMark';
+import { springSnappy, springSoft } from '@/lib/motion';
+import { cn } from '@/lib/utils';
+import { getBadgeClasses, type StatusType } from '../../utils/colors';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -39,56 +45,15 @@ function getAuthErrorMessage(error: { code?: string; message?: string }): string
   }
 }
 
-const StarSVG = ({ filled, size = 'sm' }: { filled: boolean; size?: 'xs' | 'sm' }) => (
-  <svg
-    className={`${size === 'xs' ? 'w-2.5 h-2.5' : 'w-3.5 h-3.5'} ${filled ? 'text-yellow-400' : 'text-white/20'}`}
-    fill="currentColor"
-    viewBox="0 0 20 20"
-  >
-    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-  </svg>
-);
-
-const STEPS = [
-  {
-    title: 'Add Products',
-    desc: 'Paste an Amazon ASIN or URL to start tracking',
-    icon: (
-      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Track Reviews',
-    desc: 'New reviews are captured and categorized daily',
-    icon: (
-      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-      </svg>
-    ),
-  },
-  {
-    title: 'Get Insights',
-    desc: 'Export reports and analyze sentiment trends',
-    icon: (
-      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-  },
-];
-
-const REVIEWS = [
-  { name: 'Sarah M.', rating: 5, text: 'Absolutely love this product!', time: '2h ago' },
-  { name: 'James K.', rating: 4, text: 'Great quality, fast shipping.', time: '5h ago' },
-  { name: 'Priya S.', rating: 5, text: 'Exceeded my expectations!', time: '1d ago' },
-];
-
-const RATING_BARS = [
-  { label: '5★', width: '68%', delay: '0.3s' },
-  { label: '4★', width: '18%', delay: '0.5s' },
-  { label: '3★', width: '8%',  delay: '0.7s' },
+// The real workflow every product moves through (see README "Status workflow").
+// The login panel walks a sample product through it.
+const WORKFLOW: { type: StatusType; label: string; hint: string }[] = [
+  { type: 'order-placed', label: 'Order Placed', hint: 'Log the order, or import it from the retailer page' },
+  { type: 'add-review', label: 'Add Review', hint: 'Delivered. Time to write the review' },
+  { type: 'review-pending', label: 'Review Pending', hint: 'Submitted and waiting to go live' },
+  { type: 'send-screenshot', label: 'Send Screenshot', hint: 'Live. Send proof to the seller' },
+  { type: 'refund-pending', label: 'Refund Pending', hint: 'Waiting for the payment to land' },
+  { type: 'complete', label: 'Complete', hint: 'Refund matched to its transaction' },
 ];
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
@@ -111,7 +76,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   }, [user, authLoading, onLoginSuccess]);
 
   useEffect(() => {
-    const id = setInterval(() => setActiveStep(s => (s + 1) % 3), 2500);
+    const id = setInterval(() => setActiveStep(s => (s + 1) % WORKFLOW.length), 2400);
     return () => clearInterval(id);
   }, []);
 
@@ -173,183 +138,145 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     <div className="min-h-screen flex flex-col lg:flex-row">
 
       {/* ─── LEFT PANEL (desktop only) ───────────────────────────── */}
-      <div className="hidden lg:flex lg:w-[55%] gradient-bg relative overflow-hidden flex-col justify-center px-12 py-16 text-white">
-        {/* decorative blobs */}
-        <div className="pointer-events-none absolute -top-24 -left-24 w-96 h-96 rounded-full bg-white/5 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -right-16 w-[28rem] h-[28rem] rounded-full bg-white/5 blur-3xl" />
-        <div className="pointer-events-none absolute top-1/2 left-1/3 w-56 h-56 rounded-full bg-brand/15 blur-2xl" />
+      <div className="hidden lg:flex lg:w-[52%] gradient-bg relative overflow-hidden flex-col justify-center px-14 py-16 text-white">
+        {/* One soft light source, top-left; no motion behind content */}
+        <div className="pointer-events-none absolute -top-40 -left-40 h-[36rem] w-[36rem] rounded-full bg-white/[0.06] blur-3xl" />
 
         <div className="relative z-10 max-w-md">
-          {/* Brand mark */}
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
-              <StarSVG filled size="sm" />
-            </div>
-            <span className={`${typography.overline} text-white/55`}>
-              Review Club
-            </span>
+          <div className="mb-12 flex items-center gap-2.5">
+            <BrandMark className="h-8 w-8 rounded-[0.5625rem] bg-none bg-white/15 shadow-none" />
+            <span className="text-[1.0625rem] font-semibold tracking-[-0.015em]">Review Club</span>
           </div>
 
-          {/* Headline */}
-          <h2 className={`${typography.pageTitle} mb-3`}>
-            Track every review.<br />Never miss feedback.
+          <h2 className="font-display text-large-title font-bold text-white">
+            Every order,<br />from purchase to refund.
           </h2>
-          <p className={`${typography.body} text-white/55 mb-8`}>
-            Monitor Amazon product reviews in real-time and turn customer feedback into actionable insights.
+          <p className="mt-3 text-body text-white/70">
+            Track what you ordered, where each review stands, and what has been paid back.
           </p>
 
-          {/* Floating product card */}
-          <div
-            className="bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl p-5 mb-4"
-            style={{ animation: 'float 4s ease-in-out infinite' }}
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {/* Sample product moving through the workflow */}
+          <div className="mt-10 rounded-2xl bg-card p-4 text-card-foreground shadow-navy-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted">
+                <svg className="h-5 w-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white text-sm font-semibold">Sony WH-1000XM5</p>
-                <p className="text-white/45 text-xs mt-0.5">B09XS7JWHH · Headphones</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-white text-sm font-bold">$348</p>
-                <p className="text-[#86f4f1] text-xs font-semibold mt-0.5">+12 new</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 mb-3">
-              <div className="flex gap-0.5">
-                {[1, 2, 3, 4, 5].map(i => <StarSVG key={i} filled={i <= 4} size="sm" />)}
-              </div>
-              <span className="text-white text-xs font-semibold">4.3</span>
-              <span className="text-white/35 text-xs">(1,247 reviews)</span>
-            </div>
-
-            <div className="space-y-1.5">
-              {RATING_BARS.map(({ label, width, delay }) => (
-                <div key={label} className="flex items-center gap-2">
-                  <span className={`${typography.caption} text-white/40 w-5`}>{label}</span>
-                  <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-yellow-400/70 rounded-full"
-                      style={{ width, transformOrigin: 'left', animation: `barGrow 1.2s ease-out ${delay} both` }}
-                    />
-                  </div>
-                  <span className={`${typography.caption} text-white/35 w-6 text-right`}>{width}</span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-body font-medium">Sony WH-1000XM5 Headphones</p>
+                <div className="mt-1.5 h-[1.375rem]">
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.span
+                      key={WORKFLOW[activeStep].type}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={springSnappy}
+                      className={cn(getBadgeClasses(WORKFLOW[activeStep].type), 'inline-flex')}
+                    >
+                      {WORKFLOW[activeStep].label}
+                    </motion.span>
+                  </AnimatePresence>
                 </div>
-              ))}
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border/70 pt-3 tabular-nums">
+              <div>
+                <p className="text-caption text-muted-foreground">Paid</p>
+                <p className="text-body font-medium text-destructive">$348.00</p>
+              </div>
+              <div>
+                <p className="text-caption text-muted-foreground">Received</p>
+                <p className={cn('text-body font-medium transition-colors duration-300', activeStep === WORKFLOW.length - 1 ? 'text-brand' : 'text-foreground')}>
+                  {activeStep === WORKFLOW.length - 1 ? '$348.00' : '$0.00'}
+                </p>
+              </div>
+              <div>
+                <p className="text-caption text-muted-foreground">Delta</p>
+                <p className={cn('text-body font-semibold transition-colors duration-300', activeStep === WORKFLOW.length - 1 ? 'text-muted-foreground' : 'text-destructive')}>
+                  {activeStep === WORKFLOW.length - 1 ? '$0.00' : '-$348.00'}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Review feed */}
-          <div className="space-y-2 mb-8">
-            {REVIEWS.map((r, i) => (
-              <div
-                key={i}
-                className="bg-white/10 border border-white/10 rounded-xl p-3 flex items-start gap-3"
-                style={{ animation: `slideInFromRight 0.5s ease-out ${0.5 + i * 0.15}s both` }}
-              >
-                <div className={`w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 ${typography.captionStrong}`}>
-                  {r.name[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-white text-xs font-semibold">{r.name}</span>
-                    <div className="flex gap-0.5">
-                      {Array.from({ length: r.rating }).map((_, j) => <StarSVG key={j} filled size="xs" />)}
-                    </div>
-                    <span className={`${typography.caption} text-white/30 ml-auto flex-shrink-0`}>{r.time}</span>
-                  </div>
-                  <p className="text-white/55 text-xs truncate">{r.text}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Step cycle */}
-          <div className="space-y-2">
-            {STEPS.map((step, i) => (
-              <div
-                key={i}
-                className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-500 ${
-                  activeStep === i ? 'bg-white/[0.12]' : 'opacity-50'
-                }`}
-                style={{ animation: `fadeInUp 0.5s ease-out ${1.0 + i * 0.12}s both` }}
-              >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-500 ${
-                  activeStep === i ? 'bg-white/25' : 'bg-white/10'
-                }`}>
-                  {step.icon}
-                </div>
-                <div className="flex-1">
-                  <p className="text-white text-sm font-semibold">{step.title}</p>
-                  <p className="text-white/50 text-xs leading-relaxed">{step.desc}</p>
-                </div>
-                <div
-                  className="w-2 h-2 rounded-full flex-shrink-0 transition-all duration-500"
-                  style={{
-                    backgroundColor: activeStep === i ? '#86f4f1' : 'transparent',
-                    animation: activeStep === i ? 'pulseDot 1.5s ease-in-out infinite' : 'none',
-                  }}
-                />
-              </div>
-            ))}
-          </div>
+          {/* The steps themselves; the current one is lit */}
+          <ol className="mt-6 space-y-0.5" aria-label="How a product moves through Review Club">
+            {WORKFLOW.map((step, i) => {
+              const done = i < activeStep;
+              const current = i === activeStep;
+              return (
+                <li key={step.type} className="relative flex items-center gap-3 rounded-xl px-3 py-2">
+                  {current && (
+                    <motion.span layoutId="login-step" transition={springSoft} className="absolute inset-0 rounded-xl bg-white/10" />
+                  )}
+                  <span
+                    className={cn(
+                      'relative flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-semibold transition-colors duration-300',
+                      done ? 'bg-white/80 text-header' : current ? 'bg-white text-header' : 'bg-white/10 text-white/60'
+                    )}
+                  >
+                    {done ? <Check className="h-3 w-3" strokeWidth={3} /> : i + 1}
+                  </span>
+                  <span className="relative min-w-0">
+                    <span className={cn('block text-label font-medium transition-colors duration-300', current ? 'text-white' : 'text-white/60')}>
+                      {step.label}
+                    </span>
+                    {current && <span className="block truncate text-caption text-white/60">{step.hint}</span>}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
         </div>
       </div>
 
       {/* ─── RIGHT PANEL ─────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-6 py-10 sm:px-10 bg-background">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen px-6 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-10 bg-background">
 
-        {/* Mobile gradient banner */}
-        <div className="lg:hidden w-full max-w-sm mb-8">
-          <div className="gradient-bg rounded-2xl p-5 text-white text-center">
-            <div className="flex items-center justify-center gap-2 mb-1.5">
-              <StarSVG filled size="sm" />
-              <span className={`${typography.overline} text-white/55`}>
-                Review Club
-              </span>
-            </div>
-            <h1 className={`${typography.modalTitle}`}>Review Club</h1>
-            <p className="text-white/55 text-xs mt-1">Track reviews. Stay ahead.</p>
-          </div>
+        {/* Phone: app icon and name, like a native sign-in screen */}
+        <div className="lg:hidden mb-8 flex flex-col items-center text-center">
+          <BrandMark className="h-14 w-14 rounded-[0.875rem] [&_svg]:h-7 [&_svg]:w-7" />
+          <h1 className="mt-4 font-display text-page-title font-bold">Review Club</h1>
+          <p className="mt-1 text-body text-muted-foreground">Every order, from purchase to refund.</p>
         </div>
 
         <div className="w-full max-w-sm">
           {/* Desktop heading */}
           <div className="hidden lg:block mb-8">
-            <h1 className={`${typography.pageTitle} text-primary`}>
+            <h1 className={typography.pageTitle}>
               {showForgotPassword ? 'Reset password' : isSignUp ? 'Create account' : 'Welcome back'}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1.5">
+            <p className="text-muted-foreground text-body mt-1.5">
               {showForgotPassword
                 ? 'We will email you a link to choose a new password'
                 : isSignUp
-                  ? 'Start tracking your Amazon products today'
+                  ? 'Start tracking your review orders today'
                   : 'Sign in to view your products and reviews'}
             </p>
           </div>
 
-          {/* Mobile heading */}
-          <div className="lg:hidden mb-6 text-center">
-            <h2 className={`${typography.modalTitle} text-primary`}>
-              {showForgotPassword ? 'Reset password' : isSignUp ? 'Create account' : 'Sign in'}
-            </h2>
-          </div>
+          {/* Mobile heading: only when it says something the icon block doesn't */}
+          {(showForgotPassword || isSignUp) && (
+            <div className="lg:hidden mb-6 text-center">
+              <h2 className={typography.modalTitle}>
+                {showForgotPassword ? 'Reset password' : 'Create account'}
+              </h2>
+            </div>
+          )}
 
           {showForgotPassword ? (
             <form onSubmit={handleForgotPassword} className="space-y-4">
               <div>
-                <label className={`${typography.label} mb-2`}>
-                  Email Address
+                <label className={`${typography.label} mb-1.5 block`}>
+                  Email
                 </label>
                 <Input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="h-12 rounded-2xl border-0 bg-surface-variant px-4 md:text-base focus-visible:ring-primary"
+                  className="h-12 rounded-xl px-4 md:text-base"
                   placeholder="you@example.com"
                   required
                   autoFocus
@@ -357,13 +284,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </div>
 
               {error && (
-                <div className="bg-destructive-container text-destructive px-4 py-3 rounded-2xl text-sm">
+                <div className="bg-destructive-container text-destructive px-4 py-3 rounded-xl text-label">
                   {error}
                 </div>
               )}
 
               {successMessage && (
-                <div className="bg-brand/10 text-brand px-4 py-3 rounded-2xl text-sm">
+                <div className="bg-brand/10 text-brand px-4 py-3 rounded-xl text-label">
                   {successMessage}
                 </div>
               )}
@@ -372,16 +299,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 size="lg"
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 text-base font-semibold"
+                className="w-full text-[1.0625rem] font-semibold"
               >
                 {loading ? 'Sending...' : 'Send reset link'}
               </Button>
 
-              <p className="text-center text-sm text-muted-foreground">
+              <p className="text-center text-body text-muted-foreground">
                 <button
                   type="button"
                   onClick={resetAuthView}
-                  className="text-brand hover:text-primary font-semibold transition-colors"
+                  className="text-brand font-semibold hover:underline active:opacity-60"
                 >
                   Back to sign in
                 </button>
@@ -392,21 +319,21 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               {/* Form */}
               <form onSubmit={handleEmailAuth} className="space-y-4">
                 <div>
-                  <label className={`${typography.label} mb-2`}>
-                    Email Address
+                  <label className={`${typography.label} mb-1.5 block`}>
+                    Email
                   </label>
                   <Input
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    className="h-12 rounded-2xl border-0 bg-surface-variant px-4 md:text-base focus-visible:ring-primary"
+                    className="h-12 rounded-xl px-4 md:text-base"
                     placeholder="you@example.com"
                     required
                   />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1.5">
                     <label className={`${typography.label}`}>
                       Password
                     </label>
@@ -418,7 +345,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                           setError('');
                           setSuccessMessage('');
                         }}
-                        className="text-xs text-brand hover:text-primary font-semibold transition-colors"
+                        className="text-label text-brand font-medium hover:underline active:opacity-60"
                       >
                         Forgot password?
                       </button>
@@ -428,7 +355,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                     type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="h-12 rounded-2xl border-0 bg-surface-variant px-4 md:text-base focus-visible:ring-primary"
+                    className="h-12 rounded-xl px-4 md:text-base"
                     placeholder="••••••••"
                     required
                     minLength={6}
@@ -436,7 +363,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 </div>
 
                 {error && (
-                  <div className="bg-destructive-container text-destructive px-4 py-3 rounded-2xl text-sm">
+                  <div className="bg-destructive-container text-destructive px-4 py-3 rounded-xl text-label">
                     {error}
                   </div>
                 )}
@@ -445,7 +372,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   size="lg"
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 text-base font-semibold"
+                  className="w-full text-[1.0625rem] font-semibold"
                 >
                   {loading ? 'Processing...' : isSignUp ? 'Create Account' : 'Sign In'}
                 </Button>
@@ -453,16 +380,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
               {/* Divider */}
               <div className="my-5 flex items-center gap-4">
-                <div className="flex-1 h-px bg-input/40" />
+                <div className="flex-1 h-px bg-border" />
                 <span className={`${typography.caption} text-muted-foreground`}>or</span>
-                <div className="flex-1 h-px bg-input/40" />
+                <div className="flex-1 h-px bg-border" />
               </div>
 
               {/* Google */}
               <button
                 onClick={handleGoogleAuth}
                 disabled={loading}
-                className="w-full px-4 py-3 bg-card text-foreground rounded-full hover:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary font-medium text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3 shadow-[0_2px_8px_rgba(2,36,72,0.08)] border border-input/40"
+                className="pressable w-full h-12 px-4 bg-card text-foreground rounded-full hover:bg-secondary/60 active:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring font-medium text-[1.0625rem] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 border border-input/50"
               >
                 <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -474,12 +401,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               </button>
 
               {/* Toggle sign-up / sign-in */}
-              <p className="mt-5 text-center text-sm text-muted-foreground">
+              <p className="mt-5 text-center text-body text-muted-foreground">
                 {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
                 <button
                   type="button"
                   onClick={() => { setIsSignUp(!isSignUp); setError(''); setSuccessMessage(''); }}
-                  className="text-brand hover:text-primary font-semibold transition-colors"
+                  className="text-brand font-semibold hover:underline active:opacity-60"
                 >
                   {isSignUp ? 'Sign in' : 'Create one'}
                 </button>
@@ -488,7 +415,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           )}
 
           {/* Footer */}
-          <div className="mt-10 pt-6 border-t border-input/30 text-center">
+          <div className="mt-10 text-center">
             <a
               href="https://www.kshitijstudio.com"
               target="_blank"

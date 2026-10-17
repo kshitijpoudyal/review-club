@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#022448" />
+    <meta name="theme-color" content="#f4f4f8" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Review Club" />
     <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <title>Review Club</title>
@@ -19,7 +19,7 @@
           var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
           if (dark) {
             document.documentElement.classList.add('dark');
-            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#131d2a');
+            document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0c0c0e');
           }
         } catch (e) {}
       })();

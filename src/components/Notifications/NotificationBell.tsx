@@ -27,12 +27,12 @@ export const NotificationBell: React.FC = () => {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        className="relative flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/10 transition-all text-white/70 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 data-[state=open]:bg-white/10 data-[state=open]:text-white"
+        className="pressable relative flex items-center justify-center w-9 h-9 rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground active:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-secondary data-[state=open]:text-foreground"
         aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
       >
         <BellIcon className="w-6 h-6" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-amber-400 text-[10px] font-semibold text-foreground flex items-center justify-center">
+          <span className="absolute top-0.5 right-0.5 min-w-[1.0625rem] h-[1.0625rem] px-1 rounded-full bg-destructive text-[10px] font-semibold text-white tabular-nums ring-2 ring-background flex items-center justify-center">
             {badgeLabel}
           </span>
         )}

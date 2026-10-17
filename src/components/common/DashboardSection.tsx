@@ -11,7 +11,7 @@ export const DashboardSection: React.FC<DashboardSectionProps> = ({
   title
 }) => {
   return (
-    <div className={`page-gutter bg-background`} style={{ marginTop: '0px' }}>
+    <div className="page-gutter">
       {title && (
         <h2 className={`${typography.sectionTitle} mb-0`}>{title}</h2>
       )}

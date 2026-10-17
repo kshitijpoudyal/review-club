@@ -10,7 +10,7 @@ export const DashboardContainer: React.FC<DashboardContainerProps> = ({
   className = '' 
 }) => {
   return (
-    <div className={`space-y-8 ${className}`}>
+    <div className={`space-y-4 pt-2 ${className}`}>
       {children}
     </div>
   );

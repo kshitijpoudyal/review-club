@@ -3,6 +3,10 @@ import tailwindcssAnimate from 'tailwindcss-animate'
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
+  // Touch devices get no sticky hover states
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -96,20 +100,25 @@ export default {
         'store-row-wayfair': 'rgb(123 24 159 / 0.12)',
         'store-row-other': 'rgb(0 106 104 / 0.10)',
       },
+      // System font first: SF Pro on Apple devices ships optical sizing and
+      // tracking tables; Segoe UI / Roboto elsewhere.
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-        display: ['"Fraunces Variable"', 'Georgia', 'ui-serif', 'serif'],
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', 'system-ui', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        display: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'system-ui', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
       },
+      // Size, leading and tracking move together: large type is tight,
+      // small type is open.
       fontSize: {
-        'page-title': ['1.5rem', { lineHeight: '2rem' }],
-        'modal-title': ['1.25rem', { lineHeight: '1.75rem' }],
-        'section-title': ['1rem', { lineHeight: '1.5rem' }],
-        body: ['0.875rem', { lineHeight: '1.3125rem' }],
-        label: ['0.8125rem', { lineHeight: '1.125rem' }],
-        caption: ['0.75rem', { lineHeight: '1rem' }],
-        'table-header': ['0.8125rem', { lineHeight: '1.125rem' }],
-        'stat-value': ['1.25rem', { lineHeight: '1.5rem' }],
-        'stat-label': ['0.75rem', { lineHeight: '1rem' }],
+        'large-title': ['2rem', { lineHeight: '2.375rem', letterSpacing: '-0.025em' }],
+        'page-title': ['1.75rem', { lineHeight: '2.125rem', letterSpacing: '-0.022em' }],
+        'modal-title': ['1.25rem', { lineHeight: '1.625rem', letterSpacing: '-0.017em' }],
+        'section-title': ['1.0625rem', { lineHeight: '1.375rem', letterSpacing: '-0.012em' }],
+        body: ['0.9375rem', { lineHeight: '1.375rem', letterSpacing: '-0.008em' }],
+        label: ['0.8125rem', { lineHeight: '1.125rem', letterSpacing: '-0.003em' }],
+        caption: ['0.75rem', { lineHeight: '1rem', letterSpacing: '0' }],
+        'table-header': ['0.75rem', { lineHeight: '1rem', letterSpacing: '0' }],
+        'stat-value': ['1.375rem', { lineHeight: '1.625rem', letterSpacing: '-0.022em' }],
+        'stat-label': ['0.75rem', { lineHeight: '1rem', letterSpacing: '0' }],
       },
       // Tint steps used by status badges and row highlights (bg-brand/12, bg-primary/8)
       opacity: {
@@ -123,13 +132,15 @@ export default {
         squircle: '1.25rem',
         'squircle-lg': '2rem',
       },
+      // On a grouped canvas cards separate by tone, so shadows stay faint;
+      // bigger floating surfaces get deeper ones.
       boxShadow: {
-        navy: '0 12px 32px rgb(var(--shadow-color) / 0.06)',
-        'navy-md': '0 12px 32px rgb(var(--shadow-color) / 0.10)',
-        'navy-lg': '0 24px 64px rgb(var(--shadow-color) / 0.12)',
-        card: '0 20px 40px rgb(var(--shadow-color) / 0.08)',
-        soft: '0 2px 12px rgb(var(--shadow-color) / 0.07)',
-        'soft-lg': '0 6px 20px rgb(var(--shadow-color) / 0.11)',
+        navy: '0 1px 2px rgb(var(--shadow-color) / 0.04), 0 4px 16px rgb(var(--shadow-color) / 0.05)',
+        'navy-md': '0 0 0 0.5px rgb(var(--shadow-color) / 0.06), 0 10px 32px rgb(var(--shadow-color) / 0.14)',
+        'navy-lg': '0 0 0 0.5px rgb(var(--shadow-color) / 0.06), 0 24px 64px rgb(var(--shadow-color) / 0.22)',
+        card: '0 1px 2px rgb(var(--shadow-color) / 0.04), 0 4px 16px rgb(var(--shadow-color) / 0.05)',
+        soft: '0 1px 2px rgb(var(--shadow-color) / 0.04)',
+        'soft-lg': '0 2px 4px rgb(var(--shadow-color) / 0.05), 0 8px 24px rgb(var(--shadow-color) / 0.08)',
       },
       animation: {
         shimmer: 'shimmer 2s infinite linear',
