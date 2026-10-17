@@ -17,7 +17,7 @@ interface TimeRangeToggleProps {
 
 export const TimeRangeToggle: React.FC<TimeRangeToggleProps> = ({ value, onChange }) => (
   <Tabs value={value} onValueChange={(v) => onChange(v as DashboardTimeRange)}>
-    <TabsList className="h-auto rounded-full bg-card p-0.5 shadow-[0_2px_8px_rgba(2,36,72,0.06)]">
+    <TabsList className="h-auto rounded-full bg-secondary/80 p-0.5">
       {OPTIONS.map((opt) => (
         <TabsTrigger
           key={opt.value}

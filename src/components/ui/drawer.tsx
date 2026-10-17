@@ -26,7 +26,7 @@ const DrawerOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DrawerPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-primary/30 backdrop-blur-sm", className)}
+    className={cn("fixed inset-0 z-50 bg-black/30 dark:bg-black/55", className)}
     {...props}
   />
 ))
@@ -41,12 +41,13 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-3xl bg-background shadow-navy-lg focus:outline-none",
+        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[1.25rem] bg-background shadow-navy-lg focus:outline-none",
         className
       )}
       {...props}
     >
-      <div className="mx-auto mt-3 h-1.5 w-12 flex-shrink-0 rounded-full bg-input" />
+      {/* Grabber: says "this sheet can be dragged down" */}
+      <div className="mx-auto mt-2 h-[5px] w-9 flex-shrink-0 rounded-full bg-input/80" />
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>

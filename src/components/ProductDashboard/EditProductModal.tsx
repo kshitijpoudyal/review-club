@@ -292,7 +292,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({
         {showMoreMenu && (
           <div
             role="menu"
-            className="absolute left-0 bottom-full mb-2 w-56 bg-background rounded-2xl shadow-[0_12px_32px_rgba(2,36,72,0.10)] z-50 py-2 border border-input/15"
+            className="absolute left-0 bottom-full mb-2 w-56 material-popover rounded-[0.875rem] shadow-navy-md z-50 py-1.5 border border-border/50"
           >
             <button
               type="button"

@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { MoreVertical } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { celebrate } from '@/lib/celebrate';
-import { springBouncy } from '@/lib/motion';
+import { springSnappy } from '@/lib/motion';
 
 interface ProductTableProps {
   products: Product[];
@@ -429,10 +429,10 @@ const ProductTable: React.FC<ProductTableProps> = ({
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
                 key={status.type}
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={springBouncy}
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={springSnappy}
                 className={getBadgeClasses(status.type)}
               >
                 {status.label}
@@ -524,10 +524,10 @@ const ProductTable: React.FC<ProductTableProps> = ({
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
                 key={status.type}
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={springBouncy}
+                exit={{ opacity: 0, scale: 0.92 }}
+                transition={springSnappy}
                 className={getBadgeClasses(status.type)}
               >
                 {status.label}

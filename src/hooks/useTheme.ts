@@ -5,7 +5,8 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 // Keep in sync with the inline script in index.html, which applies the theme
 // before first paint.
 const STORAGE_KEY = 'review-club-theme';
-const THEME_COLORS = { light: '#022448', dark: '#131d2a' };
+// Match the translucent header so the phone status bar blends into it
+const THEME_COLORS = { light: '#f4f4f8', dark: '#0c0c0e' };
 
 const listeners = new Set<() => void>();
 const systemQuery = () => window.matchMedia('(prefers-color-scheme: dark)');
@@ -51,6 +52,12 @@ export const useTheme = () => {
   );
 
   const setTheme = useCallback((next: ThemePreference) => {
+    // Ease the swap instead of an abrupt brightness jump (index.css .theme-transition)
+    const root = document.documentElement;
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      root.classList.add('theme-transition');
+      window.setTimeout(() => root.classList.remove('theme-transition'), 320);
+    }
     try {
       if (next === 'system') localStorage.removeItem(STORAGE_KEY);
       else localStorage.setItem(STORAGE_KEY, next);
