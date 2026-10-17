@@ -132,6 +132,9 @@
   }
 
   html {
+    /* Root colour too, so anything drawn behind the system bars matches the theme */
+    background-color: hsl(var(--background));
+    color-scheme: light;
     /* Never zoom text on rotate; respect the user's chosen size otherwise */
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
@@ -139,6 +142,9 @@
 
   body {
     @apply font-sans bg-background text-foreground;
+    /* viewport-fit=cover lets content reach under notches in landscape */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
     font-optical-sizing: auto;
     letter-spacing: -0.006em;
     text-rendering: optimizeLegibility;

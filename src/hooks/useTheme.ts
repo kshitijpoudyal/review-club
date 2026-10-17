@@ -30,6 +30,8 @@ const apply = () => {
   document
     .querySelector('meta[name="theme-color"]')
     ?.setAttribute('content', THEME_COLORS[resolved]);
+  // Android draws the gesture/navigation bar from the page's colour scheme
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute('content', resolved);
   listeners.forEach((listener) => listener());
 };
 
