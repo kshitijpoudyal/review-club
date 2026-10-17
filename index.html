@@ -24,7 +24,49 @@
         } catch (e) {}
       })();
     </script>
-    
+    <script>
+      // Recover from a stale page after a deploy. A cached index.html (browser or
+      // service worker) can point at a bundle the new deploy no longer has; the
+      // script then fails to load and the page stays blank. When an /assets/ file
+      // fails, drop the service worker and caches and reload once per session.
+      (function () {
+        var KEY = 'review-club-stale-reload';
+        function recover() {
+          try {
+            if (sessionStorage.getItem(KEY)) return;
+            sessionStorage.setItem(KEY, '1');
+          } catch (e) {
+            return; // No storage: can't guard against a reload loop, so don't reload
+          }
+          var jobs = [];
+          if ('serviceWorker' in navigator) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(regs.map(function (r) { return r.unregister(); }));
+            }));
+          }
+          if ('caches' in window) {
+            jobs.push(caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            }));
+          }
+          Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
+        }
+        window.addEventListener('error', function (event) {
+          var el = event.target;
+          var url = el && (el.src || el.href);
+          if (url && (el.tagName === 'SCRIPT' || el.tagName === 'LINK') && url.indexOf('/assets/') !== -1) recover();
+        }, true);
+        window.addEventListener('vite:preloadError', recover);
+        // Clear the guard once the app has actually started
+        window.addEventListener('load', function () {
+          setTimeout(function () {
+            try {
+              if (document.getElementById('root').childElementCount > 0) sessionStorage.removeItem(KEY);
+            } catch (e) {}
+          }, 3000);
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
