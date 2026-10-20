@@ -1133,6 +1133,10 @@ function decodeBasicHtmlEntities(text: string): string {
 // "quantity {n} item(s) {full product title}". The "Recently viewed items"
 // upsell block further down also uses walmartimages.com, but its images are
 // aria-hidden with no alt, so the alt-text shape is what keeps them out.
+function walmartSearchUrl(productName: string): string {
+    return `https://www.walmart.com/search?q=${encodeURIComponent(productName)}`;
+}
+
 function extractWalmartOrderItems(html: string): GmailOrderProduct[] {
     const items: GmailOrderProduct[] = [];
     const imgPattern = /<img\s+[^>]*>/gi;
@@ -1146,8 +1150,10 @@ function extractWalmartOrderItems(html: string): GmailOrderProduct[] {
         items.push({
             productName: altMatch[2],
             // Every link in the email goes through Walmart's encrypted
-            // w-mt.co click tracker, so there's no recoverable product URL.
-            productUrl: "",
+            // w-mt.co click tracker, and the thumbnail's /seo/ filename
+            // carries an image-asset UUID rather than the numeric item ID
+            // /ip/{id} needs — so the best we can do is a title search.
+            productUrl: walmartSearchUrl(altMatch[2]),
             imageUrl: src.replace(/&amp;/g, "&"),
             quantity: parseInt(altMatch[1], 10),
             // Walmart's confirmation shows only an all-in order total, no
@@ -1188,7 +1194,7 @@ function parseWalmartOrderEmail(text: string, html: string | undefined, received
         tax: null,
         deliveryEstimate: deliveryMatch?.[1] ?? null,
         productName: first?.productName ?? "",
-        productUrl: "",
+        productUrl: first?.productUrl ?? "",
         imageUrl: first?.imageUrl ?? "",
         ...(isMultiItem ? { products: items } : {}),
     };
