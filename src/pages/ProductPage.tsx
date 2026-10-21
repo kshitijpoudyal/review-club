@@ -15,7 +15,7 @@ import { useSortedProducts } from '../hooks/useSortedProducts';
 import { useMinimumLoading } from '../hooks/useMinimumLoading';
 import { useVendors } from '../hooks/useVendors';
 import { useTransactions } from '../hooks/useTransactions';
-import { StatusFilter, DeltaFilter, VendorFilter, Product } from '../types/Product';
+import { StatusFilter, DeltaFilter, VendorFilter, StoreFilter, Product } from '../types/Product';
 import NextActionsStrip from '../components/ProductDashboard/NextActionsStrip';
 import GettingStartedPanel from '../components/ProductDashboard/GettingStartedPanel';
 import { ParsedProductImport } from '../utils/productCSVParser';
@@ -85,7 +85,8 @@ const ProductPage: React.FC = () => {
       searchTerm: '',
       statusFilter: urlStatus,
       deltaFilter: '',
-      vendorFilter: ''
+      vendorFilter: '',
+      storeFilter: ''
     }
   });
 
@@ -94,6 +95,7 @@ const ProductPage: React.FC = () => {
   const statusFilter = getFilterValue('statusFilter') as StatusFilter;
   const deltaFilter = getFilterValue('deltaFilter') as DeltaFilter;
   const vendorFilter = getFilterValue('vendorFilter') as VendorFilter;
+  const storeFilter = getFilterValue('storeFilter') as StoreFilter;
 
   // Data source management with optimized hook
   const {
@@ -124,7 +126,7 @@ const ProductPage: React.FC = () => {
 
   // Product filtering and sorting
   const { applyFilters } = useProductFilters(data?.products || []);
-  const filteredProducts = useSortedProducts(applyFilters, searchTerm, statusFilter, deltaFilter, vendorFilter);
+  const filteredProducts = useSortedProducts(applyFilters, searchTerm, statusFilter, deltaFilter, vendorFilter, storeFilter);
 
   // Stats calculation
   const stats = useProductStats(filteredProducts);
@@ -206,6 +208,19 @@ const ProductPage: React.FC = () => {
           value: vendor.id,
           label: vendor.name
         }))
+      ]
+    },
+    {
+      type: 'select',
+      key: 'storeFilter',
+      value: storeFilter,
+      onChange: (value) => updateFilter('storeFilter', value),
+      options: [
+        { value: '', label: 'All Stores' },
+        { value: 'amazon', label: 'Amazon' },
+        { value: 'walmart', label: 'Walmart' },
+        { value: 'wayfair', label: 'Wayfair' },
+        { value: 'other', label: 'Other' }
       ]
     }
   ];

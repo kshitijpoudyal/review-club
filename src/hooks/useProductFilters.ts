@@ -1,13 +1,15 @@
 import { useCallback } from 'react';
-import { Product, StatusFilter, DeltaFilter, VendorFilter } from '../types/Product';
+import { Product, StatusFilter, DeltaFilter, VendorFilter, StoreFilter } from '../types/Product';
 import { getProductStatusType } from '../utils/productStatus';
+import { getStoreFromProduct } from '../utils/retailerUtils';
 
 export const useProductFilters = (products: Product[]) => {
   const applyFilters = useCallback((
     searchTerm: string,
     statusFilter: StatusFilter,
     deltaFilter: DeltaFilter,
-    vendorFilter?: VendorFilter
+    vendorFilter?: VendorFilter,
+    storeFilter?: StoreFilter
   ): Product[] => {
     return products.filter(product => {
       // Skip empty products
@@ -63,7 +65,10 @@ export const useProductFilters = (products: Product[]) => {
         matchesVendor = product.vendorId === vendorFilter;
       }
 
-      return matchesSearch && matchesStatus && matchesDelta && matchesVendor;
+      // Store filter
+      const matchesStore = !storeFilter || getStoreFromProduct(product) === storeFilter;
+
+      return matchesSearch && matchesStatus && matchesDelta && matchesVendor && matchesStore;
     });
   }, [products]);
 

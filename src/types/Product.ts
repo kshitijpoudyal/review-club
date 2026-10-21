@@ -79,3 +79,4 @@ export interface ProductData {
 export type StatusFilter = '' | 'order-placed' | 'add-review' | 'review-pending' | 'send-screenshot' |'refund-pending' | 'complete' | 'void';
 export type DeltaFilter = '' | 'positive' | 'negative' | 'zero';
 export type VendorFilter = '' | string; // Empty string for all vendors, or specific vendor ID
+export type StoreFilter = '' | Retailer | 'other';

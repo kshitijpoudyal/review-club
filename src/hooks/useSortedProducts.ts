@@ -1,15 +1,16 @@
 import { useMemo } from 'react';
-import { Product, StatusFilter, DeltaFilter, VendorFilter } from '../types/Product';
+import { Product, StatusFilter, DeltaFilter, VendorFilter, StoreFilter } from '../types/Product';
 
 export const useSortedProducts = (
-  applyFilters: (searchTerm: string, statusFilter: StatusFilter, deltaFilter: DeltaFilter, vendorFilter?: VendorFilter) => Product[],
+  applyFilters: (searchTerm: string, statusFilter: StatusFilter, deltaFilter: DeltaFilter, vendorFilter?: VendorFilter, storeFilter?: StoreFilter) => Product[],
   searchTerm: string,
   statusFilter: StatusFilter,
   deltaFilter: DeltaFilter,
-  vendorFilter?: VendorFilter
+  vendorFilter?: VendorFilter,
+  storeFilter?: StoreFilter
 ) => {
   return useMemo(() => {
-    const filtered = applyFilters(searchTerm, statusFilter, deltaFilter, vendorFilter);
+    const filtered = applyFilters(searchTerm, statusFilter, deltaFilter, vendorFilter, storeFilter);
     
     // Sort by order date (most recent first), then by item name
     return filtered.sort((a, b) => {
@@ -32,5 +33,5 @@ export const useSortedProducts = (
       
       return dateDiff;
     });
-  }, [applyFilters, searchTerm, statusFilter, deltaFilter, vendorFilter]);
+  }, [applyFilters, searchTerm, statusFilter, deltaFilter, vendorFilter, storeFilter]);
 };
