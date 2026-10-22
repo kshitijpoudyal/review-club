@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Product, StatusFilter, DeltaFilter, VendorFilter, StoreFilter } from '../types/Product';
 import { getProductStatusType } from '../utils/productStatus';
 import { getStoreFromProduct } from '../utils/retailerUtils';
+import { orderNumberMatches } from '../utils/orderNumberSearch';
 
 export const useProductFilters = (products: Product[]) => {
   const applyFilters = useCallback((
@@ -18,7 +19,7 @@ export const useProductFilters = (products: Product[]) => {
       // Search filter - search in product name and order number
       const matchesSearch = searchTerm === '' || 
         product.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (product.orderNumber && product.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+        orderNumberMatches(product.orderNumber, searchTerm);
 
       // Status filter
       let matchesStatus = true;

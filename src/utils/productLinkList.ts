@@ -1,5 +1,6 @@
 import { Product } from '../types/Product';
 import { isComplete, isRefundPending, isVoid } from './productStatus';
+import { orderNumberMatches } from './orderNumberSearch';
 
 export interface ProductLinkListOptions {
   searchTerm?: string;
@@ -16,11 +17,10 @@ export function isLinkedOrComplete(product: Product, linkedProductIds: string[])
 }
 
 function matchesSearch(product: Product, query: string): boolean {
-  return [
-    product.item?.toLowerCase(),
-    product.paid?.toString(),
-    product.orderNumber?.toLowerCase(),
-  ].some((field) => field?.includes(query));
+  return (
+    [product.item?.toLowerCase(), product.paid?.toString()].some((field) => field?.includes(query)) ||
+    orderNumberMatches(product.orderNumber, query)
+  );
 }
 
 function getOrderTime(product: Product): number | null {

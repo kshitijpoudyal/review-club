@@ -68,5 +68,7 @@ describe('getProductLinkList', () => {
     expect(ids(getProductLinkList(products, { searchTerm: ' lamp ' }))).toEqual(['a']);
     expect(ids(getProductLinkList(products, { searchTerm: '31.5' }))).toEqual(['a']);
     expect(ids(getProductLinkList(products, { searchTerm: '111-abc' }))).toEqual(['b']);
+    expect(ids(getProductLinkList(products, { searchTerm: '111abc' }))).toEqual(['b']);
+    expect(ids(getProductLinkList(products, { searchTerm: '111.abc' }))).toEqual(['b']);
   });
 });
