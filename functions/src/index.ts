@@ -13,6 +13,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Firestore, FieldValue } from "firebase-admin/firestore";
 import webpush from "web-push";
 import { OAuth2Client } from "google-auth-library";
+import { amazonOrderDetailsUrl, parseAmazonOrderSummary, resolveRelativeDeliveryEstimate } from "./amazonOrderSummary";
 
 // Initialize Firebase Admin
 initializeApp();
@@ -797,6 +798,9 @@ interface GmailOrderPayload {
     productUrl: string;
     imageUrl: string;
     products?: GmailOrderProduct[];
+    // Set when the email carries no product details (Amazon's late-2026
+    // template), so the user can open the order to finish the draft.
+    orderDetailsUrl?: string;
 }
 
 // Shape matches the frontend's Transaction (src/types/Transaction.ts) minus
@@ -900,7 +904,7 @@ function extractQuantityInWindow(htmlWindow: string): number | undefined {
 // Parses an Amazon order-confirmation email body into a draft order.
 // Returns null if it can't find at minimum an order number and item name,
 // since a draft missing both isn't worth surfacing.
-function parseAmazonOrderEmail(rawBodyText: string, html: string | undefined, receivedAt: Date): GmailOrderPayload | null {
+function parseAmazonOrderEmail(rawBodyText: string, html: string | undefined, receivedAt: Date, subject?: string): GmailOrderPayload | null {
     const bodyText = normalizeEmailText(rawBodyText);
 
     const orderNumberMatch = bodyText.match(/Order #\s*(\d{3}-\d{7}-\d{7})/);
@@ -923,6 +927,7 @@ function parseAmazonOrderEmail(rawBodyText: string, html: string | undefined, re
     }
 
     const fallbackProductName = quantityIndex >= 0 ? fallbackProductNameFromLines(quantityIndex) : "";
+    const summary = parseAmazonOrderSummary(subject, bodyText);
 
     if (!orderNumber && !fallbackProductName) return null;
 
@@ -930,7 +935,7 @@ function parseAmazonOrderEmail(rawBodyText: string, html: string | undefined, re
     const orderTotal = grandTotalMatch ? parseFloat(grandTotalMatch[1].replace(/,/g, "")) : null;
 
     const deliveryMatch = bodyText.match(/Arriving\s+([A-Za-z]+(?:,\s*[A-Za-z]{3,9}\s+\d{1,2})?)/);
-    const deliveryEstimate = deliveryMatch?.[1] ?? null;
+    const deliveryEstimate = resolveRelativeDeliveryEstimate(deliveryMatch?.[1] ?? null, receivedAt);
 
     const asinOccurrences = html ? findAsinOccurrences(html) : [];
 
@@ -985,7 +990,7 @@ function parseAmazonOrderEmail(rawBodyText: string, html: string | undefined, re
     }
 
     const quantityMentions = bodyText.match(/Quantity:\s*\d+/gi) ?? [];
-    const isMultiItem = quantityMentions.length > 1;
+    const isMultiItem = quantityMentions.length > 1 || (summary?.itemCount ?? 0) > 1;
     const tax = !isMultiItem && orderTotal !== null && itemPrice !== null
         ? Math.round((orderTotal - itemPrice) * 100) / 100
         : null;
@@ -1014,9 +1019,12 @@ function parseAmazonOrderEmail(rawBodyText: string, html: string | undefined, re
         orderTotal,
         tax,
         deliveryEstimate,
-        productName: fallbackProductName,
+        // The new template has no title, only a category ("Storage") — a
+        // placeholder the user replaces after opening the order.
+        productName: fallbackProductName || (summary ? `${summary.category} item${summary.itemCount > 1 ? "s" : ""}` : ""),
         productUrl,
         imageUrl,
+        ...(!productUrl && orderNumber ? { orderDetailsUrl: amazonOrderDetailsUrl(orderNumber) } : {}),
     };
 }
 
@@ -1330,8 +1338,8 @@ function parsePaypalTransactionEmail(
 }
 
 // Dispatches order-email parsing by retailer.
-function parseOrderEmail(retailer: Retailer, text: string, html: string | undefined, receivedAt: Date): GmailOrderPayload | null {
-    if (retailer === "amazon") return parseAmazonOrderEmail(text, html, receivedAt);
+function parseOrderEmail(retailer: Retailer, text: string, html: string | undefined, receivedAt: Date, subject?: string): GmailOrderPayload | null {
+    if (retailer === "amazon") return parseAmazonOrderEmail(text, html, receivedAt, subject);
     if (retailer === "wayfair") return parseWayfairOrderEmail(html, receivedAt);
     if (retailer === "walmart") return parseWalmartOrderEmail(text, html, receivedAt);
     return null;
@@ -1507,8 +1515,8 @@ async function runGmailReviewCheck(
                             .doc(`${accountDoc.id}_${messageId}`);
                         if ((await pendingRef.get()).exists) continue;
 
-                        const { text, html, receivedAt } = await fetchGmailMessage(accessToken, messageId);
-                        const draft = parseOrderEmail(retailer, text, html, receivedAt);
+                        const { text, html, receivedAt, subject } = await fetchGmailMessage(accessToken, messageId);
+                        const draft = parseOrderEmail(retailer, text, html, receivedAt, subject);
                         if (!draft) {
                             logger.warn(`Gmail order message ${messageId} (${retailer}) didn't parse into a usable draft`);
                             continue;

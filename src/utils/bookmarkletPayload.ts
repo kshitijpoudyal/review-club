@@ -17,6 +17,8 @@ export interface BookmarkletPayload {
   productUrl: string;
   imageUrl: string;
   products?: BookmarkletProduct[];
+  /** Gmail drafts only: set when the email had no product details to extract. */
+  orderDetailsUrl?: string;
 }
 
 export function parseBookmarkletMoney(value: unknown): number | null {

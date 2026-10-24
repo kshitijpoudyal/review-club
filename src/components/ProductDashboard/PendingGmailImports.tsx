@@ -97,6 +97,19 @@ export const PendingGmailImports: React.FC<PendingGmailImportsProps> = ({ onAdd 
                       {payload.orderNumber && <>Order {payload.orderNumber}</>}
                       {payload.orderTotal != null && <> · ${payload.orderTotal.toFixed(2)}</>}
                       {payload.deliveryEstimate && <> · Arriving {payload.deliveryEstimate}</>}
+                      {payload.orderDetailsUrl && (
+                        <>
+                          {' · '}
+                          <a
+                            href={payload.orderDetailsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-status-blue-fg hover:underline"
+                          >
+                            View order on Amazon
+                          </a>
+                        </>
+                      )}
                     </p>
                     <Button
                       variant="secondary"
