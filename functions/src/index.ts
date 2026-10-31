@@ -14,6 +14,7 @@ import { getFirestore, Firestore, FieldValue } from "firebase-admin/firestore";
 import webpush from "web-push";
 import { OAuth2Client } from "google-auth-library";
 import { amazonOrderDetailsUrl, parseAmazonOrderSummary, resolveRelativeDeliveryEstimate } from "./amazonOrderSummary";
+import { PAYPAL_PAYMENT_RECEIVED_SUBJECT, parsePaypalPaymentReceivedHeadline } from "./paypalPaymentReceived";
 
 // Initialize Firebase Admin
 initializeApp();
@@ -103,7 +104,11 @@ const ORDER_CONFIRMATION_PATTERNS: Partial<Record<Retailer, string>> = {
 // Subject: "{name} sent you $X.XX USD"). Use subject:"sent you" — not
 // subject:("sent you"), which Gmail's parser treats differently and often
 // returns zero hits.
-const PAYPAL_TRANSACTION_PATTERN = '{from:paypal.com service@paypal.com} subject:"sent you"';
+//
+// Also verified against RT000019 merchant-style mail (Subject: "Notification
+// of payment received"), which has the name and amount only in the body.
+const PAYPAL_TRANSACTION_PATTERN =
+    `{from:paypal.com service@paypal.com} {subject:"sent you" subject:"${PAYPAL_PAYMENT_RECEIVED_SUBJECT}"}`;
 
 // Checks every product for every user, and pushes a notification for any
 // item that needs attention: either it's past the user's return-reminder
@@ -1250,9 +1255,10 @@ interface PaypalParseAttempt {
     failureReason?: string;
 }
 
-// Parses a PayPal "{name} sent you $X USD" receive-money notification into a
-// Transaction draft. Returns null if the amount or transaction ID can't be
-// found, since a draft missing either isn't worth surfacing for review.
+// Parses a PayPal "{name} sent you $X USD" or "Notification of payment
+// received" receive-money notification into a Transaction draft. Returns null
+// if the amount or transaction ID can't be found, since a draft missing
+// either isn't worth surfacing for review.
 function parsePaypalTransactionEmail(
     subject: string,
     html: string | undefined,
@@ -1266,8 +1272,9 @@ function parsePaypalTransactionEmail(
         return { draft: null, failureReason: "empty subject and body" };
     }
 
+    const receivedHeadline = parsePaypalPaymentReceivedHeadline(corpus);
     const nameMatch = cleanSubject.match(/^(.+?)\s+sent you/i) ?? corpus.match(/^(.+?)\s+sent you/im);
-    const name = nameMatch ? nameMatch[1].trim() : "";
+    const name = nameMatch ? nameMatch[1].trim() : receivedHeadline?.name ?? "";
 
     const subjectAmountMatch = cleanSubject.match(/sent you\s+(?:[$€£]\s*)?([\d,]+\.\d{2})/i);
     const labeledAmountText =
@@ -1277,22 +1284,29 @@ function parsePaypalTransactionEmail(
     const corpusAmountMatch = corpus.match(/(?:Money received|Amount)\s+[$€£]?\s*([\d,]+\.\d{2})/i);
     const headlineAmountMatch = corpus.match(/sent you\s+[$€£]?\s*([\d,]+\.\d{2})/i);
 
-    if (!subjectAmountMatch && !labeledAmountMatch && !corpusAmountMatch && !headlineAmountMatch) {
+    if (!subjectAmountMatch && !labeledAmountMatch && !receivedHeadline && !corpusAmountMatch && !headlineAmountMatch) {
         return {
             draft: null,
             failureReason: `no amount (subject="${cleanSubject.slice(0, 120)}", corpusLen=${corpus.length}, htmlLen=${html?.length ?? 0})`,
         };
     }
 
-    const amount = parseFloat(
-        (subjectAmountMatch?.[1] ??
-            labeledAmountMatch?.[1] ??
-            corpusAmountMatch?.[1] ??
-            headlineAmountMatch?.[1]!).replace(/,/g, "")
-    );
-    const subjectCurrencyMatch = cleanSubject.match(/\b([A-Z]{3})\s*$/i);
+    const amountText = subjectAmountMatch?.[1] ?? labeledAmountMatch?.[1];
+    const fallbackAmountText = corpusAmountMatch?.[1] ?? headlineAmountMatch?.[1];
+    const amount = amountText
+        ? parseFloat(amountText.replace(/,/g, ""))
+        : receivedHeadline?.amount ?? parseFloat(fallbackAmountText!.replace(/,/g, ""));
+    // Only a "sent you $X USD" subject ends in a currency code — without this
+    // guard, "Notification of payment received" would yield currency "VED".
+    const subjectCurrencyMatch = cleanSubject.match(/sent you[\s\S]*\b([A-Z]{3})\s*$/i);
     const corpusCurrencyMatch = corpus.match(/(?:Money received|Amount)[\s\S]{0,40}?[\d,]+\.\d{2}\s*([A-Z]{3})/i);
-    const currency = (labeledAmountMatch?.[2] ?? subjectCurrencyMatch?.[1] ?? corpusCurrencyMatch?.[1] ?? "USD").toUpperCase();
+    const currency = (
+        labeledAmountMatch?.[2] ??
+        subjectCurrencyMatch?.[1] ??
+        receivedHeadline?.currency ??
+        corpusCurrencyMatch?.[1] ??
+        "USD"
+    ).toUpperCase();
 
     const feeText =
         (html ? extractLabeledHtmlField(html, "Fee") : null) ??
