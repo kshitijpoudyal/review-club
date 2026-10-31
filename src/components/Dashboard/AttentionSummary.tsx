@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { AttentionCounts } from '../../utils/dashboardMetrics';
 import { formatCurrency } from '../../utils/currency';
+import { getStatusDisplay } from '../../utils/productStatus';
 import { typography } from '../../utils/typography';
 import { ChartCard } from './ChartCard';
 
@@ -45,21 +46,21 @@ export const AttentionSummary: React.FC<AttentionSummaryProps> = ({ attention })
   }
   if (attention.refundPending > 0) {
     items.push({
-      label: 'Refund pending',
+      label: getStatusDisplay('refund-pending').label,
       detail: `${attention.refundPending} product${attention.refundPending !== 1 ? 's' : ''}`,
       to: '/products?status=refund-pending',
     });
   }
   if (attention.sendScreenshot > 0) {
     items.push({
-      label: 'Need screenshot',
+      label: getStatusDisplay('send-screenshot').label,
       detail: `${attention.sendScreenshot} product${attention.sendScreenshot !== 1 ? 's' : ''}`,
       to: '/products?status=send-screenshot',
     });
   }
   if (attention.addReview > 0) {
     items.push({
-      label: 'Needs review',
+      label: getStatusDisplay('add-review').label,
       detail: `${attention.addReview} product${attention.addReview !== 1 ? 's' : ''}`,
       to: '/products?status=add-review',
     });

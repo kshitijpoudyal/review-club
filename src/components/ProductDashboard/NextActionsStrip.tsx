@@ -2,7 +2,7 @@ import { typography } from '../../utils/typography';
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Product, StatusFilter } from '../../types/Product';
-import { getProductStatusType } from '../../utils/productStatus';
+import { getProductStatusType, getStatusDisplay } from '../../utils/productStatus';
 import { formatCurrency } from '../../utils/currency';
 import { AnimatePresence, motion } from 'motion/react';
 import { colors, statusSolid } from '../../utils/colors';
@@ -80,7 +80,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
   const items: AttentionItem[] = [
     {
       key: 'add-review',
-      label: 'Needs review',
+      label: getStatusDisplay('add-review').label,
       detail: `${counts.addReview} product${counts.addReview !== 1 ? 's' : ''}`,
       count: counts.addReview,
       onClick: () => toggleFilter('add-review'),
@@ -88,7 +88,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
     },
     {
       key: 'send-screenshot',
-      label: 'Need screenshot',
+      label: getStatusDisplay('send-screenshot').label,
       detail: `${counts.sendScreenshot} product${counts.sendScreenshot !== 1 ? 's' : ''}`,
       count: counts.sendScreenshot,
       onClick: () => toggleFilter('send-screenshot'),
@@ -96,7 +96,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
     },
     {
       key: 'order-placed',
-      label: 'Awaiting delivery',
+      label: getStatusDisplay('order-placed').label,
       detail: `${counts.orderPlaced} product${counts.orderPlaced !== 1 ? 's' : ''}`,
       count: counts.orderPlaced,
       onClick: () => toggleFilter('order-placed'),
@@ -104,7 +104,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
     },
     {
       key: 'review-pending',
-      label: 'Awaiting approval',
+      label: getStatusDisplay('review-pending').label,
       detail: `${counts.reviewPending} product${counts.reviewPending !== 1 ? 's' : ''}`,
       count: counts.reviewPending,
       onClick: () => toggleFilter('review-pending'),
@@ -112,7 +112,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
     },
     {
       key: 'refund-pending',
-      label: 'Waiting for refund',
+      label: getStatusDisplay('refund-pending').label,
       detail: `${counts.refundPending} product${counts.refundPending !== 1 ? 's' : ''}`,
       count: counts.refundPending,
       onClick: () => toggleFilter('refund-pending'),
@@ -139,7 +139,7 @@ export const NextActionsStrip: React.FC<NextActionsStripProps> = ({
   const collapsedSummary = items
     .map((item) => {
       if (item.key === 'transactions') return `${item.count} unlinked transactions`;
-      return `${item.count} ${item.label.toLowerCase()}`;
+      return `${item.count} ${item.label}`;
     })
     .join(' · ');
 
