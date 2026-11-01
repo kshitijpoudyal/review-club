@@ -19,7 +19,8 @@ describe('retailer bookmarklets', () => {
     expect(href).toContain('/products#import=');
     expect(href).toContain('__rtCopyJson');
     expect(href).toContain('__rtHandoff');
-    expect(href).toContain("window.open(url,'_blank'");
+    expect(href).toContain("window.open(url,'_blank')");
+    expect(href).not.toContain('noopener');
     expect(href).not.toContain('__rtShowOverlay');
   });
 

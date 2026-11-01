@@ -26,8 +26,12 @@ function __rtB64url(str){
 }
 function __rtRedirect(url){
   try{
-    var tab=window.open(url,'_blank','noopener,noreferrer');
-    if(!tab){window.location.href=url;}
+    /* No 'noopener' feature: with it, window.open always returns null, which
+       made the popup-blocked fallback also navigate this tab. Sever the
+       opener manually instead. */
+    var tab=window.open(url,'_blank');
+    if(tab){try{tab.opener=null;}catch(e){}}
+    else{window.location.href=url;}
   }catch(e){
     window.location.href=url;
   }
