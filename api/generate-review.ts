@@ -1,11 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
-import { getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import { verifyFirebaseIdToken } from './_lib/verifyFirebaseToken';
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const MAX_PRODUCT_NAME_LENGTH = 300;
-// Verifying ID tokens only needs the project ID (Google's public keys), no service account.
+// Verifying ID tokens only needs the project ID and Google's public certs, no service account.
 const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'productreview-52e51';
 
 interface GenerateReviewRequestBody {
@@ -47,13 +46,7 @@ async function verifyCaller(req: VercelRequest): Promise<string | null> {
   const header = req.headers.authorization;
   const token = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) return null;
-  try {
-    if (!getApps().length) initializeApp({ projectId: FIREBASE_PROJECT_ID });
-    const decoded = await getAuth().verifyIdToken(token);
-    return decoded.uid;
-  } catch {
-    return null;
-  }
+  return verifyFirebaseIdToken(token, FIREBASE_PROJECT_ID);
 }
 
 function sleep(ms: number): Promise<void> {
