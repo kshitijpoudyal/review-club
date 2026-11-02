@@ -1,26 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only access their own data for write operations
-    // But allow public read access for user pages
+    // Every user's data is private to that user. The old public user page
+    // (/:username) was removed, so nothing needs public reads any more; a
+    // future public page is published as an allow-listed snapshot through
+    // Kshitij Studio instead of opening these collections.
     match /users/{userId} {
-      // Allow public read access to user profiles (for user pages)
-      allow read: if true;
-      // Allow users to write only their own profile
-      allow write: if request.auth != null && request.auth.uid == userId;
-      
-      // Allow public read access to products (for user pages)
-      // Allow users to write only their own products
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
       match /products/{productId} {
-        allow read: if true;
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
-      
-      // Allow public read access to dashboard data (for user pages)
-      // Allow users to write only their own dashboard data
+
       match /dashboard/{document} {
-        allow read: if true;
-        allow write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
       
       // PayPal transactions - private data, only accessible by the user

@@ -1,3 +1,5 @@
+import { auth } from '../firebase/config';
+
 export interface GeneratedReview {
   title: string;
   review: string;
@@ -9,9 +11,13 @@ export function formatReviewForClipboard(generated: GeneratedReview): string {
 }
 
 export async function generateReview(productName: string): Promise<GeneratedReview> {
+  // The endpoint only serves signed-in users (it spends the Gemini key).
+  const idToken = await auth.currentUser?.getIdToken();
+  if (!idToken) throw new Error('Sign in to generate reviews.');
+
   const res = await fetch('/api/generate-review', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
     body: JSON.stringify({ productName }),
   });
 

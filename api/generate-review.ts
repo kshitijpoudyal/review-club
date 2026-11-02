@@ -1,8 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI, Type } from '@google/genai';
+import { getApps, initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const MAX_PRODUCT_NAME_LENGTH = 300;
+// Verifying ID tokens only needs the project ID (Google's public keys), no service account.
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'productreview-52e51';
 
 interface GenerateReviewRequestBody {
   productName?: unknown;
@@ -36,6 +40,20 @@ Requirements:
 - Review: 2-4 sentences, first-person, specific and natural-sounding, positive but not exaggerated, no mention of AI or being generated, no markdown, no emojis, no hashtags.
 
 Respond only with the structured JSON output matching the schema.`;
+}
+
+/** Returns the caller's uid if the request carries a valid Firebase ID token, else null. */
+async function verifyCaller(req: VercelRequest): Promise<string | null> {
+  const header = req.headers.authorization;
+  const token = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (!token) return null;
+  try {
+    if (!getApps().length) initializeApp({ projectId: FIREBASE_PROJECT_ID });
+    const decoded = await getAuth().verifyIdToken(token);
+    return decoded.uid;
+  } catch {
+    return null;
+  }
 }
 
 function sleep(ms: number): Promise<void> {
@@ -78,6 +96,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' } satisfies GenerateReviewError);
+  }
+
+  if (!(await verifyCaller(req))) {
+    return res.status(401).json({ error: 'Sign in to generate reviews.' } satisfies GenerateReviewError);
   }
 
   const body = req.body as GenerateReviewRequestBody;
