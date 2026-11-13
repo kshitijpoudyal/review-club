@@ -4,8 +4,7 @@ import {
   XMarkIcon,
   CheckIcon,
   ChevronDownIcon,
-  EyeIcon,
-  EyeSlashIcon,
+  FunnelIcon,
 } from '@heroicons/react/24/outline';
 import { Product, ProductLinkOptions } from '../types/Product';
 import { Transaction } from '../types/Transaction';
@@ -28,6 +27,12 @@ import { ProductFormCurrencyInput } from './ProductDashboard/ProductFormCurrency
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ProductLinkModalProps {
   products: Product[];
@@ -199,14 +204,6 @@ function parseSplitAmountInputs(
   }
   return parsed;
 }
-
-const visibilityPillActive =
-  'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-input/55 bg-card text-on-surface-variant ' +
-  `${typography.captionStrong} transition-colors hover:bg-background`;
-
-const visibilityPillInactive =
-  'inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-input/35 bg-secondary/60 text-muted-foreground ' +
-  `${typography.captionStrong} transition-colors hover:bg-secondary`;
 
 export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
   products,
@@ -425,35 +422,35 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
         <ProductThumbnail imageUrl={product.imageUrl} productName={product.item} size="sm" />
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center justify-between gap-2">
             <p
-              className={`${typography.bodyStrong} leading-snug line-clamp-2 min-w-0 ${
+              className={`${typography.bodyStrong} leading-snug truncate min-w-0 ${
                 isSelected ? 'text-primary' : 'text-foreground'
               }`}
+              title={product.item}
             >
               {product.item}
             </p>
-            <span className={`${getBadgeClasses(status.type)} shrink-0 scale-90 origin-top-right`}>
-              {status.label}
+            <span className={`${typography.caption} shrink-0 flex items-center gap-1.5`}>
+              {isAlreadyLinkedRow && <span className="text-brand font-medium">linked</span>}
+              {product.orderDate && <span>{formatOrderDate(product.orderDate)}</span>}
             </span>
           </div>
 
-          <div className={`${typography.caption} mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5`}>
-            {product.orderDate && <span>{formatOrderDate(product.orderDate)}</span>}
-            {isAlreadyLinkedRow && (
-              <span className="text-brand font-medium">linked</span>
-            )}
+          <div className={`${typography.caption} mt-0.5 flex items-center justify-between gap-2 tabular-nums`}>
+            <p className="truncate min-w-0 text-on-surface-variant">
+              {formatProductAmountLine(product)}
+              {' · Received '}
+              {product.received != null && product.received !== 0 ? (
+                <span className="text-brand">{formatCurrency(product.received)}</span>
+              ) : (
+                '—'
+              )}
+            </p>
+            <span className={`${getBadgeClasses(status.type)} shrink-0 scale-90 origin-right`}>
+              {status.label}
+            </span>
           </div>
-
-          <p className={`${typography.caption} tabular-nums mt-0.5 text-on-surface-variant`}>
-            {formatProductAmountLine(product)}
-            {' · Received '}
-            {product.received != null && product.received !== 0 ? (
-              <span className="text-brand">{formatCurrency(product.received)}</span>
-            ) : (
-              '—'
-            )}
-          </p>
         </div>
       </li>
     );
@@ -461,105 +458,106 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
 
   const header = (
     <div className="px-4 sm:px-6 pt-4 pb-3 border-b border-input/15 space-y-3">
-      <h3 className={typography.modalTitle}>
-        {isAlreadyLinked ? 'Edit linked products' : 'Link Products'}
-      </h3>
+      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap min-w-0">
+        <h3 className={`${typography.modalTitle} shrink-0`}>
+          {isAlreadyLinked ? 'Edit linked products' : 'Link Products'}
+        </h3>
 
-      {transaction && (
-        <div className="px-3 py-2.5 rounded-xl bg-secondary/50 border border-input/40 min-w-0 space-y-1">
-          <div className="flex items-center gap-3 min-w-0">
-            <p className={`${typography.bodyStrong} truncate min-w-0 flex-1`}>{transaction.name}</p>
-            <p className={`${typography.caption} shrink-0 text-muted-foreground`}>
-              {formatTransactionDate(transaction.date)}
-            </p>
-          </div>
-          <div className={`${typography.caption} flex flex-wrap items-center gap-x-3 gap-y-0.5 tabular-nums text-on-surface-variant`}>
+        {transaction && (
+          <div
+            className={`${typography.caption} ml-auto flex items-center gap-x-3 tabular-nums text-on-surface-variant whitespace-nowrap`}
+          >
             <span>
               Amount <span className={`${typography.bodyStrong} text-foreground`}>{formatCurrency(transaction.amount)}</span>
             </span>
             <span>
-              Net received{' '}
+              Net{' '}
               <span className={`${typography.bodyStrong} text-foreground`}>{formatCurrency(transaction.total)}</span>
             </span>
+            <span className="text-muted-foreground">{formatTransactionDate(transaction.date)}</span>
           </div>
-        </div>
-      )}
-
-      <div className="relative">
-        <MagnifyingGlassIcon
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground pointer-events-none"
-          aria-hidden="true"
-        />
-        <Input
-          ref={inputRef}
-          type="text"
-          role="searchbox"
-          aria-label="Search by name, amount, or order number"
-          placeholder="Search by name, amount, or order #..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              if (searchTerm) setSearchTerm('');
-              else inputRef.current?.blur();
-            }
-          }}
-          className="pl-10 pr-10"
-          autoComplete="off"
-        />
-        {searchTerm ? (
-          <button
-            type="button"
-            onClick={() => {
-              setSearchTerm('');
-              inputRef.current?.focus();
-            }}
-            aria-label="Clear search"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-on-surface-variant"
-          >
-            <XMarkIcon className="w-4 h-4" aria-hidden="true" />
-          </button>
-        ) : (
-          <kbd
-            className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 text-caption text-muted-foreground/50 pointer-events-none"
-            aria-hidden="true"
-          >
-            /
-          </kbd>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {linkedCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setHideLinked((v) => !v)}
-            className={hideLinked ? visibilityPillInactive : visibilityPillActive}
-            aria-pressed={!hideLinked}
-          >
-            {hideLinked ? (
-              <EyeSlashIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-            ) : (
-              <EyeIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-            )}
-            {hideLinked ? 'Show completed item' : 'Hide completed & linked'}
-          </button>
-        )}
-        {voidCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setHideVoid((v) => !v)}
-            className={hideVoid ? visibilityPillInactive : visibilityPillActive}
-            aria-pressed={!hideVoid}
-          >
-            {hideVoid ? (
-              <EyeSlashIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-            ) : (
-              <EyeIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
-            )}
-            {hideVoid ? 'Show void product' : 'Hide void'}
-          </button>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 min-w-0">
+          <MagnifyingGlassIcon
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground pointer-events-none"
+            aria-hidden="true"
+          />
+          <Input
+            ref={inputRef}
+            type="text"
+            role="searchbox"
+            aria-label="Search by name, amount, or order number"
+            placeholder="Search by name, amount, or order #..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                if (searchTerm) setSearchTerm('');
+                else inputRef.current?.blur();
+              }
+            }}
+            className="pl-10 pr-10"
+            autoComplete="off"
+          />
+          {searchTerm ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                inputRef.current?.focus();
+              }}
+              aria-label="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-on-surface-variant"
+            >
+              <XMarkIcon className="w-4 h-4" aria-hidden="true" />
+            </button>
+          ) : (
+            <kbd
+              className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 text-caption text-muted-foreground/50 pointer-events-none"
+              aria-hidden="true"
+            >
+              /
+            </kbd>
+          )}
+        </div>
+
+        {(linkedCount > 0 || voidCount > 0) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Filter products"
+              className={`relative inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-lg border transition-colors ${
+                !hideLinked || !hideVoid
+                  ? 'border-primary/40 bg-primary/8 text-primary'
+                  : 'border-input bg-card text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              <FunnelIcon className="w-[18px] h-[18px]" aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {linkedCount > 0 && (
+                <DropdownMenuCheckboxItem
+                  checked={!hideLinked}
+                  onCheckedChange={(checked) => setHideLinked(!checked)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  Show completed & linked
+                </DropdownMenuCheckboxItem>
+              )}
+              {voidCount > 0 && (
+                <DropdownMenuCheckboxItem
+                  checked={!hideVoid}
+                  onCheckedChange={(checked) => setHideVoid(!checked)}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  Show void
+                </DropdownMenuCheckboxItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 

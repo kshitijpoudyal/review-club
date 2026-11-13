@@ -52,6 +52,8 @@ interface ToolbarProps {
   onClearFilters?: () => void;
   showClearButton?: boolean;
   loading?: boolean;
+  /** Hide select filters behind the filter button on every screen size. */
+  collapseFilters?: boolean;
 }
 
 // Sits flush under the header (3.25rem + its 1px hairline). The fade below is
@@ -92,11 +94,12 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
   onClearFilters,
   showClearButton = true,
   loading = false,
+  collapseFilters = false,
 }, ref) => {
   const searchFilter = filters.find((f) => f.type === 'search');
   const selectFilters = filters.filter((f) => f.type === 'select');
   const hasActiveFilters = filters.some((f) => f.value && f.value !== '');
-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -252,6 +255,25 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
       </Button>
     ) : null;
 
+  const renderFilterToggle = () =>
+    selectFilters.length > 0 ? (
+      <button
+        type="button"
+        onClick={() => setShowFilters((v) => !v)}
+        className={`pressable flex items-center justify-center ${CONTROL_HEIGHT} w-11 ${CONTROL_RADIUS} border flex-shrink-0 ${
+          showFilters || hasActiveFilters
+            ? 'bg-primary/8 text-primary border-primary/25'
+            : 'bg-card text-on-surface-variant border-input/50'
+        }`}
+        aria-label="Toggle filters"
+        aria-expanded={showFilters}
+      >
+        <AdjustmentsHorizontalIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+      </button>
+    ) : null;
+
+  const filtersAlwaysVisible = !collapseFilters && selectFilters.length <= 2;
+
   const ToolbarShimmer = () => (
     <div ref={ref} className={STICKY_BAR}>
       <div className="page-gutter py-2">
@@ -285,25 +307,11 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
             <div className="flex-1 min-w-0">
               {searchFilter && renderSearch(searchFilter)}
             </div>
-            {selectFilters.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowMobileFilters((v) => !v)}
-                className={`pressable flex items-center justify-center ${CONTROL_HEIGHT} w-11 ${CONTROL_RADIUS} border flex-shrink-0 ${
-                  showMobileFilters || hasActiveFilters
-                    ? 'bg-primary/8 text-primary border-primary/25'
-                    : 'bg-card text-on-surface-variant border-input/50'
-                }`}
-                aria-label="Toggle filters"
-                aria-expanded={showMobileFilters}
-              >
-                <AdjustmentsHorizontalIcon className="h-[18px] w-[18px]" aria-hidden="true" />
-              </button>
-            )}
+            {renderFilterToggle()}
           </div>
 
           {/* Two filters per row; the clear button and actions span the width */}
-          {(showMobileFilters || selectFilters.length <= 2) && selectFilters.length > 0 && (
+          {(showFilters || filtersAlwaysVisible) && selectFilters.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
               {selectFilters.map((filter) => renderSelect(filter, true))}
               {renderClearFilters()}
@@ -311,7 +319,7 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
             </div>
           )}
 
-          {!showMobileFilters && selectFilters.length > 2 && (
+          {!showFilters && !filtersAlwaysVisible && (
             <div className="flex items-center justify-between gap-2">
               {renderClearFilters()}
               {renderActions()}
@@ -322,10 +330,13 @@ const Toolbar = React.forwardRef<HTMLDivElement, ToolbarProps>(({
         {/* Desktop */}
         <div className="hidden lg:flex lg:items-center lg:gap-3 w-full">
           {searchFilter && renderSearch(searchFilter)}
+          {collapseFilters && renderFilterToggle()}
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {selectFilters.map((filter) => renderSelect(filter))}
-          </div>
+          {(!collapseFilters || showFilters) && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {selectFilters.map((filter) => renderSelect(filter))}
+            </div>
+          )}
 
           <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
             {renderClearFilters()}

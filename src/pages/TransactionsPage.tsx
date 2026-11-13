@@ -25,6 +25,10 @@ import Toolbar from '../components/common/Toolbar';
 import { getStatsColor } from '../utils/colors';
 import { ProductLinkOptions } from '../types/Product';
 import { Transaction } from '../types/Transaction';
+import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
+import { Plus } from 'lucide-react';
+import { springSoft } from '@/lib/motion';
 
 function transactionMatchesAmountSearch(search: string, transaction: Transaction): boolean {
   const trimmed = search.trim();
@@ -284,7 +288,8 @@ export const TransactionsPage: React.FC = () => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
       ),
-      disabled: displayLoading
+      disabled: displayLoading,
+      mobileHidden: true
     }
   ];
 
@@ -310,6 +315,7 @@ export const TransactionsPage: React.FC = () => {
         onClearFilters={clearAllFilters}
         loading={displayLoading}
         showClearButton={true}
+        collapseFilters
       />
 
       {/* Transactions Table */}
@@ -341,6 +347,23 @@ export const TransactionsPage: React.FC = () => {
         onClose={() => setEditingTransaction(null)}
         isLoading={displayLoading}
       />
+
+      {/* Mobile FAB — floating Add Transaction button */}
+      {/* Portalled so the page-transition transform doesn't re-anchor this fixed button */}
+      {!displayLoading && createPortal(
+        <motion.button
+          onClick={handleShowAddForm}
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          whileTap={{ scale: 0.92 }}
+          transition={springSoft}
+          className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-40 md:hidden flex items-center justify-center w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-[0_4px_12px_rgb(var(--shadow-color)/0.18),0_12px_32px_rgb(var(--shadow-color)/0.22)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label="Add transaction"
+        >
+          <Plus className="w-7 h-7" />
+        </motion.button>,
+        document.body
+      )}
     </DashboardLayout>
     </PullToRefresh>
   );
