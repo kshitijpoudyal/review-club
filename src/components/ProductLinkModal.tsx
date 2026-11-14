@@ -73,9 +73,9 @@ function formatTransactionDate(dateStr: string): string {
   return dateStr;
 }
 
-/** "Paid $X", plus "Expected $Y" when deductions make it differ from paid. */
+/** "Paid $X" when known, plus "Expected $Y" when deductions make it differ from paid. */
 function formatPaidAndExpected(product: Product, expected: number | null): string[] {
-  const parts = [`Paid ${product.paid != null ? formatCurrency(product.paid) : '—'}`];
+  const parts = product.paid != null ? [`Paid ${formatCurrency(product.paid)}`] : [];
   if (expected != null && product.paid != null && Math.abs(expected - product.paid) >= 0.01) {
     parts.push(`Expected ${formatCurrency(expected)}`);
   }
@@ -339,6 +339,7 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
 
   const selectedProducts = products.filter((p) => p.id && tempSelectedIds.includes(p.id));
   const totalSelectedPaid = selectedProducts.reduce((sum, p) => sum + (p.paid ?? 0), 0);
+  const hasSelectedPaid = selectedProducts.some((p) => p.paid != null);
   const netReceived = transaction?.total ?? 0;
   const selectionDifference = Math.abs(totalSelectedPaid - netReceived);
   const parsedSplitAmounts = splitEnabled
@@ -385,6 +386,8 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
     const isSelected = tempSelectedIds.includes(id);
     const isAlreadyLinkedRow = linkedProductIds.includes(id);
     const status = getProductStatus(product);
+    const amountLine = formatProductAmountLine(product);
+    const hasReceived = product.received != null && product.received !== 0;
 
     return (
       <li
@@ -422,12 +425,13 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
 
           <div className={`${typography.caption} mt-0.5 flex items-center justify-between gap-2 tabular-nums`}>
             <p className="truncate min-w-0 text-on-surface-variant">
-              {formatProductAmountLine(product)}
-              {' · Received '}
-              {product.received != null && product.received !== 0 ? (
-                <span className="text-brand">{formatCurrency(product.received)}</span>
-              ) : (
-                '—'
+              {amountLine}
+              {hasReceived && (
+                <>
+                  {amountLine && ' · '}
+                  {'Received '}
+                  <span className="text-brand">{formatCurrency(product.received!)}</span>
+                </>
               )}
             </p>
             <span className={`${getBadgeClasses(status.type)} shrink-0 scale-90 origin-right`}>
@@ -643,8 +647,9 @@ export const ProductLinkModal: React.FC<ProductLinkModalProps> = ({
             </button>
           </div>
           <p className={`${typography.caption} tabular-nums text-on-surface-variant`}>
-            Selected paid {formatCurrency(totalSelectedPaid)} · Net received{' '}
-            {formatCurrency(netReceived)} · Difference {formatCurrency(selectionDifference)}
+            {hasSelectedPaid
+              ? `Selected paid ${formatCurrency(totalSelectedPaid)} · Net received ${formatCurrency(netReceived)} · Difference ${formatCurrency(selectionDifference)}`
+              : `Net received ${formatCurrency(netReceived)}`}
           </p>
         </div>
       )}
